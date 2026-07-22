@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SideQuest — Color Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;700&family=Petrona:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --canvas: #faf7f2; --surface: #fefcfa; --border: #e6dfd5; --text: #1e242b; --text-muted: #505963;
+  }
+  [data-theme="dark"] {
+    --canvas: #1e242b; --surface: #222931; --border: #374351; --text: #e3e8ef; --text-muted: #9199a3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--canvas); color: var(--text);
+    font-family: 'Karla', sans-serif; padding: 2.5rem 1.5rem 5rem; transition: background .15s, color .15s;
+  }
+  h1, h2 { font-family: 'Petrona', serif; font-weight: 600; margin: 0; }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+  header p { margin: .35rem 0 0; color: var(--text-muted); font-size: .9rem; }
+  h1 { font-size: 1.7rem; }
+  button.toggle {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    border-radius: 999px; padding: .5rem 1rem; font-family: inherit; font-size: .85rem; cursor: pointer;
+  }
+  h2 { font-size: 1.1rem; margin: 2.5rem 0 .9rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .9rem; }
+  .swatch {
+    border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface);
+    cursor: pointer; position: relative; text-align: left; font-family: inherit; padding: 0; width: 100%;
+  }
+  .fill { display: block; height: 64px; }
+  .info { display: block; padding: .65rem .8rem .75rem; }
+  .name { display: block; }
+  .role { display: block; }
+  .name { font-size: .85rem; font-weight: 700; }
+  .role { font-size: .72rem; color: var(--text-muted); margin-top: .15rem; line-height: 1.35; }
+  .hexrow { display: flex; align-items: center; justify-content: space-between; margin-top: .5rem; }
+  code { font-family: ui-monospace, monospace; font-size: .82rem; }
+  .copied {
+    position: absolute; top: .5rem; right: .6rem; background: var(--text); color: var(--canvas);
+    font-size: .68rem; padding: .15rem .5rem; border-radius: 999px; opacity: 0; transition: opacity .15s; pointer-events: none;
+  }
+  .copied.show { opacity: 1; }
+  footer { margin-top: 3rem; color: var(--text-muted); font-size: .8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>SideQuest color reference</h1>
+      <p>Click any swatch to copy its hex code. Jersey Marketplace brand palette — Granite / Sage / Sand / Slate / Ochre.</p>
+    </div>
+    <button class="toggle" onclick="toggleTheme()">Toggle light/dark preview</button>
+  </header>
+
+  <h2>Primary — Jersey Granite</h2>
+  <div class="grid" id="primary"></div>
+
+  <h2>Secondary / Trust — Parish Sage</h2>
+  <div class="grid" id="sage"></div>
+
+  <h2>Status colors</h2>
+  <div class="grid" id="status"></div>
+
+  <h2>Neutrals — Island Sand (light) / Coastal Slate (dark)</h2>
+  <div class="grid" id="neutrals"></div>
+
+  <footer>Hex values are exact conversions from the app's OKLCH tokens in <code>src/index.css</code>. "Primary" (Jersey Granite) is intentionally identical in both themes — see .impeccable.md for why.</footer>
+</div>
+
+<script>
+const DATA = {
+  primary: [
+    { name: '--color-primary', role: 'Primary buttons, key branding, active states. Same hex in both themes.', light: '#C85A32', dark: '#C85A32' },
+    { name: '--color-primary-hover', role: 'Hover/active state for primary buttons.', light: '#B04B25', dark: '#D96A43' },
+    { name: '--color-primary-soft', role: 'Soft tint background (e.g. "Assigned" status badge).', light: '#FFDFD2', dark: '#4C271A' },
+    { name: '--color-on-primary', role: 'Text/icon color drawn on top of a solid primary fill.', light: '#FFFAF9', dark: '#FFFAF9' },
+  ],
+  sage: [
+    { name: '--color-sage', role: 'Verified badges, secondary actions, trust cues.', light: '#4A7C59', dark: '#66A278' },
+    { name: '--color-sage-soft', role: 'Soft tint background for sage badges.', light: '#D7EFDD', dark: '#183521' },
+  ],
+  status: [
+    { name: '--color-success', role: '"Open" job status. Reuses Parish Sage.', light: '#4A7C59', dark: '#66A278' },
+    { name: '--color-success-soft', role: 'Soft background for the success badge.', light: '#D7EFDD', dark: '#183521' },
+    { name: '--color-warning', role: 'Star ratings, "In progress" status — Warm Ochre.', light: '#E09F3F', dark: '#E9AA4F' },
+    { name: '--color-warning-soft', role: 'Soft background for the warning badge.', light: '#FFE3C0', dark: '#402804' },
+    { name: '--color-danger', role: '"Cancelled" status. Not from the brand doc — independent warm red.', light: '#BA3630', dark: '#ED756A' },
+    { name: '--color-danger-soft', role: 'Soft background for the danger badge.', light: '#FFDCD6', dark: '#47211D' },
+  ],
+  neutrals: [
+    { name: '--color-canvas', role: 'Page background — Island Sand / Coastal Slate.', light: '#FAF7F2', dark: '#1E242B' },
+    { name: '--color-surface', role: 'Card/panel background.', light: '#FEFCFA', dark: '#222931' },
+    { name: '--color-surface-2', role: 'Inputs, hover states, subtle alt background.', light: '#F2ECE1', dark: '#28303A' },
+    { name: '--color-border', role: 'Hairline borders.', light: '#E6DFD5', dark: '#374351' },
+    { name: '--color-text', role: 'Primary body/heading text.', light: '#1E242B', dark: '#E3E8EF' },
+    { name: '--color-text-muted', role: 'Secondary/muted text.', light: '#505963', dark: '#9199A3' },
+  ],
+};
+
+function render() {
+  for (const [key, items] of Object.entries(DATA)) {
+    const el = document.getElementById(key);
+    el.innerHTML = items.map((t) => swatch(t)).join('');
+  }
+}
+
+function swatch(t) {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const hex = isDark ? t.dark : t.light;
+  return `
+    <button class="swatch" onclick="copyHex(this, '${hex}')">
+      <span class="copied">Copied!</span>
+      <span class="fill" style="background:${hex}"></span>
+      <span class="info">
+        <span class="name">${t.name}</span>
+        <span class="role">${t.role}</span>
+        <span class="hexrow"><code>${hex}</code></span>
+      </span>
+    </button>`;
+}
+
+function copyHex(btn, hex) {
+  const write = () => {
+    const badge = btn.querySelector('.copied');
+    badge.classList.add('show');
+    setTimeout(() => badge.classList.remove('show'), 1000);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(hex).then(write).catch(() => fallbackCopy(hex, write));
+  } else {
+    fallbackCopy(hex, write);
+  }
+}
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  done();
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
