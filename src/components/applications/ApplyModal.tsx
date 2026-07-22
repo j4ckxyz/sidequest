@@ -3,6 +3,8 @@ import { Modal } from '../ui/Modal';
 import { Textarea } from '../ui/Textarea';
 import { Input, Label } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { Kbd } from '../ui/Kbd';
+import { metaKeyLabel } from '../../lib/utils';
 import { useCreateApplication } from '../../hooks/useApplications';
 import { useToast } from '../../context/ToastProvider';
 import type { Job } from '../../types/models';
@@ -51,9 +53,16 @@ export function ApplyModal({ job, questerId, open, onClose }: { job: Job; queste
             <Input id="apply-amount" type="number" min={0} step={0.5} value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
         )}
-        <Button type="submit" isLoading={isPending} className="self-end">
-          Send application
-        </Button>
+        <div className="flex items-center justify-end gap-3">
+          <span className="hidden items-center gap-1.5 text-xs text-text-muted sm:flex">
+            <Kbd>{metaKeyLabel()}</Kbd>
+            <Kbd>↵</Kbd>
+            to send
+          </span>
+          <Button type="submit" isLoading={isPending}>
+            Send application
+          </Button>
+        </div>
       </form>
     </Modal>
   );

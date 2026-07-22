@@ -38,6 +38,8 @@ export interface Profile {
 
 export interface Job {
   id: string;
+  /** Short, non-guessable, roughly time-sortable public id used in shareable URLs (/job/:username/:public_id). */
+  public_id: string;
   poster_id: string;
   title: string;
   description: string;

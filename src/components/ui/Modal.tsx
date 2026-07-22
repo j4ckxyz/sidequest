@@ -28,6 +28,17 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
       onClick={(e) => {
         if (e.target === ref.current) onClose();
       }}
+      onKeyDown={(e) => {
+        // ⌘/Ctrl+Enter submits the sheet from anywhere inside it (e.g. while
+        // typing in a textarea, where a bare Enter should stay a newline).
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+          const form = ref.current?.querySelector('form');
+          if (form) {
+            e.preventDefault();
+            form.requestSubmit();
+          }
+        }
+      }}
       className={cx(
         'm-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-border bg-surface p-0 text-text backdrop:bg-text/40 backdrop:backdrop-blur-[2px]',
         className,

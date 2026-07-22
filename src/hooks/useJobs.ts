@@ -24,6 +24,14 @@ export function useJob(id: string | undefined) {
   });
 }
 
+export function useJobByPublicId(publicId: string | undefined) {
+  return useQuery({
+    queryKey: ['jobs', 'detail', 'pub', publicId],
+    queryFn: () => db.jobs.getByPublicId(publicId as string),
+    enabled: !!publicId,
+  });
+}
+
 export function useJobsByPoster(posterId: string | undefined) {
   return useQuery({
     queryKey: ['jobs', 'byPoster', posterId],
@@ -43,7 +51,7 @@ export function useJobsAssignedTo(questerId: string | undefined) {
 export function useCreateJob() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: Omit<Job, 'id' | 'created_at' | 'status' | 'assigned_quester_id'>) => db.jobs.create(input),
+    mutationFn: (input: Omit<Job, 'id' | 'public_id' | 'created_at' | 'status' | 'assigned_quester_id'>) => db.jobs.create(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
   });
 }

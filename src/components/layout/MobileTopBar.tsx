@@ -8,7 +8,7 @@ import { ThemeToggle } from './ThemeToggle';
  */
 export function MobileTopBar() {
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-canvas/90 px-4 backdrop-blur sm:hidden">
+    <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-canvas/85 px-4 backdrop-blur-md sm:hidden">
       <Link to="/" className="flex items-center gap-1.5 font-display text-lg text-text">
         <Compass size={19} className="text-primary" strokeWidth={2.25} />
         SideQuest

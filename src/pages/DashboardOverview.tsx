@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CheckCircle2, ClipboardList, MessageSquare, Star, Users, ArrowRight } from 'lucide-react';
+import { CheckCircle2, ClipboardList, MessageSquare, Send, Star, Users, Wrench, ArrowRight, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import { useJobsByPoster, useJobsAssignedTo } from '../hooks/useJobs';
 import { useApplicationsByQuester, useApplicationsByJob } from '../hooks/useApplications';
@@ -7,7 +7,7 @@ import { useUnreadCount } from '../hooks/useMessages';
 import { useJob } from '../hooks/useJobs';
 import { useHasReviewed } from '../hooks/useReviews';
 import { JOB_STATUS_LABEL, APPLICATION_STATUS_LABEL, type JobStatus } from '../lib/constants';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { cx, formatCurrency, formatDate } from '../lib/utils';
 import { Badge } from '../components/ui/Badge';
 import { PageSpinner } from '../components/ui/Spinner';
 import type { Job, Application } from '../types/models';
@@ -44,19 +44,17 @@ export function DashboardOverview() {
 
   return (
     <div className="flex flex-col gap-8">
-      <StatStrip
-        stats={[
-          { label: 'Open jobs', value: openPosted.length },
-          { label: 'Active applications', value: activeApps.length },
-          { label: 'Jobs to do', value: upcoming.length },
-          { label: 'Unread messages', value: unread },
-        ]}
-      />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile icon={ClipboardList} tone="primary" value={openPosted.length} label="Open jobs" to="/dashboard/posted" />
+        <StatTile icon={Send} tone="sage" value={activeApps.length} label="Active applications" to="/dashboard/applications" />
+        <StatTile icon={Wrench} tone="warning" value={upcoming.length} label="Jobs to do" />
+        <StatTile icon={MessageSquare} tone="primary" value={unread} label="Unread messages" to={unread > 0 ? '/messages' : undefined} />
+      </div>
 
       <section>
         <SectionHeading>Needs your attention</SectionHeading>
         {hasAttention ? (
-          <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
             {unread > 0 && (
               <AttentionRow
                 icon={<MessageSquare size={16} className="text-primary" />}
@@ -79,9 +77,14 @@ export function DashboardOverview() {
             ))}
           </div>
         ) : (
-          <div className="flex items-center gap-2.5 rounded-lg border border-dashed border-border px-4 py-5 text-sm text-text-muted">
-            <CheckCircle2 size={18} className="text-success" />
-            You’re all caught up — nothing needs action right now.
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-sage-soft/40 px-4 py-4 text-sm text-text">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sage-soft text-sage">
+              <CheckCircle2 size={18} />
+            </span>
+            <span>
+              <span className="font-medium">You’re all caught up.</span>{' '}
+              <span className="text-text-muted">Nothing needs action right now — nice one.</span>
+            </span>
           </div>
         )}
       </section>
@@ -94,7 +97,7 @@ export function DashboardOverview() {
           </Link>
         </div>
         {activePosted.length > 0 ? (
-          <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
             {activePosted.map((j) => (
               <PostedJobRow key={j.id} job={j} />
             ))}
@@ -112,7 +115,7 @@ export function DashboardOverview() {
           </Link>
         </div>
         {activeApps.length > 0 ? (
-          <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
             {activeApps.map((a) => (
               <AppRow key={a.id} application={a} />
             ))}
@@ -125,7 +128,7 @@ export function DashboardOverview() {
       {completedUnique.length > 0 && (
         <section>
           <SectionHeading>Recently completed</SectionHeading>
-          <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
             {completedUnique.slice(0, 5).map((j) => (
               <CompletedRow key={j.id} job={j} userId={user!.id} />
             ))}
@@ -140,16 +143,43 @@ function SectionHeading({ children, className = '' }: { children: React.ReactNod
   return <h2 className={`mb-2.5 text-base font-semibold text-text ${className}`}>{children}</h2>;
 }
 
-function StatStrip({ stats }: { stats: { label: string; value: number }[] }) {
-  return (
-    <div className="grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface sm:grid-cols-4 sm:divide-y-0">
-      {stats.map((s) => (
-        <div key={s.label} className="px-4 py-3">
-          <p className="text-2xl font-semibold text-text">{s.value}</p>
-          <p className="text-xs text-text-muted">{s.label}</p>
-        </div>
-      ))}
-    </div>
+const TILE_TONE = {
+  primary: 'bg-primary-soft text-primary',
+  sage: 'bg-sage-soft text-sage',
+  warning: 'bg-warning-soft text-warning',
+} as const;
+
+function StatTile({
+  icon: Icon,
+  tone,
+  value,
+  label,
+  to,
+}: {
+  icon: LucideIcon;
+  tone: keyof typeof TILE_TONE;
+  value: number;
+  label: string;
+  to?: string;
+}) {
+  const inner = (
+    <>
+      <span className={cx('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', TILE_TONE[tone])}>
+        <Icon size={18} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-2xl font-semibold leading-none text-text">{value}</p>
+        <p className="mt-1.5 truncate text-xs text-text-muted">{label}</p>
+      </div>
+    </>
+  );
+  const base = 'flex items-center gap-3 rounded-xl border border-border bg-surface p-4';
+  return to ? (
+    <Link to={to} className={cx(base, 'transition-colors hover:border-primary/40')}>
+      {inner}
+    </Link>
+  ) : (
+    <div className={base}>{inner}</div>
   );
 }
 

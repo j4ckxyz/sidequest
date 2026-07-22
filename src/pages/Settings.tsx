@@ -21,6 +21,7 @@ import { cx } from '../lib/utils';
 import { CategoryIcon } from '../components/jobs/CategoryIcon';
 import { Button } from '../components/ui/Button';
 import { FieldError, Input, Label } from '../components/ui/Input';
+import { Kbd } from '../components/ui/Kbd';
 import { Textarea } from '../components/ui/Textarea';
 import type { JobPreferenceMessage, JobPreferenceState } from '../types/models';
 
@@ -198,8 +199,7 @@ function PreferenceAgent({
     }
   }, [isSending, messages.length]);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
+  async function send() {
     const message = draft.trim();
     if (!message || isSending) return;
     try {
@@ -208,6 +208,11 @@ function PreferenceAgent({
     } catch {
       // The mutation error is rendered below; keep the draft so it can be retried.
     }
+  }
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void send();
   }
 
   return (
@@ -284,6 +289,13 @@ function PreferenceAgent({
                 maxLength={1000}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  // Enter sends; Shift+Enter (or ⌘/Ctrl+Enter) drops a newline.
+                  if (event.key === 'Enter' && !event.shiftKey && !event.metaKey && !event.ctrlKey) {
+                    event.preventDefault();
+                    void send();
+                  }
+                }}
                 placeholder="e.g. I can drive anywhere on the island, prefer mornings, and love jobs involving animals…"
                 className="min-h-24 resize-none"
               />
@@ -292,6 +304,12 @@ function PreferenceAgent({
               </Button>
             </div>
             {sendError && <p className="mt-2 text-sm text-danger">{sendError.message}</p>}
+            <p className="mt-2 hidden items-center gap-1.5 text-xs text-text-muted sm:flex">
+              <Kbd>Enter</Kbd> to send
+              <span className="text-text-muted/60">·</span>
+              <Kbd>⇧</Kbd>
+              <Kbd>Enter</Kbd> for a new line
+            </p>
             <p className="mt-2 text-xs leading-5 text-text-muted">
               Your brief is private. New recommendations usually settle within two minutes.
             </p>

@@ -1,8 +1,10 @@
-import { Link } from 'react-router-dom';
+import { flushSync } from 'react-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MapPin, CalendarDays, Lock, Repeat, Bot } from 'lucide-react';
 import type { Job, Profile } from '../../types/models';
 import { JOB_CATEGORIES, JOB_STATUS_LABEL, recurrenceLabel } from '../../lib/constants';
-import { formatCurrency, formatDate } from '../../lib/utils';
+import { formatCurrency, formatDate, jobPath, viewName } from '../../lib/utils';
+import { queryClient } from '../../lib/queryClient';
 import { useAuth } from '../../context/AuthProvider';
 import { Badge } from '../ui/Badge';
 import { Avatar } from '../ui/Avatar';
@@ -20,10 +22,36 @@ const STATUS_TONE = {
 export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) {
   const category = JOB_CATEGORIES.find((c) => c.slug === job.category);
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const vid = viewName(job.id);
+  const to = jobPath(job, poster);
+
+  // Morph the clicked card into the detail page. The JSX <BrowserRouter> doesn't
+  // wire up React Router's own viewTransition, so we drive it ourselves: seed the
+  // detail's query cache from the job we already hold (so it renders synchronously
+  // with its named elements present), then flushSync the navigation inside a
+  // View Transition. Modified clicks, reduced-motion, and no-VT browsers fall
+  // through to the plain <Link>.
+  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const startViewTransition = document.startViewTransition?.bind(document);
+    if (!startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.style.setProperty('view-transition-name', `card-${vid}`);
+    el.querySelector<HTMLElement>('[data-vt-title]')?.style.setProperty('view-transition-name', `title-${vid}`);
+    // Seed the by-public-id cache so JobDetail renders synchronously (named
+    // elements present) and the morph lands rather than flashing a spinner.
+    queryClient.setQueryData(['jobs', 'detail', 'pub', job.public_id], job);
+    startViewTransition(() => flushSync(() => navigate(to)));
+  }
 
   return (
     <Link
-      to={`/jobs/${job.id}`}
+      to={to}
+      onClick={handleClick}
       className="group flex flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-primary/40"
     >
       <div className="flex items-start justify-between gap-3">
@@ -33,7 +61,7 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
         <Badge tone={STATUS_TONE[job.status]}>{JOB_STATUS_LABEL[job.status]}</Badge>
       </div>
 
-      <h3 className="mt-3.5 text-lg leading-snug text-text group-hover:text-primary">{job.title}</h3>
+      <h3 data-vt-title className="mt-3.5 text-lg leading-snug text-text group-hover:text-primary">{job.title}</h3>
       <p className="mt-1.5 line-clamp-2 text-sm text-text-muted">{job.description}</p>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-text-muted">

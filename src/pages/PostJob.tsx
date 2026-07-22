@@ -3,6 +3,7 @@ import { JobForm, type JobFormSubmitValues } from '../components/jobs/JobForm';
 import { useCreateJob } from '../hooks/useJobs';
 import { useAuth } from '../context/AuthProvider';
 import { useToast } from '../context/ToastProvider';
+import { jobPath } from '../lib/utils';
 
 export function PostJob() {
   const { user } = useAuth();
@@ -19,7 +20,7 @@ export function PostJob() {
       {
         onSuccess: (job) => {
           showToast('Job posted — good luck!');
-          navigate(`/jobs/${job.id}`);
+          navigate(jobPath(job, user));
         },
         onError: (err) => showToast(err instanceof Error ? err.message : 'Could not post job.', 'error'),
       },

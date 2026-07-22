@@ -1,5 +1,34 @@
+import type { CSSProperties } from 'react';
+
 export function cx(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(' ');
+}
+
+/** The modifier-key glyph for this platform — ⌘ on Apple, Ctrl elsewhere. */
+export function metaKeyLabel(): string {
+  if (typeof navigator === 'undefined') return 'Ctrl';
+  return /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent) ? '⌘' : 'Ctrl';
+}
+
+/** Sanitise an id into a valid CSS custom-ident for view-transition-name. */
+export function viewName(id: string): string {
+  return id.replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
+/** Canonical, shareable URL for a job: /job/:username/:public_id. The username
+ *  segment is cosmetic (JobDetail resolves by public_id and canonicalises it),
+ *  so a missing username falls back to a neutral handle. */
+export function jobPath(
+  job: { public_id: string },
+  poster?: { username: string | null } | null,
+): string {
+  const handle = poster?.username?.trim() || 'user';
+  return `/job/${handle}/${job.public_id}`;
+}
+
+/** Inline style carrying a view-transition-name (typed loosely — not yet in CSSProperties). */
+export function vtStyle(name: string): CSSProperties {
+  return { viewTransitionName: name } as CSSProperties;
 }
 
 export function formatCurrency(amount: number | null): string {

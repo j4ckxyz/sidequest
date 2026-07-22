@@ -169,6 +169,10 @@ export const db = {
     },
     async get(id: string): Promise<Job | null> {
       const { data } = await client().from('jobs').select('*').eq('id', id).maybeSingle();
+      return data as Job | null;
+    },
+    async getByPublicId(publicId: string): Promise<Job | null> {
+      const { data } = await client().from('jobs').select('*').eq('public_id', publicId).maybeSingle();
       return (data as Job | null) ?? null;
     },
     async listByPoster(posterId: string): Promise<Job[]> {
@@ -194,7 +198,7 @@ export const db = {
       const jobs = [...((firstHireResult.data as Job[]) ?? []), ...((acceptedResult.data as Job[]) ?? [])];
       return [...new Map(jobs.map((job) => [job.id, job])).values()];
     },
-    async create(input: Omit<Job, 'id' | 'created_at' | 'status' | 'assigned_quester_id'>): Promise<Job> {
+    async create(input: Omit<Job, 'id' | 'public_id' | 'created_at' | 'status' | 'assigned_quester_id'>): Promise<Job> {
       const result = await client().from('jobs').insert(input).select().single();
       notify();
       return unwrap<Job>(result);

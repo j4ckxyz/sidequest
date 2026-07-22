@@ -40,6 +40,24 @@ function genId(): string {
   return crypto.randomUUID();
 }
 
+const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+function base62(n: number): string {
+  if (n <= 0) return '0';
+  let out = '';
+  while (n > 0) {
+    out = BASE62[n % 62] + out;
+    n = Math.floor(n / 62);
+  }
+  return out;
+}
+let publicIdSeq = 0;
+/** Mock stand-in for the Postgres snowflake→base62 generator: time-ordered + a
+ *  rolling sequence so ids are unique, short, and sort by age. */
+function genPublicId(): string {
+  const epoch = 1704067200000; // 2024-01-01
+  return base62((Date.now() - epoch) * 8192 + (publicIdSeq++ % 8192));
+}
+
 function delay<T>(value: T): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), LATENCY));
 }
@@ -331,8 +349,10 @@ function seed(): State {
       photos: [],
       created_at: daysFromNow(-9),
     },
-  ] as Omit<Job, 'is_recurring' | 'recurrence' | 'location_lat' | 'location_lng' | 'slots'>[]).map((j) => ({
+  ] as Omit<Job, 'is_recurring' | 'recurrence' | 'location_lat' | 'location_lng' | 'slots' | 'public_id'>[]).map((j) => ({
     ...j,
+    // Stable, readable public ids for the seed data (real jobs get a base62 snowflake).
+    public_id: j.id.replace(/^j-/, ''),
     slots: 1,
     is_recurring: false,
     recurrence: null,
@@ -473,6 +493,7 @@ function load(): State {
           job.id,
           {
             ...job,
+            public_id: job.public_id ?? job.id.replace(/^j-/, ''),
             slots: job.slots ?? 1,
             is_recurring: job.is_recurring ?? false,
             recurrence: job.recurrence ?? null,
@@ -634,6 +655,9 @@ export const db = {
     async get(id: string): Promise<Job | null> {
       return delay(state.jobs[id] ?? null);
     },
+    async getByPublicId(publicId: string): Promise<Job | null> {
+      return delay(Object.values(state.jobs).find((j) => j.public_id === publicId) ?? null);
+    },
     async listByPoster(posterId: string): Promise<Job[]> {
       return delay(
         Object.values(state.jobs)
@@ -649,9 +673,9 @@ export const db = {
       );
       return delay(Object.values(state.jobs).filter((job) => job.assigned_quester_id === questerId || acceptedJobIds.has(job.id)));
     },
-    async create(input: Omit<Job, 'id' | 'created_at' | 'status' | 'assigned_quester_id'>): Promise<Job> {
+    async create(input: Omit<Job, 'id' | 'public_id' | 'created_at' | 'status' | 'assigned_quester_id'>): Promise<Job> {
       const id = genId();
-      const job: Job = { ...input, id, status: 'open', assigned_quester_id: null, created_at: new Date().toISOString() };
+      const job: Job = { ...input, id, public_id: genPublicId(), status: 'open', assigned_quester_id: null, created_at: new Date().toISOString() };
       state.jobs[id] = job;
       const poster = state.profiles[input.poster_id];
       if (poster) state.profiles[input.poster_id] = { ...poster, jobs_posted_count: poster.jobs_posted_count + 1 };
@@ -1110,6 +1134,7 @@ export const db = {
           const jid = genId();
           state.jobs[jid] = {
             id: jid,
+            public_id: genPublicId(),
             poster_id: id,
             title: `${cat.label} help needed in ${parish}`,
             description: `Looking for a hand with some ${cat.label.toLowerCase()} around ${parish}.`,

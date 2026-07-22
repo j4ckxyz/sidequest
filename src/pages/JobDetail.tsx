@@ -1,14 +1,14 @@
-import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { MapPin, CalendarDays, Clock, BadgeCheck, Pencil, Ban, ArrowRight, Lock, Repeat, Users, Bot } from 'lucide-react';
-import { useJob, useCancelJob, useCompleteJob, useMarkJobInProgress } from '../hooks/useJobs';
+import { useJob, useJobByPublicId, useCancelJob, useCompleteJob, useMarkJobInProgress } from '../hooks/useJobs';
 import { useProfile } from '../hooks/useProfile';
 import { useAuth } from '../context/AuthProvider';
 import { useApplicationsByJob } from '../hooks/useApplications';
 import { useGetOrCreateConversation } from '../hooks/useMessages';
 import { useHasReviewed, useCreateReview } from '../hooks/useReviews';
 import { JOB_CATEGORIES, JOB_STATUS_LABEL, recurrenceLabel } from '../lib/constants';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { formatCurrency, formatDate, jobPath, viewName, vtStyle } from '../lib/utils';
 import { CategoryIcon } from '../components/jobs/CategoryIcon';
 import { JobMap } from '../components/jobs/JobMap';
 import { Badge } from '../components/ui/Badge';
@@ -25,13 +25,25 @@ import { useToast } from '../context/ToastProvider';
 const STATUS_TONE = { open: 'success', assigned: 'primary', in_progress: 'warning', completed: 'neutral', cancelled: 'danger' } as const;
 
 export function JobDetail() {
-  const { id } = useParams();
+  const { id, publicId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const { data: job, isLoading } = useJob(id);
+  // New canonical route resolves by public_id; legacy /jobs/:id resolves by uuid.
+  const byPublic = useJobByPublicId(publicId);
+  const byId = useJob(id);
+  const { data: job, isLoading } = publicId ? byPublic : byId;
   const { data: poster } = useProfile(job?.poster_id);
+
+  // Canonicalise the URL: send legacy uuid links (and stale usernames) to
+  // /job/:username/:public_id once we know the job + poster.
+  useEffect(() => {
+    if (!job || !poster) return;
+    const canonical = jobPath(job, poster);
+    if (location.pathname !== canonical) navigate(canonical, { replace: true });
+  }, [job, poster, location.pathname, navigate]);
   const { data: quester } = useProfile(job?.assigned_quester_id ?? undefined);
   const { data: applications } = useApplicationsByJob(job?.id);
 
@@ -63,6 +75,7 @@ export function JobDetail() {
   }
 
   const category = JOB_CATEGORIES.find((c) => c.slug === job.category);
+  const vid = viewName(job.id);
 
   async function messageCounterpart(counterpartId: string) {
     if (!user || !job) return;
@@ -74,7 +87,7 @@ export function JobDetail() {
 
   return (
     <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8 px-6 py-10 lg:grid-cols-[1fr_320px]">
-      <div>
+      <div style={vtStyle(`card-${vid}`)}>
         <div className="flex items-center gap-2">
           <Badge tone="neutral" icon={category && <CategoryIcon name={category.icon} size={13} />}>
             {category?.label}
@@ -87,7 +100,7 @@ export function JobDetail() {
           )}
         </div>
 
-        <h1 className="mt-4 text-3xl leading-tight text-text">{job.title}</h1>
+        <h1 style={vtStyle(`title-${vid}`)} className="mt-4 text-3xl leading-tight text-text">{job.title}</h1>
 
         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-text-muted">
           <span className="flex items-center gap-1.5">
@@ -141,7 +154,7 @@ export function JobDetail() {
             <Lock size={16} className="shrink-0" />
             <span>
               Location and the poster’s details are hidden.{' '}
-              <Link to="/login" state={{ from: `/jobs/${job.id}` }} className="font-medium text-primary hover:underline">
+              <Link to="/login" state={{ from: location.pathname }} className="font-medium text-primary hover:underline">
                 Sign in
               </Link>{' '}
               to see them.
@@ -202,7 +215,7 @@ export function JobDetail() {
 
           <div className="mt-5 flex flex-col gap-2">
             {!user && (
-              <Button onClick={() => navigate('/login', { state: { from: `/jobs/${job.id}` } })} className="w-full">
+              <Button onClick={() => navigate('/login', { state: { from: location.pathname } })} className="w-full">
                 Log in to apply
               </Button>
             )}

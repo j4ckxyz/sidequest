@@ -4,6 +4,7 @@ import { queryClient } from './lib/queryClient';
 import { AuthProvider } from './context/AuthProvider';
 import { ToastProvider } from './context/ToastProvider';
 import { AppShell } from './components/layout/AppShell';
+import { ScrollToTop } from './components/layout/ScrollToTop';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 
 import { Home } from './pages/Home';
@@ -33,6 +34,7 @@ function App() {
       <ToastProvider>
         <AuthProvider>
           <BrowserRouter>
+            <ScrollToTop />
             <AppShell>
               <Routes>
                 <Route path="/" element={<Home />} />
@@ -55,6 +57,9 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                {/* Canonical shareable URL; legacy /jobs/:id still resolves and
+                    redirects here once the job + poster load. */}
+                <Route path="/job/:username/:publicId" element={<JobDetail />} />
                 <Route path="/jobs/:id" element={<JobDetail />} />
                 <Route
                   path="/jobs/:id/edit"
