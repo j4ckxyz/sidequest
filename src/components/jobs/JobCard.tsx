@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { MapPin, CalendarDays } from 'lucide-react';
+import { MapPin, CalendarDays, Lock } from 'lucide-react';
 import type { Job, Profile } from '../../types/models';
 import { JOB_CATEGORIES, JOB_STATUS_LABEL } from '../../lib/constants';
 import { formatCurrency, formatDate } from '../../lib/utils';
+import { useAuth } from '../../context/AuthProvider';
 import { Badge } from '../ui/Badge';
 import { Avatar } from '../ui/Avatar';
 import { StarRating } from '../ui/StarRating';
@@ -18,6 +19,7 @@ const STATUS_TONE = {
 
 export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) {
   const category = JOB_CATEGORIES.find((c) => c.slug === job.category);
+  const { user } = useAuth();
 
   return (
     <Link
@@ -36,7 +38,15 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-text-muted">
         <span className="flex items-center gap-1">
-          <MapPin size={13} /> {job.parish}
+          {user ? (
+            <>
+              <MapPin size={13} /> {job.parish}
+            </>
+          ) : (
+            <>
+              <Lock size={12} /> Location hidden
+            </>
+          )}
         </span>
         <span className="flex items-center gap-1">
           <CalendarDays size={13} /> {job.is_flexible_date ? 'Flexible' : formatDate(job.date_needed)}
@@ -44,7 +54,7 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
       </div>
 
       <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-        {poster ? (
+        {user && poster ? (
           <div className="flex items-center gap-2">
             <Avatar name={poster.full_name} src={poster.avatar_url} size="sm" />
             <div className="leading-tight">
@@ -60,7 +70,9 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
             </div>
           </div>
         ) : (
-          <span />
+          <span className="flex items-center gap-1 text-xs text-text-muted">
+            <Lock size={12} /> Sign in to see who posted
+          </span>
         )}
         <p className="text-base text-text">
           {formatCurrency(job.budget_amount)}

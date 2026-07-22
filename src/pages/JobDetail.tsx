@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { MapPin, CalendarDays, Clock, BadgeCheck, Pencil, Ban, ArrowRight } from 'lucide-react';
+import { MapPin, CalendarDays, Clock, BadgeCheck, Pencil, Ban, ArrowRight, Lock } from 'lucide-react';
 import { useJob, useCancelJob, useCompleteJob, useMarkJobInProgress } from '../hooks/useJobs';
 import { useProfile } from '../hooks/useProfile';
 import { useAuth } from '../context/AuthProvider';
@@ -86,8 +86,16 @@ export function JobDetail() {
 
         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-text-muted">
           <span className="flex items-center gap-1.5">
-            <MapPin size={15} /> {job.parish}
-            {job.location_detail && ` · ${job.location_detail}`}
+            {user ? (
+              <>
+                <MapPin size={15} /> {job.parish}
+                {job.location_detail && ` · ${job.location_detail}`}
+              </>
+            ) : (
+              <>
+                <Lock size={14} /> Location shown after sign in
+              </>
+            )}
           </span>
           <span className="flex items-center gap-1.5">
             <CalendarDays size={15} /> {job.is_flexible_date ? 'Flexible date' : formatDate(job.date_needed, { day: 'numeric', month: 'long' })}
@@ -109,13 +117,26 @@ export function JobDetail() {
           </div>
         )}
 
-        <div className="mt-6">
-          <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-text-muted">
-            <MapPin size={15} /> {job.parish}
-            {job.location_detail && <span>· {job.location_detail}</span>}
-          </h2>
-          <JobMap parish={job.parish} />
-        </div>
+        {user ? (
+          <div className="mt-6">
+            <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-text-muted">
+              <MapPin size={15} /> {job.parish}
+              {job.location_detail && <span>· {job.location_detail}</span>}
+            </h2>
+            <JobMap parish={job.parish} />
+          </div>
+        ) : (
+          <div className="mt-6 flex items-center gap-2.5 rounded-lg border border-dashed border-border px-4 py-4 text-sm text-text-muted">
+            <Lock size={16} className="shrink-0" />
+            <span>
+              Location and the poster’s details are hidden.{' '}
+              <Link to="/login" state={{ from: `/jobs/${job.id}` }} className="font-medium text-primary hover:underline">
+                Sign in
+              </Link>{' '}
+              to see them.
+            </span>
+          </div>
+        )}
 
         {isPoster && job.status === 'open' && (
           <div className="mt-8 rounded-lg border border-border bg-surface-2/60 p-4 text-sm text-text-muted">
@@ -141,7 +162,7 @@ export function JobDetail() {
 
       <div className="flex flex-col gap-4">
         <Card className="p-5">
-          {poster && (
+          {user && poster && (
             <Link to={`/profile/${poster.id}`} className="flex items-center gap-3 hover:opacity-80">
               <Avatar name={poster.full_name} src={poster.avatar_url} size="lg" />
               <div>
