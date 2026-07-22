@@ -76,6 +76,16 @@ export const db = {
       const { data } = await client().from('profiles').select('*').eq('id', id).maybeSingle();
       return (data as Profile | null) ?? null;
     },
+    async getByUsername(username: string): Promise<Profile | null> {
+      const { data } = await client().from('profiles').select('*').ilike('username', username).maybeSingle();
+      return (data as Profile | null) ?? null;
+    },
+    async usernameAvailable(username: string, excludeId?: string): Promise<boolean> {
+      let query = client().from('profiles').select('id').ilike('username', username);
+      if (excludeId) query = query.neq('id', excludeId);
+      const { data } = await query.maybeSingle();
+      return !data;
+    },
     async update(id: string, patch: Partial<Profile>): Promise<Profile> {
       const result = await client().from('profiles').update(patch).eq('id', id).select().single();
       notify();
@@ -141,7 +151,13 @@ export const db = {
       return db.jobs.update(id, { status: 'in_progress' });
     },
     async complete(id: string): Promise<Job> {
-      return db.jobs.update(id, { status: 'completed' });
+      // RPC so either the poster or the hired helper can mark it done (RLS lets only the
+      // poster UPDATE jobs directly).
+      const { error } = await client().rpc('complete_job', { p_job_id: id });
+      if (error) throw new Error(error.message);
+      const { data } = await client().from('jobs').select('*').eq('id', id).single();
+      notify();
+      return data as Job;
     },
     async listAllAdmin(_callerId: string): Promise<Job[]> {
       const { data } = await client().from('jobs').select('*').order('created_at', { ascending: false });

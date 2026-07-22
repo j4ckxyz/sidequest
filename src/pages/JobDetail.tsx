@@ -10,6 +10,7 @@ import { useHasReviewed, useCreateReview } from '../hooks/useReviews';
 import { JOB_CATEGORIES, JOB_STATUS_LABEL } from '../lib/constants';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { CategoryIcon } from '../components/jobs/CategoryIcon';
+import { JobMap } from '../components/jobs/JobMap';
 import { Badge } from '../components/ui/Badge';
 import { Avatar } from '../components/ui/Avatar';
 import { StarRating } from '../components/ui/StarRating';
@@ -108,6 +109,14 @@ export function JobDetail() {
           </div>
         )}
 
+        <div className="mt-6">
+          <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-text-muted">
+            <MapPin size={15} /> {job.parish}
+            {job.location_detail && <span>· {job.location_detail}</span>}
+          </h2>
+          <JobMap parish={job.parish} />
+        </div>
+
         {isPoster && job.status === 'open' && (
           <div className="mt-8 rounded-lg border border-border bg-surface-2/60 p-4 text-sm text-text-muted">
             {applications?.length ?? 0} {applications?.length === 1 ? 'person has' : 'people have'} applied.{' '}
@@ -183,6 +192,15 @@ export function JobDetail() {
                 {job.status === 'assigned' && (
                   <Button className="w-full" onClick={() => markInProgress.mutate(job.id)} isLoading={markInProgress.isPending}>
                     Mark as started <ArrowRight size={15} />
+                  </Button>
+                )}
+                {job.status === 'in_progress' && (
+                  <Button
+                    className="w-full"
+                    onClick={() => completeJob.mutate(job.id, { onSuccess: () => showToast('Marked as done — you can both leave a review now.') })}
+                    isLoading={completeJob.isPending}
+                  >
+                    Mark as done
                   </Button>
                 )}
               </>

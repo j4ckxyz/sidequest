@@ -87,6 +87,7 @@ function App() {
                   <Route path=":conversationId" element={<MessagesThreadPage />} />
                 </Route>
                 <Route path="/profile/:id" element={<ProfileView />} />
+                <Route path="/u/:username" element={<ProfileView />} />
                 <Route
                   path="/profile/edit"
                   element={

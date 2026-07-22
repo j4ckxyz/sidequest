@@ -139,7 +139,12 @@ function seed(): State {
       jobs_completed_count: 0,
       created_at: daysFromNow(-10),
     },
-  ] as Omit<Profile, 'onboarded'>[]).map((p) => ({ ...p, onboarded: true }));
+  ] as Omit<Profile, 'onboarded' | 'username' | 'top_category'>[]).map((p) => ({
+    ...p,
+    onboarded: true,
+    username: p.full_name.toLowerCase().split(' ')[0],
+    top_category: null,
+  }));
 
   const jobs: Job[] = [
     {
@@ -478,6 +483,14 @@ export const db = {
   profiles: {
     async get(id: string): Promise<Profile | null> {
       return delay(state.profiles[id] ?? null);
+    },
+    async getByUsername(username: string): Promise<Profile | null> {
+      const u = username.toLowerCase();
+      return delay(Object.values(state.profiles).find((p) => p.username?.toLowerCase() === u) ?? null);
+    },
+    async usernameAvailable(username: string, excludeId?: string): Promise<boolean> {
+      const u = username.toLowerCase();
+      return delay(!Object.values(state.profiles).some((p) => p.username?.toLowerCase() === u && p.id !== excludeId));
     },
     async update(id: string, patch: Partial<Profile>): Promise<Profile> {
       const current = state.profiles[id];

@@ -3,9 +3,12 @@ import type { ApplicationStatus, BudgetType, JobStatus, Parish } from '../lib/co
 export interface Profile {
   id: string;
   email: string;
+  username: string | null;
   full_name: string;
   avatar_url: string | null;
   bio: string;
+  /** AI-derived strongest category (nearest to the user's taste vector). Set by the recs server. */
+  top_category: string | null;
   parish: Parish;
   phone: string | null;
   skills: string[];

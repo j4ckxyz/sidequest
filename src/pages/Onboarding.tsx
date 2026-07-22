@@ -4,12 +4,19 @@ import { Compass } from 'lucide-react';
 import { PARISHES, SKILL_OPTIONS, type Parish } from '../lib/constants';
 import { useAuth } from '../context/AuthProvider';
 import { useUpdateProfile } from '../hooks/useProfile';
-import { Input, Label } from '../components/ui/Input';
+import { Input, Label, FieldError } from '../components/ui/Input';
 import { Textarea } from '../components/ui/Textarea';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { Avatar } from '../components/ui/Avatar';
+import { db } from '../lib/db';
 import { cx } from '../lib/utils';
+
+const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+
+function suggestUsername(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20);
+}
 
 export function Onboarding() {
   const { user } = useAuth();
@@ -17,9 +24,12 @@ export function Onboarding() {
   const { mutate, isPending } = useUpdateProfile();
 
   const [displayName, setDisplayName] = useState(user?.full_name ?? '');
+  const [username, setUsername] = useState(user?.username ?? suggestUsername(user?.full_name ?? ''));
   const [parish, setParish] = useState<Parish>(user?.parish ?? 'St Helier');
   const [bio, setBio] = useState(user?.bio ?? '');
   const [skills, setSkills] = useState<string[]>(user?.skills ?? []);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
 
   if (!user) return null;
 
@@ -27,11 +37,27 @@ export function Onboarding() {
     setSkills((prev) => (prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]));
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
+    const handle = username.trim().toLowerCase();
+    if (!USERNAME_RE.test(handle)) {
+      setUsernameError('3–20 characters: lowercase letters, numbers, or underscores.');
+      return;
+    }
+    setChecking(true);
+    const available = await db.profiles.usernameAvailable(handle, user.id);
+    setChecking(false);
+    if (!available) {
+      setUsernameError('That username is taken — try another.');
+      return;
+    }
+    setUsernameError(null);
     mutate(
-      { id: user.id, patch: { full_name: displayName.trim() || 'Islander', parish: parish as (typeof PARISHES)[number], bio, skills, onboarded: true } },
+      {
+        id: user.id,
+        patch: { full_name: displayName.trim() || 'Islander', username: handle, parish: parish as (typeof PARISHES)[number], bio, skills, onboarded: true },
+      },
       { onSuccess: () => navigate('/', { replace: true }) },
     );
   }
@@ -54,6 +80,26 @@ export function Onboarding() {
             Display name
           </Label>
           <Input id="displayName" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Jack, or Jack G" />
+        </div>
+        <div>
+          <Label htmlFor="username" hint="Your shareable @handle">
+            Username
+          </Label>
+          <div className="flex items-center gap-2">
+            <span className="text-text-muted">@</span>
+            <Input
+              id="username"
+              required
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value.toLowerCase());
+                setUsernameError(null);
+              }}
+              placeholder="jack"
+              error={usernameError ?? undefined}
+            />
+          </div>
+          <FieldError message={usernameError ?? undefined} />
         </div>
         <div>
           <Label htmlFor="parish">Which parish are you in?</Label>
@@ -90,7 +136,7 @@ export function Onboarding() {
           </Label>
           <Textarea id="bio" rows={3} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="e.g. Keen gardener, free most weekends." />
         </div>
-        <Button type="submit" size="lg" isLoading={isPending} className="mt-2">
+        <Button type="submit" size="lg" isLoading={isPending || checking} className="mt-2">
           Take me to SideQuest
         </Button>
       </form>

@@ -10,6 +10,14 @@ export function useProfile(id: string | undefined) {
   });
 }
 
+export function useProfileByUsername(username: string | undefined) {
+  return useQuery({
+    queryKey: ['profile', 'byUsername', username],
+    queryFn: () => db.profiles.getByUsername(username as string),
+    enabled: !!username,
+  });
+}
+
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
   return useMutation({

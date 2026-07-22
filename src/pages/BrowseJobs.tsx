@@ -22,7 +22,7 @@ export function BrowseJobs() {
     parish: searchParams.get('parish') ?? '',
     sort: 'newest',
   });
-  const { data: jobs, isLoading } = useJobsList({ search: filters.search, category: filters.category, parish: filters.parish });
+  const { data: jobs, isLoading } = useJobsList({ search: filters.search, category: filters.category, parish: filters.parish, status: 'open' });
 
   const sorted = useMemo(() => {
     if (!jobs) return [];

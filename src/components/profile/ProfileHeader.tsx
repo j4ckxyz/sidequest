@@ -17,6 +17,7 @@ export function ProfileHeader({ profile, isOwn }: { profile: Profile; isOwn: boo
             </span>
           )}
         </div>
+        {profile.username && <p className="mt-0.5 text-sm text-text-muted">@{profile.username}</p>}
         <p className="mt-1 flex items-center justify-center gap-1 text-sm text-text-muted sm:justify-start">
           <MapPin size={14} /> {profile.parish}
         </p>

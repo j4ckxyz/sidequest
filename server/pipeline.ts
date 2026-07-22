@@ -17,6 +17,46 @@ import { embedBatch, reasons, EMBED_DIMS } from './gemini';
 const POOL_K = Number(process.env.RECS_POOL_SIZE ?? '24');
 const WEIGHT = { posted: 1, applied: 2, completed: 3 };
 
+// Category exemplar texts, embedded once and reused, to derive each user's "best at" category
+// by nearest cosine to their taste vector.
+const CATEGORIES: { slug: string; text: string }[] = [
+  { slug: 'gardening', text: 'Gardening — mowing lawns, hedges, weeding, planting' },
+  { slug: 'shopping-errands', text: 'Shopping and errands — picking up groceries, running errands' },
+  { slug: 'cleaning', text: 'Cleaning — houses, windows, tidying' },
+  { slug: 'moving-help', text: 'Moving help — lifting furniture, loading vans, house moves' },
+  { slug: 'pet-care', text: 'Pet care — dog walking, feeding, pet sitting' },
+  { slug: 'elderly-help', text: 'Elderly help — companionship, help around the house for older people' },
+  { slug: 'handyman', text: 'Handyman — repairs, DIY, fixing things, assembly' },
+  { slug: 'tech-help', text: 'Tech help — computers, phones, software, setup' },
+  { slug: 'childcare', text: 'Childcare — babysitting, minding children' },
+  { slug: 'delivery', text: 'Delivery — dropping off and collecting items' },
+  { slug: 'tutoring', text: 'Tutoring — teaching, lessons, exam help' },
+  { slug: 'other', text: 'Other odd jobs and general help' },
+];
+let categoryVecs: { slug: string; vec: number[] }[] | null = null;
+
+async function ensureCategoryVecs(): Promise<{ slug: string; vec: number[] }[]> {
+  if (!categoryVecs) {
+    const vecs = await embedBatch(CATEGORIES.map((c) => c.text), 'SEMANTIC_SIMILARITY');
+    categoryVecs = CATEGORIES.map((c, i) => ({ slug: c.slug, vec: vecs[i] }));
+  }
+  return categoryVecs;
+}
+
+function topCategory(taste: number[], cats: { slug: string; vec: number[] }[]): string {
+  let best = cats[0].slug;
+  let bestDot = -Infinity;
+  for (const c of cats) {
+    let dot = 0;
+    for (let i = 0; i < taste.length; i++) dot += taste[i] * c.vec[i];
+    if (dot > bestDot) {
+      bestDot = dot;
+      best = c.slug;
+    }
+  }
+  return best;
+}
+
 interface JobRow {
   id: string;
   poster_id: string;
@@ -122,6 +162,8 @@ export async function refresh(): Promise<RefreshResult> {
   const cachedReason = new Map<string, string>();
   for (const r of existingRecs ?? []) cachedReason.set(`${r.user_id}:${r.job_id}`, (r.reason as string) ?? '');
 
+  const cats = await ensureCategoryVecs();
+
   let usersProcessed = 0;
   let recommendationsWritten = 0;
   let reasonLlmCalls = 0;
@@ -136,6 +178,8 @@ export async function refresh(): Promise<RefreshResult> {
       embedding: toVectorLiteral(taste),
       updated_at: new Date().toISOString(),
     });
+    // AI "best at" — nearest category exemplar to the taste vector.
+    await admin.from('profiles').update({ top_category: topCategory(taste, cats) }).eq('id', userId);
 
     // ---- 3. match open jobs ----
     const { data: matches, error: matchErr } = await admin.rpc('match_open_jobs', {
