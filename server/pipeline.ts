@@ -339,9 +339,21 @@ export async function refresh(): Promise<RefreshResult> {
     if (matchErr) throw new Error(`match_open_jobs(${userId}): ${matchErr.message}`);
     const candidates = ((matches ?? []) as { job_id: string; distance: number }[])
       .map((candidate) => {
-        const job = jobById.get(candidate.job_id);
+        const pref = preferencesByUser.get(userId);
+        const prefTextLower = ((pref?.summary ?? '') + ' ' + (pref?.keywords ?? []).join(' ')).toLowerCase();
+
         const semantic = clamp(1 - candidate.distance);
-        const nearby = job?.parish === profile.parish ? 1 : 0;
+        const nearby =
+          job?.parish === profile.parish ||
+          (!!job?.parish && prefTextLower.length > 0 && prefTextLower.includes(job.parish.toLowerCase()))
+            ? 1
+            : 0;
+
+        const isCategoryMatch =
+          (pref?.preferred_categories ?? []).includes(job?.category ?? '') ||
+          (!!job?.category && (prefTextLower.includes(job.category.toLowerCase()) || prefTextLower.includes(job.category.replace(/-/g, ' '))));
+        const categoryBoost = isCategoryMatch ? 0.12 : 0;
+
         const pay = payScore(job?.budget_amount ?? null);
         const repeatPoster = job && workedWith.has(`${userId}:${job.poster_id}`) ? 1 : 0;
         return {
@@ -350,8 +362,10 @@ export async function refresh(): Promise<RefreshResult> {
             semantic * SCORE_WEIGHT.semantic +
             nearby * SCORE_WEIGHT.nearby +
             pay * SCORE_WEIGHT.pay +
-            repeatPoster * SCORE_WEIGHT.repeatPoster,
+            repeatPoster * SCORE_WEIGHT.repeatPoster +
+            categoryBoost,
         };
+
       })
       .sort((a, b) => b.score - a.score)
       .slice(0, POOL_K);
@@ -417,10 +431,12 @@ function weightedMean(weights: Map<string, number>, embById: Map<string, number[
 function blendTaste(historyTaste: number[] | null, preferenceTaste: number[] | null): number[] | null {
   if (!historyTaste) return preferenceTaste;
   if (!preferenceTaste) return historyTaste;
-  const blended = historyTaste.map((value, index) => value * 0.55 + preferenceTaste[index] * 0.45);
+  // Give explicit preferences/chat brief higher weight (75%) so user intent strongly leads over past actions
+  const blended = historyTaste.map((value, index) => value * 0.25 + preferenceTaste[index] * 0.75);
   const magnitude = Math.sqrt(blended.reduce((sum, value) => sum + value * value, 0)) || 1;
   return blended.map((value) => value / magnitude);
 }
+
 
 function clamp(value: number): number {
   return Math.max(0, Math.min(1, value));
