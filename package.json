@@ -1,9 +1,9 @@
 {
-  "name": "jerriconnect",
+  "name": "sidequest",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "JèrriConnect — Flipping the script on the Jersey brain drain. A reverse talent marketplace bridging Jersey students at UK universities back home.",
+  "description": "SideQuest — turn community chores into completed quests. A gamified local jobs marketplace for Jersey, connecting Quest Posters with teenage Quest Doers.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

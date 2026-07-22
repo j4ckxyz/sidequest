@@ -21,7 +21,7 @@
   }
 
   ::selection {
-    background: rgba(47, 131, 247, 0.22);
+    background: rgba(216, 17, 39, 0.18);
   }
 }
 
@@ -47,7 +47,7 @@
   }
 
   .btn-accent {
-    @apply btn bg-sea-600 text-white px-5 py-2.5 hover:bg-sea-700 shadow-[0_10px_30px_-10px_rgba(26,99,230,0.6)];
+    @apply btn bg-jersey-600 text-white px-5 py-2.5 hover:bg-jersey-700 shadow-redglow;
   }
 
   .btn-ghost {
@@ -55,11 +55,11 @@
   }
 
   .field {
-    @apply w-full rounded-2xl border border-granite-200 bg-granite-50 px-4 py-3 text-[15px] text-ink-soft placeholder:text-ink-faint outline-none transition focus:border-sea-400 focus:bg-white focus:ring-4 focus:ring-sea-500/10;
+    @apply w-full rounded-2xl border border-granite-200 bg-granite-50 px-4 py-3 text-[15px] text-ink-soft placeholder:text-ink-faint outline-none transition focus:border-jersey-400 focus:bg-white focus:ring-4 focus:ring-jersey-500/10;
   }
 
   .section-label {
-    @apply text-[13px] font-semibold uppercase tracking-[0.18em] text-sea-600;
+    @apply text-[13px] font-semibold uppercase tracking-[0.18em] text-jersey-600;
   }
 }
 
@@ -84,7 +84,7 @@
 }
 
 .grain {
-  background-image: radial-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(120, 15, 25, 0.05) 1px, transparent 1px);
   background-size: 4px 4px;
 }
 

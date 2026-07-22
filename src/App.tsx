@@ -4,13 +4,14 @@ import { Loader2, AlertTriangle } from 'lucide-react'
 import Nav, { type View, type NavMode } from './components/Nav'
 import Landing from './components/Landing'
 import AuthScreen from './components/AuthScreen'
-import StudentDashboard from './pages/StudentDashboard'
-import EmployerPortal from './pages/EmployerPortal'
-import EmployerPost from './pages/EmployerPost'
-import HolidayHub from './pages/HolidayHub'
-import { ToastProvider, useToast } from './components/Toast'
+import QuestBoard from './pages/QuestBoard'
+import DoerDashboard from './pages/DoerDashboard'
+import PostQuest from './pages/PostQuest'
+import PosterManage from './pages/PosterManage'
+import { ToastProvider } from './components/Toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import { getMyEmployer, getMyStudent, myApplications, apply } from './lib/db'
+import { getMyDoer, getMyPoster, myApplications } from './lib/db'
+import { LogoMark, Wordmark } from './components/Logo'
 import type { Role } from './lib/types'
 
 function Footer() {
@@ -18,19 +19,11 @@ function Footer() {
     <footer className="mt-8 border-t border-granite-200 bg-white">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 sm:flex-row">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-sea-400 to-sea-700">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
-              <path d="M7 15c2 2 8 2 10 0" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-              <circle cx="8.5" cy="9.5" r="1.5" fill="white" />
-              <circle cx="15.5" cy="9.5" r="1.5" fill="white" />
-            </svg>
-          </span>
-          <span className="text-[14px] font-semibold text-ink">
-            Jèrri<span className="text-sea-600">Connect</span>
-          </span>
+          <LogoMark className="h-7 w-7" />
+          <Wordmark className="text-[14px]" />
         </div>
         <p className="text-[13px] text-ink-faint">
-          Bringing Jersey’s talent home · Built on the Rock
+          Turn chores into quests · Made on the Rock
         </p>
       </div>
     </footer>
@@ -47,46 +40,39 @@ function Splash({ children }: { children: React.ReactNode }) {
 
 function Shell() {
   const { session, profile, loading, signOut } = useAuth()
-  const { notify } = useToast()
 
   const [view, setView] = useState<View>('home')
   const [authOpen, setAuthOpen] = useState(false)
-  const [authRole, setAuthRole] = useState<Role>('student')
+  const [authRole, setAuthRole] = useState<Role>('doer')
 
   const [displayName, setDisplayName] = useState('')
-  const [company, setCompany] = useState('')
-  const [appliedOpps, setAppliedOpps] = useState<Set<string>>(new Set())
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set())
 
   const role = profile?.role
 
-  // Load the display name / company + applications once we know the role.
   useEffect(() => {
     let alive = true
     if (!session || !profile) {
       setDisplayName('')
-      setCompany('')
       return
     }
     ;(async () => {
       try {
-        if (profile.role === 'student') {
+        if (profile.role === 'doer') {
           const [me, apps] = await Promise.all([
-            getMyStudent(session.user.id),
+            getMyDoer(session.user.id),
             myApplications(session.user.id),
           ])
           if (!alive) return
           setDisplayName(me?.name ?? '')
-          setAppliedOpps(
-            new Set(apps.filter((a) => a.opportunity_id).map((a) => a.opportunity_id!)),
-          )
+          setAppliedIds(new Set(apps.map((a) => a.quest_id)))
         } else {
-          const emp = await getMyEmployer(session.user.id)
+          const p = await getMyPoster(session.user.id)
           if (!alive) return
-          setDisplayName(emp?.contact_name || emp?.company || '')
-          setCompany(emp?.company ?? '')
+          setDisplayName(p?.name ?? '')
         }
       } catch {
-        /* handled elsewhere */
+        /* handled in pages */
       }
     })()
     return () => {
@@ -94,15 +80,14 @@ function Shell() {
     }
   }, [session, profile])
 
-  // Land on the right default view when auth state resolves.
   useEffect(() => {
     if (!session) {
       setView('home')
       setAuthOpen(false)
-    } else if (role === 'employer') {
-      setView((v) => (v === 'home' ? 'employer' : v))
-    } else if (role === 'student') {
-      setView((v) => (v === 'home' ? 'student' : v))
+    } else if (role === 'poster') {
+      setView((v) => (v === 'home' ? 'manage' : v))
+    } else if (role === 'doer') {
+      setView((v) => (v === 'home' ? 'board' : v))
     }
   }, [session, role])
 
@@ -111,32 +96,15 @@ function Shell() {
     setAuthOpen(true)
   }, [])
 
-  const onApplyOpportunity = useCallback(
-    async (id: string, label: string) => {
-      if (!session) return
-      setAppliedOpps((prev) => new Set(prev).add(id))
-      try {
-        await apply(session.user.id, { opportunity_id: id })
-        notify(`Applied to ${label}`, 'The employer can see your application.')
-      } catch (e) {
-        notify('Could not apply', (e as Error).message)
-      }
-    },
-    [session, notify],
-  )
-
-  // ── Render states ──────────────────────────────────────────────────────────
-
   if (loading) {
     return (
       <Splash>
-        <Loader2 className="h-6 w-6 animate-spin text-sea-500" />
-        <p className="text-[14px]">Loading JèrriConnect…</p>
+        <Loader2 className="h-6 w-6 animate-spin text-jersey-500" />
+        <p className="text-[14px]">Loading SideQuest…</p>
       </Splash>
     )
   }
 
-  // Logged in but no profile row → almost always the migration hasn't been run.
   if (session && !profile) {
     return (
       <Splash>
@@ -147,7 +115,7 @@ function Shell() {
             Your account exists but its profile couldn’t be loaded. If this is a new
             Supabase project, run the migration in{' '}
             <code className="rounded bg-granite-100 px-1">supabase/migrations</code>, then
-            reload. If you just signed up, please confirm your email and sign in.
+            reload. If you just signed up, confirm your email and log in.
           </p>
           <button onClick={signOut} className="btn-ghost mt-5 px-5 py-2.5 text-[14px]">
             Sign out
@@ -157,7 +125,6 @@ function Shell() {
     )
   }
 
-  // Logged out → auth screen or marketing landing.
   if (!session) {
     if (authOpen) {
       return <AuthScreen initialRole={authRole} onBack={() => setAuthOpen(false)} />
@@ -168,7 +135,7 @@ function Shell() {
           mode="guest"
           view={view}
           setView={setView}
-          onSignIn={() => openAuth('student')}
+          onSignIn={() => openAuth('doer')}
           onSignOut={signOut}
         />
         <main>
@@ -178,8 +145,8 @@ function Shell() {
     )
   }
 
-  // Logged in.
-  const mode: NavMode = role === 'employer' ? 'employer' : 'student'
+  const mode: NavMode = role === 'poster' ? 'poster' : 'doer'
+  const me = { id: session.user.id, name: displayName, role: mode }
 
   return (
     <div className="min-h-screen bg-white">
@@ -189,7 +156,7 @@ function Shell() {
         setView={setView}
         userName={displayName}
         userId={session.user.id}
-        onSignIn={() => openAuth('student')}
+        onSignIn={() => openAuth('doer')}
         onSignOut={signOut}
       />
       <main>
@@ -201,19 +168,21 @@ function Shell() {
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           >
-            {mode === 'student' && view === 'student' && (
-              <StudentDashboard goHub={() => setView('hub')} />
-            )}
-            {mode === 'employer' && view === 'employer' && (
-              <EmployerPortal company={company} />
-            )}
-            {mode === 'employer' && view === 'post' && <EmployerPost company={company} />}
-            {view === 'hub' && (
-              <HolidayHub
-                canApply={mode === 'student'}
-                appliedOpps={appliedOpps}
-                onApply={onApplyOpportunity}
+            {view === 'board' && (
+              <QuestBoard
+                me={me}
+                appliedIds={appliedIds}
+                onApplied={(id) => setAppliedIds((prev) => new Set(prev).add(id))}
               />
+            )}
+            {mode === 'doer' && view === 'me' && (
+              <DoerDashboard meId={session.user.id} meName={displayName} />
+            )}
+            {mode === 'poster' && view === 'post' && (
+              <PostQuest meId={session.user.id} onPosted={() => setView('manage')} />
+            )}
+            {mode === 'poster' && view === 'manage' && (
+              <PosterManage meId={session.user.id} meName={displayName} />
             )}
           </motion.div>
         </AnimatePresence>

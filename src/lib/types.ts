@@ -1,22 +1,10 @@
-// Types mirror the Supabase schema (snake_case columns) so queries need no mapping.
+// Types mirror the Supabase schema (snake_case) so queries need no mapping.
 
-export type Field =
-  | 'Digital & Tech'
-  | 'Finance'
-  | 'Law'
-  | 'Creative'
-  | 'Environment'
-
-export type Role = 'student' | 'employer'
-
-export type ProjectKind =
-  | 'Dissertation'
-  | 'Codebase'
-  | 'Case Study'
-  | 'Design'
-  | 'Research'
-
-export type OpportunityType = '1-day Shadow' | '2-week Project' | 'Reading Week'
+export type Role = 'doer' | 'poster'
+export type QuestType = 'single' | 'weekly'
+export type QuestStatus = 'open' | 'completed' | 'cancelled'
+export type ApplicationStatus = 'applied' | 'accepted' | 'rejected'
+export type PosterKind = 'resident' | 'business'
 
 export interface Profile {
   id: string
@@ -24,90 +12,66 @@ export interface Profile {
   created_at: string
 }
 
-export interface Project {
-  id: string
-  student_id: string
-  title: string
-  kind: ProjectKind
-  summary: string
-  link: string | null
-  link_label: string | null
-  tags: string[]
-  created_at: string
-}
-
-export interface Student {
+export interface Doer {
   id: string
   name: string
-  headline: string
   bio: string
-  degree: string
-  field: Field | null
-  university: string
-  uk_city: string
-  graduation_year: number | null
-  seeking: string
-  availability: string
-  gpa: string
+  parish: string
   skills: string[]
-  discoverable: boolean
+  xp: number
+  quests_done: number
   created_at: string
   updated_at: string
-  projects?: Project[]
 }
 
-export interface Employer {
+export interface Poster {
   id: string
-  company: string
-  contact_name: string
-  field: Field | null
+  name: string
+  kind: PosterKind
+  parish: string
   about: string
+  community_verified: boolean
   created_at: string
 }
 
-export interface Opportunity {
+export interface Quest {
   id: string
-  employer_id: string
-  company: string
-  role: string
-  type: OpportunityType
-  field: Field | null
-  location: string
-  window: string
-  paid: string
-  spots: number
-  summary: string
-  created_at: string
-}
-
-export interface Bursary {
-  id: string
-  employer_id: string
-  provider: string
+  poster_id: string
   title: string
-  amount: string
-  field: Field | 'Open to all' | null
-  degrees: string[]
-  deadline: string
-  commitment: string
-  summary: string
-  perks: string[]
+  description: string
+  category: string
+  type: QuestType
+  parish: string
+  reward: number
+  xp_reward: number
+  schedule: string
+  bus_friendly: boolean
+  party_size: number
+  applicant_count: number
+  accepted_count: number
+  status: QuestStatus
   created_at: string
-}
-
-export interface InterviewRequest {
-  id: string
-  employer_id: string
-  student_id: string
-  message: string
-  status: string
-  created_at: string
+  // joined
+  poster?: Pick<Poster, 'name' | 'community_verified' | 'kind'> | null
 }
 
 export interface Application {
   id: string
-  student_id: string
-  opportunity_id: string | null
-  bursary_id: string | null
+  quest_id: string
+  doer_id: string
+  message: string
+  status: ApplicationStatus
+  created_at: string
+  // joined
+  doer?: Doer | null
+  quest?: Quest | null
+}
+
+export interface Message {
+  id: string
+  quest_id: string
+  sender_id: string
+  sender_name: string
+  body: string
   created_at: string
 }

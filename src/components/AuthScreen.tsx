@@ -1,22 +1,15 @@
 import { useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  ArrowLeft,
-  ArrowRight,
-  GraduationCap,
-  Building2,
-  Mail,
-  Loader2,
-  CheckCircle2,
-} from 'lucide-react'
+import { ArrowLeft, ArrowRight, Swords, Home, Mail, Loader2, Sparkles } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { fields } from '../lib/constants'
+import { parishes } from '../lib/constants'
 import type { Role } from '../lib/types'
+import { LogoMark, Wordmark } from './Logo'
 
 type Mode = 'signin' | 'signup'
 
 export default function AuthScreen({
-  initialRole = 'student',
+  initialRole = 'doer',
   onBack,
 }: {
   initialRole?: Role
@@ -29,9 +22,8 @@ export default function AuthScreen({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
-  const [company, setCompany] = useState('')
-  const [field, setField] = useState('')
-  const [gradYear, setGradYear] = useState('')
+  const [parish, setParish] = useState('')
+  const [kind, setKind] = useState('resident')
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,19 +38,14 @@ export default function AuthScreen({
         if (error) setError(error)
       } else {
         if (!name.trim()) {
-          setError(role === 'employer' ? 'Enter a contact name.' : 'Enter your name.')
-          return
-        }
-        if (role === 'employer' && !company.trim()) {
-          setError('Enter your company name.')
+          setError('Tell us your name.')
           return
         }
         const { error } = await signUp(email.trim(), password, {
           role,
           name: name.trim(),
-          company: company.trim(),
-          field: field || undefined,
-          graduation_year: gradYear || undefined,
+          parish: parish || undefined,
+          kind: role === 'poster' ? kind : undefined,
         })
         if (error) setError(error)
       }
@@ -73,24 +60,19 @@ export default function AuthScreen({
     return (
       <Shell onBack={onBack}>
         <div className="text-center">
-          <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+          <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-jersey-100 text-jersey-600">
             <Mail className="h-7 w-7" />
           </span>
-          <h1 className="text-[26px] font-semibold tracking-tight text-ink">
-            Check your inbox
-          </h1>
+          <h1 className="text-[26px] font-semibold tracking-tight text-ink">Check your inbox</h1>
           <p className="mx-auto mt-2 max-w-sm text-[15px] text-ink-muted">
-            We’ve sent a confirmation link to <strong>{email}</strong>. Click it to
-            activate your account, then come back and sign in.
+            We’ve sent a confirmation link to <strong>{email}</strong>. Click it to activate
+            your account, then come back and log in.
           </p>
           <button
-            onClick={() => {
-              setMode('signin')
-              window.location.reload()
-            }}
+            onClick={() => window.location.reload()}
             className="btn-primary mt-6 px-5 py-2.5 text-[15px]"
           >
-            Back to sign in
+            Back to log in
           </button>
         </div>
       </Shell>
@@ -101,16 +83,15 @@ export default function AuthScreen({
     <Shell onBack={onBack}>
       <div className="mb-6 text-center">
         <h1 className="text-[28px] font-semibold tracking-tight text-ink">
-          {mode === 'signin' ? 'Welcome back' : 'Join JèrriConnect'}
+          {mode === 'signin' ? 'Welcome back, adventurer' : 'Join SideQuest'}
         </h1>
         <p className="mt-1 text-[15px] text-ink-muted">
           {mode === 'signin'
-            ? 'Sign in to pick up where you left off.'
-            : 'Bring your talent — or find it — back to the Rock.'}
+            ? 'Log in to pick up your quests.'
+            : 'Earn money, help neighbours, conquer the Rock.'}
         </p>
       </div>
 
-      {/* Role selector (sign up only) */}
       <AnimatePresence initial={false}>
         {mode === 'signup' && (
           <motion.div
@@ -122,8 +103,8 @@ export default function AuthScreen({
             <div className="mb-5 grid grid-cols-2 gap-2.5">
               {(
                 [
-                  { r: 'student' as Role, icon: GraduationCap, label: 'I’m a student', sub: 'Get discovered' },
-                  { r: 'employer' as Role, icon: Building2, label: 'I’m hiring', sub: 'Find talent' },
+                  { r: 'doer' as Role, icon: Swords, label: 'Quest Doer', sub: 'Earn & level up' },
+                  { r: 'poster' as Role, icon: Home, label: 'Quest Poster', sub: 'Get a hand' },
                 ]
               ).map((o) => {
                 const active = role === o.r
@@ -134,13 +115,11 @@ export default function AuthScreen({
                     onClick={() => setRole(o.r)}
                     className={`flex flex-col items-start gap-1 rounded-2xl border p-3.5 text-left transition-all ${
                       active
-                        ? 'border-sea-400 bg-sea-50 ring-4 ring-sea-500/10'
+                        ? 'border-jersey-400 bg-jersey-50 ring-4 ring-jersey-500/10'
                         : 'border-granite-200 bg-white hover:border-granite-300'
                     }`}
                   >
-                    <o.icon
-                      className={`h-5 w-5 ${active ? 'text-sea-600' : 'text-ink-faint'}`}
-                    />
+                    <o.icon className={`h-5 w-5 ${active ? 'text-jersey-600' : 'text-ink-faint'}`} />
                     <span className="text-[14px] font-semibold text-ink">{o.label}</span>
                     <span className="text-[12px] text-ink-muted">{o.sub}</span>
                   </button>
@@ -154,66 +133,41 @@ export default function AuthScreen({
       <form onSubmit={submit} className="space-y-3">
         {mode === 'signup' && (
           <>
-            <Labeled label={role === 'employer' ? 'Contact name' : 'Full name'}>
+            <Labeled label={role === 'poster' ? 'Your name or business name' : 'Your name'}>
               <input
                 className="field"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={role === 'employer' ? 'e.g. Sarah Perchard' : 'e.g. Amélie Le Feuvre'}
+                placeholder={role === 'poster' ? 'e.g. The Green Thumb Café' : 'e.g. Charlie'}
                 autoComplete="name"
               />
             </Labeled>
-            {role === 'employer' ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Labeled label="Company">
-                  <input
-                    className="field"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    placeholder="e.g. Carey Olsen"
-                  />
-                </Labeled>
-                <Labeled label="Industry">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Labeled label="Home parish">
+                <select
+                  className="field cursor-pointer"
+                  value={parish}
+                  onChange={(e) => setParish(e.target.value)}
+                >
+                  <option value="">Select…</option>
+                  {parishes.map((p) => (
+                    <option key={p}>{p}</option>
+                  ))}
+                </select>
+              </Labeled>
+              {role === 'poster' && (
+                <Labeled label="I'm a…">
                   <select
                     className="field cursor-pointer"
-                    value={field}
-                    onChange={(e) => setField(e.target.value)}
+                    value={kind}
+                    onChange={(e) => setKind(e.target.value)}
                   >
-                    <option value="">Select…</option>
-                    {fields.map((f) => (
-                      <option key={f}>{f}</option>
-                    ))}
+                    <option value="resident">Resident</option>
+                    <option value="business">Small business</option>
                   </select>
                 </Labeled>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Labeled label="Degree field">
-                  <select
-                    className="field cursor-pointer"
-                    value={field}
-                    onChange={(e) => setField(e.target.value)}
-                  >
-                    <option value="">Select…</option>
-                    {fields.map((f) => (
-                      <option key={f}>{f}</option>
-                    ))}
-                  </select>
-                </Labeled>
-                <Labeled label="Graduation year">
-                  <select
-                    className="field cursor-pointer"
-                    value={gradYear}
-                    onChange={(e) => setGradYear(e.target.value)}
-                  >
-                    <option value="">Select…</option>
-                    {[2025, 2026, 2027, 2028, 2029].map((y) => (
-                      <option key={y}>{y}</option>
-                    ))}
-                  </select>
-                </Labeled>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
 
@@ -242,7 +196,7 @@ export default function AuthScreen({
         </Labeled>
 
         {error && (
-          <p className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-[13.5px] text-rose-600">
+          <p className="rounded-xl bg-jersey-50 px-3.5 py-2.5 text-[13.5px] text-jersey-700">
             {error}
           </p>
         )}
@@ -252,7 +206,7 @@ export default function AuthScreen({
             <Loader2 className="h-4.5 w-4.5 animate-spin" />
           ) : (
             <>
-              {mode === 'signin' ? 'Sign in' : 'Create account'}
+              {mode === 'signin' ? 'Log in' : 'Create account'}
               <ArrowRight className="h-4 w-4" />
             </>
           )}
@@ -261,23 +215,23 @@ export default function AuthScreen({
 
       <div className="mt-5 flex items-center justify-center gap-1.5 text-[14px]">
         <span className="text-ink-muted">
-          {mode === 'signin' ? 'New to JèrriConnect?' : 'Already have an account?'}
+          {mode === 'signin' ? 'New to SideQuest?' : 'Already have an account?'}
         </span>
         <button
           onClick={() => {
             setMode(mode === 'signin' ? 'signup' : 'signin')
             setError(null)
           }}
-          className="font-semibold text-sea-600 hover:text-sea-800"
+          className="font-semibold text-jersey-600 hover:text-jersey-800"
         >
-          {mode === 'signin' ? 'Create one' : 'Sign in'}
+          {mode === 'signin' ? 'Create one' : 'Log in'}
         </button>
       </div>
 
       {mode === 'signup' && (
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[12px] text-ink-faint">
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          Free while we’re in beta · no card required
+          <Sparkles className="h-3.5 w-3.5" />
+          Free to join · no card required
         </p>
       )}
     </Shell>
@@ -288,7 +242,7 @@ function Shell({ children, onBack }: { children: ReactNode; onBack: () => void }
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-br from-sea-200/70 via-sea-100/40 to-transparent blur-3xl" />
+        <div className="absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-br from-jersey-200/70 via-jersey-100/40 to-transparent blur-3xl" />
         <div className="absolute inset-0 grain opacity-60" />
       </div>
 
@@ -301,16 +255,8 @@ function Shell({ children, onBack }: { children: ReactNode; onBack: () => void }
         </button>
 
         <div className="mb-6 flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sea-400 to-sea-700 shadow-soft">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
-              <path d="M7 15c2 2 8 2 10 0" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-              <circle cx="8.5" cy="9.5" r="1.5" fill="white" />
-              <circle cx="15.5" cy="9.5" r="1.5" fill="white" />
-            </svg>
-          </span>
-          <span className="text-[18px] font-semibold tracking-tight text-ink">
-            Jèrri<span className="text-sea-600">Connect</span>
-          </span>
+          <LogoMark className="h-9 w-9" />
+          <Wordmark className="text-[18px]" />
         </div>
 
         <div className="rounded-4xl border border-granite-200/70 bg-white/80 p-7 shadow-float backdrop-blur-xl">

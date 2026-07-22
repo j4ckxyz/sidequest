@@ -1,14 +1,15 @@
 import { supabase } from './supabase'
 import type {
   Application,
-  Bursary,
-  Employer,
-  InterviewRequest,
-  Opportunity,
+  ApplicationStatus,
+  Doer,
+  Message,
+  Poster,
   Profile,
-  Project,
-  Student,
+  Quest,
 } from './types'
+
+const QUEST_WITH_POSTER = '*, poster:posters(name, community_verified, kind)'
 
 // ── Profile / role ───────────────────────────────────────────────────────────
 
@@ -22,215 +23,150 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   return data
 }
 
-// ── Student ──────────────────────────────────────────────────────────────────
+// ── Doer ─────────────────────────────────────────────────────────────────────
 
-export async function getMyStudent(userId: string): Promise<Student | null> {
+export async function getMyDoer(userId: string): Promise<Doer | null> {
   const { data, error } = await supabase
-    .from('students')
-    .select('*, projects(*)')
-    .eq('id', userId)
-    .maybeSingle()
-  if (error) throw error
-  return data as Student | null
-}
-
-export async function updateStudent(
-  userId: string,
-  patch: Partial<Student>,
-): Promise<void> {
-  const { projects: _p, id: _i, ...rest } = patch as Student
-  const { error } = await supabase.from('students').update(rest).eq('id', userId)
-  if (error) throw error
-}
-
-export async function searchStudents(): Promise<Student[]> {
-  const { data, error } = await supabase
-    .from('students')
-    .select('*, projects(*)')
-    .eq('discoverable', true)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return (data ?? []) as Student[]
-}
-
-// ── Projects ─────────────────────────────────────────────────────────────────
-
-export async function addProject(
-  p: Omit<Project, 'id' | 'created_at'>,
-): Promise<Project> {
-  const { data, error } = await supabase
-    .from('projects')
-    .insert(p)
-    .select()
-    .single()
-  if (error) throw error
-  return data as Project
-}
-
-export async function deleteProject(id: string): Promise<void> {
-  const { error } = await supabase.from('projects').delete().eq('id', id)
-  if (error) throw error
-}
-
-// ── Employer ─────────────────────────────────────────────────────────────────
-
-export async function getMyEmployer(userId: string): Promise<Employer | null> {
-  const { data, error } = await supabase
-    .from('employers')
+    .from('doers')
     .select('*')
     .eq('id', userId)
     .maybeSingle()
   if (error) throw error
-  return data as Employer | null
+  return data as Doer | null
 }
 
-export async function updateEmployer(
-  userId: string,
-  patch: Partial<Employer>,
-): Promise<void> {
-  const { id: _i, ...rest } = patch as Employer
-  const { error } = await supabase.from('employers').update(rest).eq('id', userId)
+export async function updateDoer(userId: string, patch: Partial<Doer>): Promise<void> {
+  const { id: _i, xp: _x, quests_done: _q, created_at: _c, updated_at: _u, ...rest } =
+    patch as Doer
+  const { error } = await supabase.from('doers').update(rest).eq('id', userId)
   if (error) throw error
 }
 
-export async function employersByIds(ids: string[]): Promise<Employer[]> {
-  if (ids.length === 0) return []
+// ── Poster ───────────────────────────────────────────────────────────────────
+
+export async function getMyPoster(userId: string): Promise<Poster | null> {
   const { data, error } = await supabase
-    .from('employers')
+    .from('posters')
     .select('*')
-    .in('id', ids)
+    .eq('id', userId)
+    .maybeSingle()
   if (error) throw error
-  return (data ?? []) as Employer[]
+  return data as Poster | null
 }
 
-// ── Opportunities ────────────────────────────────────────────────────────────
+export async function updatePoster(userId: string, patch: Partial<Poster>): Promise<void> {
+  const { id: _i, created_at: _c, ...rest } = patch as Poster
+  const { error } = await supabase.from('posters').update(rest).eq('id', userId)
+  if (error) throw error
+}
 
-export async function listOpportunities(): Promise<Opportunity[]> {
+// ── Quests ───────────────────────────────────────────────────────────────────
+
+export async function listQuests(): Promise<Quest[]> {
   const { data, error } = await supabase
-    .from('opportunities')
-    .select('*')
+    .from('quests')
+    .select(QUEST_WITH_POSTER)
+    .eq('status', 'open')
     .order('created_at', { ascending: false })
   if (error) throw error
-  return (data ?? []) as Opportunity[]
+  return (data ?? []) as Quest[]
 }
 
-export async function myOpportunities(userId: string): Promise<Opportunity[]> {
+export async function myQuests(posterId: string): Promise<Quest[]> {
   const { data, error } = await supabase
-    .from('opportunities')
-    .select('*')
-    .eq('employer_id', userId)
+    .from('quests')
+    .select(QUEST_WITH_POSTER)
+    .eq('poster_id', posterId)
     .order('created_at', { ascending: false })
   if (error) throw error
-  return (data ?? []) as Opportunity[]
+  return (data ?? []) as Quest[]
 }
 
-export async function createOpportunity(
-  o: Omit<Opportunity, 'id' | 'created_at'>,
-): Promise<Opportunity> {
-  const { data, error } = await supabase
-    .from('opportunities')
-    .insert(o)
-    .select()
-    .single()
+export async function createQuest(
+  q: Omit<
+    Quest,
+    'id' | 'created_at' | 'applicant_count' | 'accepted_count' | 'status' | 'poster'
+  >,
+): Promise<Quest> {
+  const { data, error } = await supabase.from('quests').insert(q).select(QUEST_WITH_POSTER).single()
   if (error) throw error
-  return data as Opportunity
+  return data as Quest
 }
 
-export async function deleteOpportunity(id: string): Promise<void> {
-  const { error } = await supabase.from('opportunities').delete().eq('id', id)
-  if (error) throw error
-}
-
-// ── Bursaries ────────────────────────────────────────────────────────────────
-
-export async function listBursaries(): Promise<Bursary[]> {
-  const { data, error } = await supabase
-    .from('bursaries')
-    .select('*')
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return (data ?? []) as Bursary[]
-}
-
-export async function myBursaries(userId: string): Promise<Bursary[]> {
-  const { data, error } = await supabase
-    .from('bursaries')
-    .select('*')
-    .eq('employer_id', userId)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return (data ?? []) as Bursary[]
-}
-
-export async function createBursary(
-  b: Omit<Bursary, 'id' | 'created_at'>,
-): Promise<Bursary> {
-  const { data, error } = await supabase.from('bursaries').insert(b).select().single()
-  if (error) throw error
-  return data as Bursary
-}
-
-export async function deleteBursary(id: string): Promise<void> {
-  const { error } = await supabase.from('bursaries').delete().eq('id', id)
+export async function deleteQuest(id: string): Promise<void> {
+  const { error } = await supabase.from('quests').delete().eq('id', id)
   if (error) throw error
 }
 
-// ── Interview requests ───────────────────────────────────────────────────────
-
-export async function requestInterview(
-  employerId: string,
-  studentId: string,
-  message: string,
-): Promise<void> {
-  const { error } = await supabase
-    .from('interview_requests')
-    .upsert(
-      { employer_id: employerId, student_id: studentId, message },
-      { onConflict: 'employer_id,student_id' },
-    )
+export async function completeQuest(id: string): Promise<void> {
+  const { error } = await supabase.rpc('complete_quest', { p_quest: id })
   if (error) throw error
-}
-
-export async function myInterviewRequests(
-  employerId: string,
-): Promise<InterviewRequest[]> {
-  const { data, error } = await supabase
-    .from('interview_requests')
-    .select('*')
-    .eq('employer_id', employerId)
-  if (error) throw error
-  return (data ?? []) as InterviewRequest[]
-}
-
-export async function incomingInterviewRequests(
-  studentId: string,
-): Promise<InterviewRequest[]> {
-  const { data, error } = await supabase
-    .from('interview_requests')
-    .select('*')
-    .eq('student_id', studentId)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return (data ?? []) as InterviewRequest[]
 }
 
 // ── Applications ─────────────────────────────────────────────────────────────
 
-export async function apply(
-  studentId: string,
-  target: { opportunity_id?: string; bursary_id?: string },
+export async function applyToQuest(
+  questId: string,
+  doerId: string,
+  message: string,
 ): Promise<void> {
   const { error } = await supabase
     .from('applications')
-    .insert({ student_id: studentId, ...target })
+    .upsert(
+      { quest_id: questId, doer_id: doerId, message },
+      { onConflict: 'quest_id,doer_id' },
+    )
   if (error) throw error
 }
 
-export async function myApplications(studentId: string): Promise<Application[]> {
+export async function myApplications(doerId: string): Promise<Application[]> {
   const { data, error } = await supabase
     .from('applications')
-    .select('*')
-    .eq('student_id', studentId)
+    .select(`*, quest:quests(${QUEST_WITH_POSTER})`)
+    .eq('doer_id', doerId)
+    .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []) as Application[]
+}
+
+export async function questApplications(questId: string): Promise<Application[]> {
+  const { data, error } = await supabase
+    .from('applications')
+    .select('*, doer:doers(*)')
+    .eq('quest_id', questId)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as Application[]
+}
+
+export async function setApplicationStatus(
+  id: string,
+  status: ApplicationStatus,
+): Promise<void> {
+  const { error } = await supabase.from('applications').update({ status }).eq('id', id)
+  if (error) throw error
+}
+
+// ── Messages (Safe-Chat) ─────────────────────────────────────────────────────
+
+export async function listMessages(questId: string): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('quest_id', questId)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as Message[]
+}
+
+export async function sendMessage(
+  questId: string,
+  senderId: string,
+  senderName: string,
+  body: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('messages')
+    .insert({ quest_id: questId, sender_id: senderId, sender_name: senderName, body })
+  if (error) throw error
 }

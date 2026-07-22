@@ -1,28 +1,22 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import {
-  GraduationCap,
-  Search,
-  CalendarHeart,
-  PlusCircle,
-  LogOut,
-  ChevronDown,
-} from 'lucide-react'
+import { Compass, PlusCircle, ClipboardList, Swords, LogOut, ChevronDown } from 'lucide-react'
 import { initialsOf, gradientFor } from '../lib/constants'
 import Avatar from './Avatar'
+import { LogoMark, Wordmark } from './Logo'
 
-export type View = 'home' | 'student' | 'employer' | 'post' | 'hub'
-export type NavMode = 'guest' | 'student' | 'employer'
+export type View = 'home' | 'board' | 'me' | 'post' | 'manage'
+export type NavMode = 'guest' | 'doer' | 'poster'
 
-const studentTabs: { id: View; label: string; icon: typeof Search }[] = [
-  { id: 'student', label: 'My Dashboard', icon: GraduationCap },
-  { id: 'hub', label: 'Holiday Hub', icon: CalendarHeart },
+const doerTabs: { id: View; label: string; icon: typeof Compass }[] = [
+  { id: 'board', label: 'Quest Board', icon: Compass },
+  { id: 'me', label: 'My Adventures', icon: Swords },
 ]
 
-const employerTabs: { id: View; label: string; icon: typeof Search }[] = [
-  { id: 'employer', label: 'Find Talent', icon: Search },
-  { id: 'post', label: 'Post & Manage', icon: PlusCircle },
-  { id: 'hub', label: 'Holiday Hub', icon: CalendarHeart },
+const posterTabs: { id: View; label: string; icon: typeof Compass }[] = [
+  { id: 'manage', label: 'My Quests', icon: ClipboardList },
+  { id: 'post', label: 'Post a Quest', icon: PlusCircle },
+  { id: 'board', label: 'Quest Board', icon: Compass },
 ]
 
 export default function Nav({
@@ -42,7 +36,7 @@ export default function Nav({
   onSignIn: () => void
   onSignOut: () => void
 }) {
-  const tabs = mode === 'employer' ? employerTabs : mode === 'student' ? studentTabs : []
+  const tabs = mode === 'poster' ? posterTabs : mode === 'doer' ? doerTabs : []
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
@@ -51,18 +45,10 @@ export default function Nav({
         <button
           onClick={() => setView(mode === 'guest' ? 'home' : tabs[0].id)}
           className="group flex items-center gap-2.5"
-          aria-label="JèrriConnect home"
+          aria-label="SideQuest home"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sea-400 to-sea-700 shadow-soft transition-transform group-hover:scale-105">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
-              <path d="M7 15c2 2 8 2 10 0" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-              <circle cx="8.5" cy="9.5" r="1.5" fill="white" />
-              <circle cx="15.5" cy="9.5" r="1.5" fill="white" />
-            </svg>
-          </span>
-          <span className="text-[17px] font-semibold tracking-tight text-ink">
-            Jèrri<span className="text-sea-600">Connect</span>
-          </span>
+          <LogoMark className="h-8 w-8 transition-transform group-hover:scale-105" />
+          <Wordmark />
         </button>
 
         {tabs.length > 0 && (
@@ -98,10 +84,10 @@ export default function Nav({
               onClick={onSignIn}
               className="hidden rounded-full px-4 py-2 text-[14px] font-medium text-ink-soft transition hover:text-ink sm:block"
             >
-              Sign in
+              Log in
             </button>
-            <button onClick={onSignIn} className="btn-primary text-[14px]">
-              Get started
+            <button onClick={onSignIn} className="btn-accent text-[14px]">
+              Start questing
             </button>
           </div>
         ) : (
@@ -127,7 +113,9 @@ export default function Nav({
                 >
                   <div className="px-3 py-2">
                     <p className="truncate text-[14px] font-semibold text-ink">{userName}</p>
-                    <p className="text-[12px] capitalize text-ink-faint">{mode} account</p>
+                    <p className="text-[12px] capitalize text-ink-faint">
+                      {mode === 'doer' ? 'Quest Doer' : 'Quest Poster'}
+                    </p>
                   </div>
                   <div className="my-1 h-px bg-granite-100" />
                   <button

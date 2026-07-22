@@ -14,9 +14,8 @@ import type { Profile, Role } from '../lib/types'
 interface SignUpMeta {
   role: Role
   name: string
-  company?: string
-  field?: string
-  graduation_year?: string
+  parish?: string
+  kind?: string
 }
 
 interface AuthContextValue {
