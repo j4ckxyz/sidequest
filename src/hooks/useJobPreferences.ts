@@ -17,7 +17,10 @@ export function useUpdateJobPreferences(userId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { preferredCategories: string[]; hideLocation: boolean }) => db.preferences.update(input),
-    onSuccess: (state) => queryClient.setQueryData<JobPreferenceState>(preferenceKey(userId), state),
+    onSuccess: (state) => {
+      queryClient.setQueryData<JobPreferenceState>(preferenceKey(userId), state);
+      queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+    },
   });
 }
 
@@ -25,6 +28,10 @@ export function useSendJobPreferenceMessage(userId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (message: string) => db.preferences.sendMessage(message),
-    onSuccess: (state) => queryClient.setQueryData<JobPreferenceState>(preferenceKey(userId), state),
+    onSuccess: (state) => {
+      queryClient.setQueryData<JobPreferenceState>(preferenceKey(userId), state);
+      queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+    },
   });
 }
+
