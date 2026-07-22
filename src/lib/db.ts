@@ -2,17 +2,15 @@ import { supabase } from './supabase'
 import type {
   Application,
   ApplicationStatus,
-  Doer,
   Message,
-  Poster,
   Profile,
   Quest,
   WeekLog,
 } from './types'
 
-const QUEST_WITH_POSTER = '*, poster:posters(name, community_verified, kind)'
+const QUEST_WITH_POSTER = '*, poster:profiles(name)'
 
-// ── Profile / role ───────────────────────────────────────────────────────────
+// ── Profile ──────────────────────────────────────────────────────────────────
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
@@ -21,43 +19,13 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     .eq('id', userId)
     .maybeSingle()
   if (error) throw error
-  return data
+  return data as Profile | null
 }
 
-// ── Doer ─────────────────────────────────────────────────────────────────────
-
-export async function getMyDoer(userId: string): Promise<Doer | null> {
-  const { data, error } = await supabase
-    .from('doers')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle()
-  if (error) throw error
-  return data as Doer | null
-}
-
-export async function updateDoer(userId: string, patch: Partial<Doer>): Promise<void> {
+export async function updateProfile(userId: string, patch: Partial<Profile>): Promise<void> {
   const { id: _i, xp: _x, quests_done: _q, created_at: _c, updated_at: _u, ...rest } =
-    patch as Doer
-  const { error } = await supabase.from('doers').update(rest).eq('id', userId)
-  if (error) throw error
-}
-
-// ── Poster ───────────────────────────────────────────────────────────────────
-
-export async function getMyPoster(userId: string): Promise<Poster | null> {
-  const { data, error } = await supabase
-    .from('posters')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle()
-  if (error) throw error
-  return data as Poster | null
-}
-
-export async function updatePoster(userId: string, patch: Partial<Poster>): Promise<void> {
-  const { id: _i, created_at: _c, ...rest } = patch as Poster
-  const { error } = await supabase.from('posters').update(rest).eq('id', userId)
+    patch as Profile
+  const { error } = await supabase.from('profiles').update(rest).eq('id', userId)
   if (error) throw error
 }
 
@@ -89,7 +57,11 @@ export async function createQuest(
     'id' | 'created_at' | 'applicant_count' | 'accepted_count' | 'status' | 'poster'
   >,
 ): Promise<Quest> {
-  const { data, error } = await supabase.from('quests').insert(q).select(QUEST_WITH_POSTER).single()
+  const { data, error } = await supabase
+    .from('quests')
+    .insert(q)
+    .select(QUEST_WITH_POSTER)
+    .single()
   if (error) throw error
   return data as Quest
 }
@@ -139,7 +111,7 @@ export async function myApplications(doerId: string): Promise<Application[]> {
 export async function questApplications(questId: string): Promise<Application[]> {
   const { data, error } = await supabase
     .from('applications')
-    .select('*, doer:doers(*)')
+    .select('*, doer:profiles(*)')
     .eq('quest_id', questId)
     .order('created_at', { ascending: true })
   if (error) throw error
@@ -187,19 +159,12 @@ export async function sendMessage(
 // ── Weekly logs ──────────────────────────────────────────────────────────────
 
 export async function questWeekLogs(questId: string): Promise<WeekLog[]> {
-  const { data, error } = await supabase
-    .from('week_logs')
-    .select('*')
-    .eq('quest_id', questId)
+  const { data, error } = await supabase.from('week_logs').select('*').eq('quest_id', questId)
   if (error) throw error
   return (data ?? []) as WeekLog[]
 }
 
-export async function logWeek(
-  questId: string,
-  doerId: string,
-  weekStart: string,
-): Promise<void> {
+export async function logWeek(questId: string, doerId: string, weekStart: string): Promise<void> {
   const { error } = await supabase.rpc('log_week', {
     p_quest: questId,
     p_doer: doerId,
@@ -208,11 +173,7 @@ export async function logWeek(
   if (error) throw error
 }
 
-export async function unlogWeek(
-  questId: string,
-  doerId: string,
-  weekStart: string,
-): Promise<void> {
+export async function unlogWeek(questId: string, doerId: string, weekStart: string): Promise<void> {
   const { error } = await supabase.rpc('unlog_week', {
     p_quest: questId,
     p_doer: doerId,

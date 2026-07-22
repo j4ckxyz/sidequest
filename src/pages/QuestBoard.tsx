@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Search,
-  Bus,
   Repeat,
   Coins,
   Sparkles,
@@ -25,7 +24,6 @@ import QuestModal from '../components/QuestModal'
 interface Me {
   id: string
   name: string
-  role: 'doer' | 'poster'
 }
 
 export default function QuestBoard({
@@ -47,9 +45,23 @@ export default function QuestBoard({
   const [parish, setParish] = useState<'All' | string>('All')
   const [category, setCategory] = useState<'All' | string>('All')
   const [minPay, setMinPay] = useState(0)
-  const [busOnly, setBusOnly] = useState(false)
   const [selected, setSelected] = useState<Quest | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+
+  // Hide the filter bar while scrolling down; reveal it (below the nav) on scroll up.
+  const [filtersVisible, setFiltersVisible] = useState(true)
+  useEffect(() => {
+    let lastY = window.scrollY
+    function onScroll() {
+      const y = window.scrollY
+      if (y < 120) setFiltersVisible(true)
+      else if (y > lastY + 6) setFiltersVisible(false)
+      else if (y < lastY - 6) setFiltersVisible(true)
+      lastY = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   // Press "/" anywhere to jump to the search bar.
   useEffect(() => {
@@ -70,7 +82,7 @@ export default function QuestBoard({
   }, [])
 
   const filtersActive =
-    type !== 'All' || parish !== 'All' || category !== 'All' || minPay > 0 || busOnly || !!query
+    type !== 'All' || parish !== 'All' || category !== 'All' || minPay > 0 || !!query
 
   function resetFilters() {
     setQuery('')
@@ -78,20 +90,16 @@ export default function QuestBoard({
     setParish('All')
     setCategory('All')
     setMinPay(0)
-    setBusOnly(false)
   }
 
   useEffect(() => {
     let alive = true
     async function load() {
       try {
-        const q = await listQuests()
+        const [q, apps] = await Promise.all([listQuests(), myApplications(me.id)])
         if (!alive) return
         setQuests(q)
-        if (me.role === 'doer') {
-          const apps = await myApplications(me.id)
-          if (alive) setApplied(new Set(apps.map((a) => a.quest_id)))
-        }
+        setApplied(new Set(apps.map((a) => a.quest_id)))
       } catch (e) {
         notify('Could not load the board', (e as Error).message)
       } finally {
@@ -102,7 +110,7 @@ export default function QuestBoard({
     return () => {
       alive = false
     }
-  }, [me.id, me.role, notify])
+  }, [me.id, notify])
 
   const results = useMemo(() => {
     const s = query.trim().toLowerCase()
@@ -111,19 +119,17 @@ export default function QuestBoard({
       const mParish = parish === 'All' || q.parish === parish
       const mCategory = category === 'All' || q.category === category
       const mPay = q.reward >= minPay
-      const mBus = !busOnly || q.bus_friendly
       const mQ =
         !s ||
         [q.title, q.description, q.category, q.parish, q.poster?.name ?? '']
           .join(' ')
           .toLowerCase()
           .includes(s)
-      return mType && mParish && mCategory && mPay && mBus && mQ
+      return mType && mParish && mCategory && mPay && mQ
     })
-  }, [quests, query, type, parish, category, minPay, busOnly])
+  }, [quests, query, type, parish, category, minPay])
 
   async function handleApply(quest: Quest, message: string) {
-    if (me.role !== 'doer') return
     setApplied((prev) => new Set(prev).add(quest.id))
     onApplied(quest.id)
     setQuests((prev) =>
@@ -159,9 +165,14 @@ export default function QuestBoard({
         </p>
       </div>
 
-      {/* Dropdown filters */}
-      <div className="sticky top-[76px] z-30 mb-6 rounded-2xl border border-line/10 bg-surface/80 p-3 shadow-glass backdrop-blur-xl">
-        <div className="flex flex-wrap items-center gap-2.5">
+      {/* Auto-hiding, centered filter bar (separate from the top nav) */}
+      <div className="pointer-events-none fixed inset-x-0 top-[84px] z-30 flex justify-center px-4">
+        <motion.div
+          initial={false}
+          animate={{ y: filtersVisible ? 0 : -96, opacity: filtersVisible ? 1 : 0 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2 rounded-2xl border border-line/10 bg-surface/90 p-2 shadow-float backdrop-blur-xl"
+        >
           <FilterSelect
             icon={MapPin}
             value={parish}
@@ -190,32 +201,19 @@ export default function QuestBoard({
             options={['0', '5', '10', '20', '40']}
             labels={{ '0': 'Any pay', '5': '£5+', '10': '£10+', '20': '£20+', '40': '£40+' }}
           />
-          <button
-            onClick={() => setBusOnly((v) => !v)}
-            className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[13.5px] font-medium transition ${
-              busOnly
-                ? 'bg-emerald-600 text-white shadow-soft'
-                : 'bg-granite-100 text-ink-muted hover:bg-granite-200'
-            }`}
-          >
-            <Bus className="h-4 w-4" /> Bus friendly
-          </button>
-
-          <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-[13px] text-ink-faint sm:block">
-              {results.length} {results.length === 1 ? 'quest' : 'quests'}
-            </span>
-            {filtersActive && (
-              <button
-                onClick={resetFilters}
-                className="inline-flex items-center gap-1 text-[13px] font-medium text-clay-600 hover:text-clay-800"
-              >
-                <X className="h-3.5 w-3.5" /> Clear
-              </button>
-            )}
-          </div>
-        </div>
+          {filtersActive && (
+            <button
+              onClick={resetFilters}
+              className="inline-flex items-center gap-1 rounded-xl px-3 py-2 text-[13px] font-medium text-clay-600 hover:bg-granite-100 dark:text-clay-400"
+            >
+              <X className="h-3.5 w-3.5" /> Clear
+            </button>
+          )}
+        </motion.div>
       </div>
+
+      {/* Spacer so content starts below the fixed filter bar */}
+      <div className="h-16" />
 
       {/* Results */}
       {loading ? (
@@ -235,15 +233,7 @@ export default function QuestBoard({
         <div className="card flex flex-col items-center gap-2 py-20 text-center">
           <Search className="h-8 w-8 text-ink-faint" />
           <p className="text-[17px] font-medium text-ink">No quests match those filters.</p>
-          <button
-            onClick={() => {
-              setQuery('')
-              setType('All')
-              setParish('All')
-              setBusOnly(false)
-            }}
-            className="btn-ghost mt-2 py-2 text-[14px]"
-          >
+          <button onClick={resetFilters} className="btn-ghost mt-2 py-2 text-[14px]">
             Reset filters
           </button>
         </div>
@@ -319,16 +309,18 @@ function FilterSelect({
   return (
     <div
       className={`relative inline-flex items-center rounded-xl border transition ${
-        active
-          ? 'border-clay-300 bg-clay-500/10 text-clay-700 dark:text-clay-300'
-          : 'border-line/10 bg-granite-100 text-ink-soft'
+        active ? 'border-clay-300 bg-clay-500/12' : 'border-line/10 bg-granite-100'
       }`}
     >
-      <Icon className="pointer-events-none absolute left-3 h-4 w-4 opacity-70" />
+      <Icon
+        className={`pointer-events-none absolute left-3 h-4 w-4 ${
+          active ? 'text-clay-600 dark:text-clay-400' : 'text-ink-faint'
+        }`}
+      />
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="cursor-pointer appearance-none bg-transparent py-2 pl-9 pr-8 text-[13.5px] font-medium outline-none"
+        className="cursor-pointer appearance-none bg-transparent py-2 pl-9 pr-8 text-[13.5px] font-medium text-ink outline-none"
       >
         {options.map((o) => (
           <option key={o} value={o} className="bg-surface text-ink">
@@ -336,7 +328,7 @@ function FilterSelect({
           </option>
         ))}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 h-4 w-4 opacity-60" />
+      <ChevronDown className="pointer-events-none absolute right-2.5 h-4 w-4 text-ink-faint" />
     </div>
   )
 }
@@ -367,11 +359,6 @@ function QuestCard({
           <CatIcon className="h-3.5 w-3.5" /> {q.category}
         </span>
         <div className="flex items-center gap-1.5">
-          {q.bus_friendly && (
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              <Bus className="h-3.5 w-3.5" />
-            </span>
-          )}
           {q.type === 'weekly' && (
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-jersey-100 text-jersey-700">
               <Repeat className="h-3.5 w-3.5" />

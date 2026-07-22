@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { PlusCircle, Loader2, Coins, Sparkles, Bus, Users } from 'lucide-react'
+import { PlusCircle, Loader2, Coins, Sparkles, Users } from 'lucide-react'
 import { parishes, questCategories, iconForCategory, xpForReward } from '../lib/constants'
 import type { QuestType } from '../lib/types'
 import { createQuest } from '../lib/db'
@@ -21,7 +21,6 @@ export default function PostQuest({
   const [parish, setParish] = useState<string>('St Helier')
   const [reward, setReward] = useState(15)
   const [schedule, setSchedule] = useState('')
-  const [busFriendly, setBusFriendly] = useState(false)
   const [partySize, setPartySize] = useState(1)
   const [description, setDescription] = useState('')
   const [busy, setBusy] = useState(false)
@@ -47,7 +46,6 @@ export default function PostQuest({
         reward: Math.max(0, Math.round(reward)),
         xp_reward: xp,
         schedule: schedule.trim(),
-        bus_friendly: busFriendly,
         party_size: Math.max(1, partySize),
       })
       notify('Quest posted!', 'It’s live on the board for doers to grab.')
@@ -150,44 +148,21 @@ export default function PostQuest({
           </L>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <L label="Party size">
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min={1}
-                max={6}
-                value={partySize}
-                onChange={(e) => setPartySize(Number(e.target.value))}
-                className="flex-1 accent-jersey-600"
-              />
-              <span className="inline-flex items-center gap-1 rounded-full bg-granite-100 px-3 py-1 text-[13px] font-semibold text-ink">
-                <Users className="h-3.5 w-3.5" /> {partySize}
-              </span>
-            </div>
-          </L>
-          <label className="flex cursor-pointer items-end pb-1">
-            <span className="flex items-center gap-2.5">
-              <span
-                onClick={() => setBusFriendly((v) => !v)}
-                role="switch"
-                aria-checked={busFriendly}
-                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
-                  busFriendly ? 'bg-emerald-500' : 'bg-granite-300'
-                }`}
-              >
-                <span
-                  className={`absolute top-1 h-5 w-5 rounded-full bg-surface shadow transition-all ${
-                    busFriendly ? 'left-6' : 'left-1'
-                  }`}
-                />
-              </span>
-              <span className="inline-flex items-center gap-1 text-[14px] font-medium text-ink-soft">
-                <Bus className="h-4 w-4 text-emerald-600" /> Bus route friendly
-              </span>
+        <L label="Party size">
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={1}
+              max={6}
+              value={partySize}
+              onChange={(e) => setPartySize(Number(e.target.value))}
+              className="flex-1 accent-clay-600"
+            />
+            <span className="inline-flex items-center gap-1 rounded-full bg-granite-100 px-3 py-1 text-[13px] font-semibold text-ink">
+              <Users className="h-3.5 w-3.5" /> {partySize}
             </span>
-          </label>
-        </div>
+          </div>
+        </L>
 
         <L label="Description">
           <textarea

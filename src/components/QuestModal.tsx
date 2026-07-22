@@ -7,7 +7,6 @@ import {
   Coins,
   Sparkles,
   Users,
-  Bus,
   Repeat,
   Check,
   MessageCircle,
@@ -20,7 +19,6 @@ import Chat from './Chat'
 interface Me {
   id: string
   name: string
-  role: 'doer' | 'poster'
 }
 
 export default function QuestModal({
@@ -42,7 +40,8 @@ export default function QuestModal({
 
   if (!quest) return null
 
-  const canChat = me.role === 'doer' && applied
+  const isOwn = quest.poster_id === me.id
+  const canChat = applied && !isOwn
   const spotsLeft = Math.max(0, quest.party_size - quest.accepted_count)
   const perDoer = quest.party_size > 1 ? Math.round(quest.reward / quest.party_size) : quest.reward
   const CatIcon = iconForCategory(quest.category)
@@ -91,7 +90,7 @@ export default function QuestModal({
               <span
                 className={`pill ${
                   quest.type === 'weekly'
-                    ? 'bg-jersey-100 text-jersey-700'
+                    ? 'bg-clay-500/12 text-clay-700 dark:text-clay-300'
                     : 'bg-granite-100 text-ink-muted'
                 }`}
               >
@@ -103,11 +102,6 @@ export default function QuestModal({
                   'Single-time'
                 )}
               </span>
-              {quest.bus_friendly && (
-                <span className="pill bg-emerald-100 text-emerald-700">
-                  <Bus className="h-3 w-3" /> Bus friendly
-                </span>
-              )}
             </div>
 
             <h2 className="mt-3 text-[26px] font-semibold leading-tight tracking-tight text-ink">
@@ -166,9 +160,9 @@ export default function QuestModal({
               </div>
             )}
 
-            {/* Doer apply block */}
-            {me.role === 'doer' && !applied && (
-              <div className="rounded-2xl border border-granite-200 bg-granite-50/60 p-4">
+            {/* Apply note (not your own quest, not yet applied) */}
+            {!isOwn && !applied && (
+              <div className="rounded-2xl border border-line/10 bg-granite-50/60 p-4">
                 <p className="mb-2 text-[13px] font-medium text-ink-soft">
                   Add a note for the poster (optional)
                 </p>
@@ -176,9 +170,16 @@ export default function QuestModal({
                   rows={2}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="e.g. I’ve done loads of garden work and I’m on the 15 bus route!"
+                  placeholder="e.g. I’ve done loads of garden work and I’m free this weekend!"
                   className="field resize-none"
                 />
+              </div>
+            )}
+
+            {isOwn && (
+              <div className="rounded-2xl border border-line/10 bg-granite-50/60 px-4 py-3 text-[13.5px] text-ink-muted">
+                This is your own quest — manage applicants and Safe-Chat under{' '}
+                <strong className="text-ink-soft">My Quests</strong>.
               </div>
             )}
 
@@ -187,7 +188,7 @@ export default function QuestModal({
               <div>
                 <button
                   onClick={() => setShowChat((v) => !v)}
-                  className="mb-3 inline-flex items-center gap-1.5 text-[14px] font-semibold text-jersey-600 hover:text-jersey-800"
+                  className="mb-3 inline-flex items-center gap-1.5 text-[14px] font-semibold text-clay-600 hover:text-clay-800 dark:text-clay-400"
                 >
                   <MessageCircle className="h-4 w-4" />
                   {showChat ? 'Hide Safe-Chat' : 'Open Safe-Chat'}
@@ -200,8 +201,8 @@ export default function QuestModal({
           </div>
 
           {/* Action bar */}
-          {me.role === 'doer' && (
-            <div className="sticky bottom-0 flex items-center gap-3 border-t border-granite-200 bg-surface/85 px-7 py-4 backdrop-blur-xl">
+          {!isOwn && (
+            <div className="sticky bottom-0 flex items-center gap-3 border-t border-line/10 bg-surface/85 px-7 py-4 backdrop-blur-xl">
               <div className="flex items-center gap-3">
                 <Avatar
                   initials={initialsOf(quest.poster?.name ?? '?')}
@@ -210,9 +211,7 @@ export default function QuestModal({
                 />
                 <div className="hidden sm:block">
                   <p className="text-[13px] font-semibold text-ink">{quest.poster?.name}</p>
-                  <p className="text-[11px] text-ink-faint">
-                    {quest.poster?.kind === 'business' ? 'Small business' : 'Resident'}
-                  </p>
+                  <p className="text-[11px] text-ink-faint">Quest poster</p>
                 </div>
               </div>
               <button

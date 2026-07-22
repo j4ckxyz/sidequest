@@ -4,7 +4,7 @@ import {
   Compass,
   PlusCircle,
   ClipboardList,
-  Swords,
+  UserRound,
   LogOut,
   ChevronDown,
   Sun,
@@ -14,6 +14,17 @@ import { initialsOf, gradientFor } from '../lib/constants'
 import { useTheme } from '../context/ThemeContext'
 import Avatar from './Avatar'
 import { LogoMark, Wordmark } from './Logo'
+
+export type View = 'home' | 'board' | 'post' | 'mine' | 'profile'
+export type NavMode = 'guest' | 'user'
+export type AuthMode = 'signin' | 'signup'
+
+const userTabs: { id: View; label: string; icon: typeof Compass }[] = [
+  { id: 'board', label: 'Quest Board', icon: Compass },
+  { id: 'post', label: 'Post a Quest', icon: PlusCircle },
+  { id: 'mine', label: 'My Quests', icon: ClipboardList },
+  { id: 'profile', label: 'Profile', icon: UserRound },
+]
 
 function ThemeToggle() {
   const { theme, toggle } = useTheme()
@@ -28,27 +39,13 @@ function ThemeToggle() {
   )
 }
 
-export type View = 'home' | 'board' | 'me' | 'post' | 'manage'
-export type NavMode = 'guest' | 'doer' | 'poster'
-
-const doerTabs: { id: View; label: string; icon: typeof Compass }[] = [
-  { id: 'board', label: 'Quest Board', icon: Compass },
-  { id: 'me', label: 'My Adventures', icon: Swords },
-]
-
-const posterTabs: { id: View; label: string; icon: typeof Compass }[] = [
-  { id: 'manage', label: 'My Quests', icon: ClipboardList },
-  { id: 'post', label: 'Post a Quest', icon: PlusCircle },
-  { id: 'board', label: 'Quest Board', icon: Compass },
-]
-
 export default function Nav({
   mode,
   view,
   setView,
   userName,
   userId,
-  onSignIn,
+  onAuth,
   onSignOut,
 }: {
   mode: NavMode
@@ -56,17 +53,16 @@ export default function Nav({
   setView: (v: View) => void
   userName?: string
   userId?: string
-  onSignIn: () => void
+  onAuth: (m: AuthMode) => void
   onSignOut: () => void
 }) {
-  const tabs = mode === 'poster' ? posterTabs : mode === 'doer' ? doerTabs : []
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
     <header className="sticky top-0 z-50 flex justify-center px-4 pt-4">
       <nav className="flex w-full max-w-6xl items-center justify-between gap-4 rounded-full border border-line/10 bg-surface/70 py-2 pl-4 pr-2 shadow-glass backdrop-blur-xl">
         <button
-          onClick={() => setView(mode === 'guest' ? 'home' : tabs[0].id)}
+          onClick={() => setView(mode === 'guest' ? 'home' : 'board')}
           className="group flex items-center gap-2.5"
           aria-label="SideQuest home"
         >
@@ -74,15 +70,15 @@ export default function Nav({
           <Wordmark />
         </button>
 
-        {tabs.length > 0 && (
-          <div className="hidden items-center gap-1 rounded-full bg-granite-100/80 p-1 sm:flex">
-            {tabs.map((t) => {
+        {mode === 'user' && (
+          <div className="hidden items-center gap-1 rounded-full bg-granite-100/80 p-1 md:flex">
+            {userTabs.map((t) => {
               const active = view === t.id
               return (
                 <button
                   key={t.id}
                   onClick={() => setView(t.id)}
-                  className={`relative flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-medium transition-colors ${
+                  className={`relative flex items-center gap-2 rounded-full px-3.5 py-2 text-[14px] font-medium transition-colors ${
                     active ? 'text-ink' : 'text-ink-muted hover:text-ink-soft'
                   }`}
                 >
@@ -105,12 +101,12 @@ export default function Nav({
           <div className="flex items-center gap-1.5">
             <ThemeToggle />
             <button
-              onClick={onSignIn}
+              onClick={() => onAuth('signin')}
               className="hidden rounded-full px-4 py-2 text-[14px] font-medium text-ink-soft transition hover:text-ink sm:block"
             >
               Log in
             </button>
-            <button onClick={onSignIn} className="btn-accent text-[14px]">
+            <button onClick={() => onAuth('signup')} className="btn-accent text-[14px]">
               Start questing
             </button>
           </div>
@@ -118,44 +114,51 @@ export default function Nav({
           <div className="flex items-center gap-1">
             <ThemeToggle />
             <div className="relative">
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 transition hover:bg-granite-100"
-            >
-              <Avatar
-                initials={initialsOf(userName ?? '?')}
-                gradient={gradientFor(userId ?? userName ?? 'x')}
-                size="sm"
-              />
-              <ChevronDown className="h-4 w-4 text-ink-faint" />
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <motion.div
-                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-granite-200 bg-surface p-1.5 shadow-float"
-                >
-                  <div className="px-3 py-2">
-                    <p className="truncate text-[14px] font-semibold text-ink">{userName}</p>
-                    <p className="text-[12px] capitalize text-ink-faint">
-                      {mode === 'doer' ? 'Quest Doer' : 'Quest Poster'}
-                    </p>
-                  </div>
-                  <div className="my-1 h-px bg-granite-100" />
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false)
-                      onSignOut()
-                    }}
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[14px] font-medium text-ink-soft transition hover:bg-granite-100"
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 transition hover:bg-granite-100"
+              >
+                <Avatar
+                  initials={initialsOf(userName ?? '?')}
+                  gradient={gradientFor(userId ?? userName ?? 'x')}
+                  size="sm"
+                />
+                <ChevronDown className="h-4 w-4 text-ink-faint" />
+              </button>
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-line/10 bg-surface p-1.5 shadow-float"
                   >
-                    <LogOut className="h-4 w-4" /> Sign out
-                  </button>
-                </motion.div>
-              </>
-            )}
+                    <div className="px-3 py-2">
+                      <p className="truncate text-[14px] font-semibold text-ink">{userName}</p>
+                      <p className="text-[12px] text-ink-faint">SideQuest account</p>
+                    </div>
+                    <div className="my-1 h-px bg-granite-100" />
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false)
+                        setView('profile')
+                      }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[14px] font-medium text-ink-soft transition hover:bg-granite-100"
+                    >
+                      <UserRound className="h-4 w-4" /> My profile
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false)
+                        onSignOut()
+                      }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[14px] font-medium text-ink-soft transition hover:bg-granite-100"
+                    >
+                      <LogOut className="h-4 w-4" /> Sign out
+                    </button>
+                  </motion.div>
+                </>
+              )}
             </div>
           </div>
         )}

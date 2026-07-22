@@ -9,13 +9,11 @@ import {
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { getProfile } from '../lib/db'
-import type { Profile, Role } from '../lib/types'
+import type { Profile } from '../lib/types'
 
 interface SignUpMeta {
-  role: Role
   name: string
   parish?: string
-  kind?: string
 }
 
 interface AuthContextValue {

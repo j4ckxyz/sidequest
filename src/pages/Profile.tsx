@@ -6,23 +6,23 @@ import {
   Loader2,
   Save,
   Trophy,
-  CheckCircle2,
   Coins,
   Sparkles,
   Swords,
   MessageCircle,
+  Clock,
 } from 'lucide-react'
 import { parishes, skillSuggestions, gradientFor, initialsOf, rankFor } from '../lib/constants'
-import type { Application, Doer, Quest } from '../lib/types'
-import { getMyDoer, myApplications, updateDoer, applyToQuest } from '../lib/db'
+import type { Application, Profile as ProfileT, Quest } from '../lib/types'
+import { getProfile, myApplications, updateProfile, applyToQuest } from '../lib/db'
 import { useToast } from '../components/Toast'
 import Avatar from '../components/Avatar'
 import XPBar from '../components/XPBar'
 import QuestModal from '../components/QuestModal'
 
-export default function DoerDashboard({ meId, meName }: { meId: string; meName: string }) {
+export default function Profile({ meId, meName }: { meId: string; meName: string }) {
   const { notify } = useToast()
-  const [doer, setDoer] = useState<Doer | null>(null)
+  const [profile, setProfile] = useState<ProfileT | null>(null)
   const [apps, setApps] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -30,9 +30,9 @@ export default function DoerDashboard({ meId, meName }: { meId: string; meName: 
     let alive = true
     async function load() {
       try {
-        const [d, a] = await Promise.all([getMyDoer(meId), myApplications(meId)])
+        const [p, a] = await Promise.all([getProfile(meId), myApplications(meId)])
         if (!alive) return
-        setDoer(d)
+        setProfile(p)
         setApps(a)
       } catch (e) {
         notify('Could not load your profile', (e as Error).message)
@@ -48,12 +48,12 @@ export default function DoerDashboard({ meId, meName }: { meId: string; meName: 
 
   if (loading) {
     return (
-      <div className="mx-auto flex max-w-6xl items-center justify-center gap-2 px-5 py-32 text-ink-muted">
-        <Loader2 className="h-5 w-5 animate-spin" /> Loading your adventures…
+      <div className="mx-auto flex max-w-5xl items-center justify-center gap-2 px-5 py-32 text-ink-muted">
+        <Loader2 className="h-5 w-5 animate-spin" /> Loading your profile…
       </div>
     )
   }
-  if (!doer) {
+  if (!profile) {
     return (
       <div className="mx-auto max-w-md px-5 py-32 text-center">
         <p className="text-[17px] font-semibold text-ink">We couldn’t find your profile.</p>
@@ -65,39 +65,38 @@ export default function DoerDashboard({ meId, meName }: { meId: string; meName: 
     )
   }
 
-  return <DoerInner doer={doer} setDoer={setDoer} apps={apps} meName={meName} notify={notify} />
+  return <ProfileInner profile={profile} setProfile={setProfile} apps={apps} meName={meName} notify={notify} />
 }
 
-function DoerInner({
-  doer,
-  setDoer,
+function ProfileInner({
+  profile,
+  setProfile,
   apps,
   meName,
   notify,
 }: {
-  doer: Doer
-  setDoer: (d: Doer) => void
+  profile: ProfileT
+  setProfile: (p: ProfileT) => void
   apps: Application[]
   meName: string
   notify: (t: string, d?: string) => void
 }) {
-  const [form, setForm] = useState<Doer>(doer)
+  const [form, setForm] = useState<ProfileT>(profile)
   const [saving, setSaving] = useState(false)
   const [skillDraft, setSkillDraft] = useState('')
   const [selected, setSelected] = useState<Quest | null>(null)
 
-  const editable = ({ xp: _x, quests_done: _q, created_at: _c, updated_at: _u, ...r }: Doer) =>
+  const editable = ({ xp: _x, quests_done: _q, created_at: _c, updated_at: _u, ...r }: ProfileT) =>
     JSON.stringify(r)
-  const dirty = editable(form) !== editable(doer)
-
-  const set = <K extends keyof Doer>(k: K, v: Doer[K]) => setForm((f) => ({ ...f, [k]: v }))
+  const dirty = editable(form) !== editable(profile)
+  const set = <K extends keyof ProfileT>(k: K, v: ProfileT[K]) => setForm((f) => ({ ...f, [k]: v }))
 
   async function save() {
     setSaving(true)
     try {
-      await updateDoer(doer.id, form)
-      setDoer({ ...doer, ...form })
-      notify('Profile saved', 'Your adventurer profile is up to date.')
+      await updateProfile(profile.id, form)
+      setProfile({ ...profile, ...form })
+      notify('Profile saved', 'Your profile is up to date.')
     } catch (e) {
       notify('Could not save', (e as Error).message)
     } finally {
@@ -117,22 +116,20 @@ function DoerInner({
   const pending = apps.filter((a) => a.status === 'applied')
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-10">
-      {/* Hero card with XP */}
+    <div className="mx-auto max-w-5xl px-5 py-10">
+      {/* Hero */}
       <div className="card relative overflow-hidden p-7">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-br from-jersey-500 to-jersey-700 opacity-[0.12]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-br from-clay-500 to-clay-700 opacity-[0.12]" />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <Avatar initials={initialsOf(form.name)} gradient={gradientFor(doer.id)} size="xl" ring />
-              <span className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-clay-50 text-clay-600 shadow-soft">
+              <Avatar initials={initialsOf(form.name)} gradient={gradientFor(profile.id)} size="xl" ring />
+              <span className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-surface bg-clay-500/15 text-clay-600 shadow-soft">
                 <current.icon className="h-4 w-4" />
               </span>
             </div>
             <div>
-              <h1 className="text-[26px] font-semibold tracking-tight text-ink">
-                {form.name || 'Your name'}
-              </h1>
+              <h1 className="display text-[26px] font-semibold text-ink">{form.name || 'Your name'}</h1>
               <p className="text-[13.5px] text-ink-muted">
                 {form.parish ? `${form.parish} Guild` : 'Set your parish'}
               </p>
@@ -144,17 +141,17 @@ function DoerInner({
         </div>
 
         <div className="relative mt-5 grid grid-cols-3 gap-3">
-          <MiniStat icon={Sparkles} tint="text-clay-600" label="Total XP" value={form.xp.toLocaleString()} />
-          <MiniStat icon={Trophy} tint="text-clay-600" label="Quests done" value={String(form.quests_done)} />
-          <MiniStat icon={Swords} tint="text-ink" label="Active" value={String(active.length)} />
+          <MiniStat icon={Sparkles} label="Total XP" value={form.xp.toLocaleString()} />
+          <MiniStat icon={Trophy} label="Quests done" value={String(form.quests_done)} />
+          <MiniStat icon={Swords} label="Active" value={String(active.length)} />
         </div>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.1fr]">
-        {/* Profile editor */}
+        {/* Editor */}
         <div className="card p-6">
           <div className="mb-4 flex items-center justify-between">
-            <p className="section-label">My adventurer profile</p>
+            <p className="section-label">My profile</p>
             <AnimatePresence>
               {dirty && (
                 <motion.button
@@ -205,11 +202,11 @@ function DoerInner({
             <p className="mb-2 text-[13px] font-medium text-ink-soft">My skills</p>
             <div className="flex flex-wrap gap-2">
               {form.skills.map((s) => (
-                <span key={s} className="pill bg-jersey-50 text-jersey-700">
+                <span key={s} className="pill bg-clay-500/12 text-clay-700 dark:text-clay-300">
                   {s}
                   <button
                     onClick={() => set('skills', form.skills.filter((x) => x !== s))}
-                    className="ml-0.5 text-jersey-400 hover:text-jersey-700"
+                    className="ml-0.5 opacity-60 hover:opacity-100"
                     aria-label={`Remove ${s}`}
                   >
                     <X className="h-3 w-3" />
@@ -222,11 +219,11 @@ function DoerInner({
                   onChange={(e) => setSkillDraft(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill(skillDraft))}
                   placeholder="Add skill"
-                  className="w-24 bg-transparent text-[13px] outline-none placeholder:text-ink-faint"
+                  className="w-24 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-faint"
                 />
                 <button
                   onClick={() => addSkill(skillDraft)}
-                  className="flex h-6 w-6 items-center justify-center rounded-full text-ink-faint hover:text-jersey-600"
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-ink-faint hover:text-clay-600"
                   aria-label="Add skill"
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -249,17 +246,17 @@ function DoerInner({
           </div>
         </div>
 
-        {/* My Adventures */}
+        {/* My adventures */}
         <div className="space-y-6">
           <AdventureList
-            title="On the party"
-            emptyText="No active quests yet. Accept a quest from the board to get going."
+            title="Quests I’m doing"
+            emptyText="No active quests yet. Accept one from the Quest Board to get going."
             apps={active}
             onOpen={(q) => setSelected(q)}
             accent
           />
           <AdventureList
-            title="Awaiting reply"
+            title="Awaiting a reply"
             emptyText="Nothing pending — browse the Quest Board and apply."
             apps={pending}
             onOpen={(q) => setSelected(q)}
@@ -270,10 +267,10 @@ function DoerInner({
       {selected && (
         <QuestModal
           quest={selected}
-          me={{ id: doer.id, name: meName || form.name, role: 'doer' }}
+          me={{ id: profile.id, name: meName || form.name }}
           applied
           onApply={async (msg) => {
-            await applyToQuest(selected.id, doer.id, msg)
+            await applyToQuest(selected.id, profile.id, msg)
           }}
           onClose={() => setSelected(null)}
         />
@@ -298,12 +295,12 @@ function AdventureList({
   return (
     <div className="card p-5">
       <p className="mb-3 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-ink-faint">
-        {accent ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <MessageCircle className="h-4 w-4" />}
+        {accent ? <Swords className="h-4 w-4 text-clay-500" /> : <Clock className="h-4 w-4" />}
         {title}
         <span className="rounded-full bg-granite-100 px-2 text-[11px] text-ink-muted">{apps.length}</span>
       </p>
       {apps.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-granite-200 bg-granite-50/50 px-4 py-6 text-center text-[13px] text-ink-muted">
+        <p className="rounded-2xl border border-dashed border-line/15 bg-granite-50/60 px-4 py-6 text-center text-[13px] text-ink-muted">
           {emptyText}
         </p>
       ) : (
@@ -315,9 +312,9 @@ function AdventureList({
               <button
                 key={a.id}
                 onClick={() => onOpen(q)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-granite-200 bg-surface p-3 text-left transition hover:border-jersey-200 hover:shadow-soft"
+                className="flex w-full items-center gap-3 rounded-2xl border border-line/10 bg-surface p-3 text-left transition hover:border-clay-200 hover:shadow-soft"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-jersey-500 to-jersey-700 text-white">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-clay-500 to-clay-700 text-white">
                   <Coins className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -326,7 +323,7 @@ function AdventureList({
                     {q.poster?.name ?? 'A local'} · {q.parish} · £{q.reward}
                   </p>
                 </div>
-                <span className="pill shrink-0 bg-jersey-50 text-jersey-700">
+                <span className="pill shrink-0 bg-clay-500/12 text-clay-700 dark:text-clay-300">
                   <MessageCircle className="h-3.5 w-3.5" /> Chat
                 </span>
               </button>
@@ -338,20 +335,10 @@ function AdventureList({
   )
 }
 
-function MiniStat({
-  icon: Icon,
-  tint,
-  label,
-  value,
-}: {
-  icon: typeof Trophy
-  tint: string
-  label: string
-  value: string
-}) {
+function MiniStat({ icon: Icon, label, value }: { icon: typeof Trophy; label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-granite-200 bg-granite-50/60 px-3 py-3 text-center">
-      <Icon className={`mx-auto mb-1 h-4.5 w-4.5 ${tint}`} />
+    <div className="rounded-2xl border border-line/10 bg-granite-50/60 px-3 py-3 text-center">
+      <Icon className="mx-auto mb-1 h-4.5 w-4.5 text-clay-600" />
       <div className="text-[19px] font-bold tracking-tight text-ink">{value}</div>
       <div className="text-[11px] uppercase tracking-wide text-ink-faint">{label}</div>
     </div>

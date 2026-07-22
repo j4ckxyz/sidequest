@@ -1,31 +1,28 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2, AlertTriangle } from 'lucide-react'
-import Nav, { type View, type NavMode } from './components/Nav'
+import Nav, { type View, type NavMode, type AuthMode } from './components/Nav'
 import Landing from './components/Landing'
 import AuthScreen from './components/AuthScreen'
 import QuestBoard from './pages/QuestBoard'
-import DoerDashboard from './pages/DoerDashboard'
 import PostQuest from './pages/PostQuest'
-import PosterManage from './pages/PosterManage'
+import MyQuests from './pages/PosterManage'
+import Profile from './pages/Profile'
 import { ToastProvider } from './components/Toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
-import { getMyDoer, getMyPoster, myApplications } from './lib/db'
+import { myApplications } from './lib/db'
 import { LogoMark, Wordmark } from './components/Logo'
-import type { Role } from './lib/types'
 
 function Footer() {
   return (
-    <footer className="mt-8 border-t border-granite-200 bg-surface">
+    <footer className="mt-8 border-t border-line/10 bg-surface">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 sm:flex-row">
         <div className="flex items-center gap-2.5">
           <LogoMark className="h-7 w-7" />
           <Wordmark className="text-[14px]" />
         </div>
-        <p className="text-[13px] text-ink-faint">
-          Turn chores into quests · Made on the Rock
-        </p>
+        <p className="text-[13px] text-ink-faint">Turn chores into quests · Made on the Rock</p>
       </div>
     </footer>
   )
@@ -33,7 +30,7 @@ function Footer() {
 
 function Splash({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-surface text-ink-muted">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-paper text-ink-muted">
       {children}
     </div>
   )
@@ -44,38 +41,17 @@ function Shell() {
 
   const [view, setView] = useState<View>('home')
   const [authOpen, setAuthOpen] = useState(false)
-  const [authRole, setAuthRole] = useState<Role>('doer')
-
-  const [displayName, setDisplayName] = useState('')
+  const [authMode, setAuthMode] = useState<AuthMode>('signup')
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set())
 
-  const role = profile?.role
+  const displayName = profile?.name ?? ''
 
   useEffect(() => {
     let alive = true
-    if (!session || !profile) {
-      setDisplayName('')
-      return
-    }
-    ;(async () => {
-      try {
-        if (profile.role === 'doer') {
-          const [me, apps] = await Promise.all([
-            getMyDoer(session.user.id),
-            myApplications(session.user.id),
-          ])
-          if (!alive) return
-          setDisplayName(me?.name ?? '')
-          setAppliedIds(new Set(apps.map((a) => a.quest_id)))
-        } else {
-          const p = await getMyPoster(session.user.id)
-          if (!alive) return
-          setDisplayName(p?.name ?? '')
-        }
-      } catch {
-        /* handled in pages */
-      }
-    })()
+    if (!session || !profile) return
+    myApplications(session.user.id)
+      .then((apps) => alive && setAppliedIds(new Set(apps.map((a) => a.quest_id))))
+      .catch(() => {})
     return () => {
       alive = false
     }
@@ -85,22 +61,24 @@ function Shell() {
     if (!session) {
       setView('home')
       setAuthOpen(false)
-    } else if (role === 'poster') {
-      setView((v) => (v === 'home' ? 'manage' : v))
-    } else if (role === 'doer') {
+    } else {
       setView((v) => (v === 'home' ? 'board' : v))
     }
-  }, [session, role])
+  }, [session])
 
-  const openAuth = useCallback((r: Role) => {
-    setAuthRole(r)
+  const openAuth = useCallback((m: AuthMode) => {
+    setAuthMode(m)
     setAuthOpen(true)
+  }, [])
+
+  const onApplied = useCallback((id: string) => {
+    setAppliedIds((prev) => new Set(prev).add(id))
   }, [])
 
   if (loading) {
     return (
       <Splash>
-        <Loader2 className="h-6 w-6 animate-spin text-jersey-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-clay-500" />
         <p className="text-[14px]">Loading SideQuest…</p>
       </Splash>
     )
@@ -113,8 +91,8 @@ function Shell() {
           <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-amber-500" />
           <p className="text-[17px] font-semibold text-ink">Almost there</p>
           <p className="mt-1.5 text-[14px] text-ink-muted">
-            Your account exists but its profile couldn’t be loaded. If this is a new
-            Supabase project, run the migration in{' '}
+            Your account exists but its profile couldn’t be loaded. If this is a new Supabase
+            project, run the migration in{' '}
             <code className="rounded bg-granite-100 px-1">supabase/migrations</code>, then
             reload. If you just signed up, confirm your email and log in.
           </p>
@@ -128,36 +106,30 @@ function Shell() {
 
   if (!session) {
     if (authOpen) {
-      return <AuthScreen initialRole={authRole} onBack={() => setAuthOpen(false)} />
+      return <AuthScreen initialMode={authMode} onBack={() => setAuthOpen(false)} />
     }
     return (
-      <div className="min-h-screen bg-surface">
-        <Nav
-          mode="guest"
-          view={view}
-          setView={setView}
-          onSignIn={() => openAuth('doer')}
-          onSignOut={signOut}
-        />
+      <div className="min-h-screen bg-paper">
+        <Nav mode="guest" view={view} setView={setView} onAuth={openAuth} onSignOut={signOut} />
         <main>
-          <Landing onStart={openAuth} />
+          <Landing onStart={() => openAuth('signup')} />
         </main>
       </div>
     )
   }
 
-  const mode: NavMode = role === 'poster' ? 'poster' : 'doer'
-  const me = { id: session.user.id, name: displayName, role: mode }
+  const mode: NavMode = 'user'
+  const me = { id: session.user.id, name: displayName }
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-paper">
       <Nav
         mode={mode}
         view={view}
         setView={setView}
         userName={displayName}
         userId={session.user.id}
-        onSignIn={() => openAuth('doer')}
+        onAuth={openAuth}
         onSignOut={signOut}
       />
       <main>
@@ -170,21 +142,11 @@ function Shell() {
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           >
             {view === 'board' && (
-              <QuestBoard
-                me={me}
-                appliedIds={appliedIds}
-                onApplied={(id) => setAppliedIds((prev) => new Set(prev).add(id))}
-              />
+              <QuestBoard me={me} appliedIds={appliedIds} onApplied={onApplied} />
             )}
-            {mode === 'doer' && view === 'me' && (
-              <DoerDashboard meId={session.user.id} meName={displayName} />
-            )}
-            {mode === 'poster' && view === 'post' && (
-              <PostQuest meId={session.user.id} onPosted={() => setView('manage')} />
-            )}
-            {mode === 'poster' && view === 'manage' && (
-              <PosterManage meId={session.user.id} meName={displayName} />
-            )}
+            {view === 'post' && <PostQuest meId={me.id} onPosted={() => setView('mine')} />}
+            {view === 'mine' && <MyQuests meId={me.id} meName={displayName} />}
+            {view === 'profile' && <Profile meId={me.id} meName={displayName} />}
           </motion.div>
         </AnimatePresence>
       </main>

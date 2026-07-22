@@ -1,29 +1,25 @@
 import { useState, type ReactNode } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Swords, Home, Mail, Loader2, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Mail, Loader2, Sparkles } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { parishes } from '../lib/constants'
-import type { Role } from '../lib/types'
 import { LogoMark, Wordmark } from './Logo'
 
 type Mode = 'signin' | 'signup'
 
 export default function AuthScreen({
-  initialRole = 'doer',
+  initialMode = 'signup',
   onBack,
 }: {
-  initialRole?: Role
+  initialMode?: Mode
   onBack: () => void
 }) {
   const { signIn, signUp, needsConfirmation } = useAuth()
-  const [mode, setMode] = useState<Mode>('signup')
-  const [role, setRole] = useState<Role>(initialRole)
+  const [mode, setMode] = useState<Mode>(initialMode)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [parish, setParish] = useState('')
-  const [kind, setKind] = useState('resident')
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -42,10 +38,8 @@ export default function AuthScreen({
           return
         }
         const { error } = await signUp(email.trim(), password, {
-          role,
           name: name.trim(),
           parish: parish || undefined,
-          kind: role === 'poster' ? kind : undefined,
         })
         if (error) setError(error)
       }
@@ -60,10 +54,10 @@ export default function AuthScreen({
     return (
       <Shell onBack={onBack}>
         <div className="text-center">
-          <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-jersey-100 text-jersey-600">
+          <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-clay-500/12 text-clay-600">
             <Mail className="h-7 w-7" />
           </span>
-          <h1 className="text-[26px] font-semibold tracking-tight text-ink">Check your inbox</h1>
+          <h1 className="display text-[26px] font-semibold text-ink">Check your inbox</h1>
           <p className="mx-auto mt-2 max-w-sm text-[15px] text-ink-muted">
             We’ve sent a confirmation link to <strong>{email}</strong>. Click it to activate
             your account, then come back and log in.
@@ -88,87 +82,35 @@ export default function AuthScreen({
         <p className="mt-1 text-[15px] text-ink-muted">
           {mode === 'signin'
             ? 'Log in to pick up your quests.'
-            : 'Earn money, help neighbours, conquer the Rock.'}
+            : 'One account — post quests and complete them.'}
         </p>
       </div>
 
-      <AnimatePresence initial={false}>
-        {mode === 'signup' && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="mb-5 grid grid-cols-2 gap-2.5">
-              {(
-                [
-                  { r: 'doer' as Role, icon: Swords, label: 'Quest Doer', sub: 'Earn & level up' },
-                  { r: 'poster' as Role, icon: Home, label: 'Quest Poster', sub: 'Get a hand' },
-                ]
-              ).map((o) => {
-                const active = role === o.r
-                return (
-                  <button
-                    key={o.r}
-                    type="button"
-                    onClick={() => setRole(o.r)}
-                    className={`flex flex-col items-start gap-1 rounded-2xl border p-3.5 text-left transition-all ${
-                      active
-                        ? 'border-jersey-400 bg-jersey-50 ring-4 ring-jersey-500/10'
-                        : 'border-granite-200 bg-surface hover:border-granite-300'
-                    }`}
-                  >
-                    <o.icon className={`h-5 w-5 ${active ? 'text-jersey-600' : 'text-ink-faint'}`} />
-                    <span className="text-[14px] font-semibold text-ink">{o.label}</span>
-                    <span className="text-[12px] text-ink-muted">{o.sub}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <form onSubmit={submit} className="space-y-3">
         {mode === 'signup' && (
-          <>
-            <Labeled label={role === 'poster' ? 'Your name or business name' : 'Your name'}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Labeled label="Your name">
               <input
                 className="field"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={role === 'poster' ? 'e.g. The Green Thumb Café' : 'e.g. Charlie'}
+                placeholder="e.g. Charlie"
                 autoComplete="name"
               />
             </Labeled>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Labeled label="Home parish">
-                <select
-                  className="field cursor-pointer"
-                  value={parish}
-                  onChange={(e) => setParish(e.target.value)}
-                >
-                  <option value="">Select…</option>
-                  {parishes.map((p) => (
-                    <option key={p}>{p}</option>
-                  ))}
-                </select>
-              </Labeled>
-              {role === 'poster' && (
-                <Labeled label="I'm a…">
-                  <select
-                    className="field cursor-pointer"
-                    value={kind}
-                    onChange={(e) => setKind(e.target.value)}
-                  >
-                    <option value="resident">Resident</option>
-                    <option value="business">Small business</option>
-                  </select>
-                </Labeled>
-              )}
-            </div>
-          </>
+            <Labeled label="Home parish">
+              <select
+                className="field cursor-pointer"
+                value={parish}
+                onChange={(e) => setParish(e.target.value)}
+              >
+                <option value="">Select…</option>
+                {parishes.map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+            </Labeled>
+          </div>
         )}
 
         <Labeled label="Email">
@@ -196,7 +138,7 @@ export default function AuthScreen({
         </Labeled>
 
         {error && (
-          <p className="rounded-xl bg-jersey-50 px-3.5 py-2.5 text-[13.5px] text-jersey-700">
+          <p className="rounded-xl bg-clay-500/12 px-3.5 py-2.5 text-[13.5px] text-clay-700 dark:text-clay-300">
             {error}
           </p>
         )}
@@ -222,7 +164,7 @@ export default function AuthScreen({
             setMode(mode === 'signin' ? 'signup' : 'signin')
             setError(null)
           }}
-          className="font-semibold text-jersey-600 hover:text-jersey-800"
+          className="font-semibold text-clay-600 hover:text-clay-800 dark:text-clay-400"
         >
           {mode === 'signin' ? 'Create one' : 'Log in'}
         </button>
@@ -240,9 +182,9 @@ export default function AuthScreen({
 
 function Shell({ children, onBack }: { children: ReactNode; onBack: () => void }) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-surface">
+    <div className="relative min-h-screen overflow-hidden bg-paper">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-br from-jersey-200/70 via-jersey-100/40 to-transparent blur-3xl" />
+        <div className="absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-br from-clay-200/60 via-clay-100/30 to-transparent blur-3xl" />
         <div className="absolute inset-0 grain opacity-60" />
       </div>
 
@@ -259,7 +201,7 @@ function Shell({ children, onBack }: { children: ReactNode; onBack: () => void }
           <Wordmark className="text-[18px]" />
         </div>
 
-        <div className="rounded-4xl border border-granite-200/70 bg-surface/80 p-7 shadow-float backdrop-blur-xl">
+        <div className="rounded-4xl border border-line/10 bg-surface/80 p-7 shadow-float backdrop-blur-xl">
           {children}
         </div>
       </div>

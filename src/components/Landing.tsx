@@ -6,11 +6,9 @@ import {
   Users,
   MessageCircle,
   Coins,
-  Bus,
   MapPin,
   Trophy,
 } from 'lucide-react'
-import type { Role } from '../lib/types'
 import { iconForCategory } from '../lib/constants'
 
 const fade = {
@@ -28,7 +26,7 @@ const previewQuests = [
   { title: 'Help Nan with her iPad', cat: 'Tech Help', parish: 'St Brelade', reward: 10, xp: 100 },
 ]
 
-export default function Landing({ onStart }: { onStart: (role: Role) => void }) {
+export default function Landing({ onStart }: { onStart: () => void }) {
   return (
     <div className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -80,11 +78,11 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
           animate="show"
           className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
         >
-          <button onClick={() => onStart('doer')} className="btn-accent group px-6 py-3 text-[15px]">
-            Start earning as a Doer
+          <button onClick={() => onStart()} className="btn-accent group px-6 py-3 text-[15px]">
+            Start questing
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
-          <button onClick={() => onStart('poster')} className="btn-primary px-6 py-3 text-[15px]">
+          <button onClick={() => onStart()} className="btn-primary px-6 py-3 text-[15px]">
             Post a quest
           </button>
         </motion.div>
@@ -179,15 +177,13 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
               title: 'XP & Ranks',
               body: 'Every completed quest earns XP on a warm terracotta progress bar. Climb from Novice Adventurer to Local Legend.',
               tint: 'from-clay-500 to-clay-700',
-              role: 'doer' as Role,
               cta: 'Start levelling up',
             },
             {
               icon: Compass,
               title: 'Quest Board & Guilds',
-              body: 'A live marketplace organised by all 12 parish Guilds. Filter single-time vs weekly, and spot Bus-Route-Friendly tasks.',
+              body: 'A live marketplace organised by all 12 parish Guilds. Filter by parish, single-time vs weekly, job type and pay.',
               tint: 'from-[#93a08a] to-[#6c7860]',
-              role: 'doer' as Role,
               cta: 'Browse the board',
             },
             {
@@ -195,7 +191,6 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
               title: 'Quest Party',
               body: 'Big job? Set a party size. Teens team up or fill open slots, and the reward splits equally across the party.',
               tint: 'from-[#c7ab74] to-[#9c7f4c]',
-              role: 'poster' as Role,
               cta: 'Post a group gig',
             },
             {
@@ -203,7 +198,6 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
               title: 'Safe-Chat',
               body: 'Built-in live messaging on every quest, so posters and doers coordinate without ever swapping phone numbers.',
               tint: 'from-clay-600 to-clay-800',
-              role: 'poster' as Role,
               cta: 'See how it works',
             },
           ].map((f, i) => (
@@ -223,7 +217,7 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
               <h3 className="text-[21px] font-semibold tracking-tight text-ink">{f.title}</h3>
               <p className="mt-2 text-[15px] leading-relaxed text-ink-muted">{f.body}</p>
               <button
-                onClick={() => onStart(f.role)}
+                onClick={() => onStart()}
                 className="mt-5 inline-flex items-center gap-1.5 text-[14px] font-medium text-jersey-600 transition-colors hover:text-jersey-800"
               >
                 {f.cta}
@@ -239,7 +233,7 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
         <div className="grid gap-3 sm:grid-cols-3">
           {[
             { icon: Trophy, title: 'Earn XP & rank up', body: 'Every completed quest levels you up — from Novice Adventurer to Local Legend.' },
-            { icon: Bus, title: 'Bus-route friendly', body: 'Tasks along LibertyBus routes are tagged, so non-drivers can reach them.' },
+            { icon: Users, title: 'One account, both sides', body: 'Post a job and pick one up — everyone can do both on SideQuest.' },
             { icon: MessageCircle, title: 'Stay on-platform', body: 'Coordinate through Safe-Chat — no personal numbers exchanged.' },
           ].map((t) => (
             <div key={t.title} className="card flex items-start gap-3 p-5">
@@ -268,13 +262,13 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <button
-              onClick={() => onStart('doer')}
+              onClick={() => onStart()}
               className="btn bg-white px-6 py-3 text-[15px] font-medium text-jersey-700 hover:bg-white/90"
             >
-              Become a Quest Doer
+              Create your account
             </button>
             <button
-              onClick={() => onStart('poster')}
+              onClick={() => onStart()}
               className="btn border border-white/30 px-6 py-3 text-[15px] font-medium text-white hover:bg-surface/10"
             >
               Post your first quest

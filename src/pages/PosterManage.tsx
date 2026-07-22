@@ -11,7 +11,6 @@ import {
   MessageCircle,
   PartyPopper,
   Inbox,
-  Bus,
   Repeat,
   ArrowLeft,
   CalendarDays,
@@ -24,7 +23,7 @@ import {
   archiveQuest,
   completeQuest,
   deleteQuest,
-  getMyPoster,
+  getProfile,
   logWeek,
   myQuests,
   questApplications,
@@ -73,12 +72,12 @@ export default function PosterManage({ meId, meName }: { meId: string; meName: s
 
   useEffect(() => {
     let alive = true
-    Promise.all([getMyPoster(meId), myQuests(meId)])
+    Promise.all([getProfile(meId), myQuests(meId)])
       .then(([p, q]) => {
         if (!alive) return
         if (p) {
           setPosterName(p.name || meName)
-          setPosterMeta(`${p.kind === 'business' ? 'Small business' : 'Resident'}${p.parish ? ` · ${p.parish}` : ''}`)
+          setPosterMeta(p.parish ? `${p.parish} Guild` : '')
         }
         setQuests(q)
       })
@@ -216,7 +215,6 @@ function QuestRow({ q, onClick }: { q: Quest; onClick: () => void }) {
               <Repeat className="h-3 w-3" /> Weekly
             </span>
           ) : null}
-          {q.bus_friendly && <Bus className="h-3.5 w-3.5 shrink-0 text-emerald-600" />}
         </div>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[12.5px] text-ink-muted">
           <span>{q.parish} Guild</span>
@@ -262,16 +260,18 @@ function ManageModal({
 
   useEffect(() => {
     let alive = true
-    Promise.all([
-      questApplications(quest.id),
-      isWeekly ? questWeekLogs(quest.id) : Promise.resolve([]),
-    ])
-      .then(([a, l]) => {
-        if (!alive) return
-        setApps(a)
-        setLogs(l as WeekLog[])
+    // Load applicants first so the list always renders, even if week logs fail.
+    questApplications(quest.id)
+      .then((a) => alive && setApps(a))
+      .catch((e) => {
+        if (alive) setApps([])
+        notify('Could not load applicants', (e as Error).message)
       })
-      .catch((e) => notify('Could not load quest', (e as Error).message))
+    if (isWeekly) {
+      questWeekLogs(quest.id)
+        .then((l) => alive && setLogs(l))
+        .catch(() => alive && setLogs([]))
+    }
     return () => {
       alive = false
     }
