@@ -33,12 +33,16 @@ export function SignedInHome() {
 
   const firstName = user?.full_name.split(' ')[0] ?? 'there';
 
-  // Discovery, low-friction: hide the user's own posts, surface their parish first.
-  const { nearby, elsewhere } = useMemo(() => {
-    const open = (jobs ?? []).filter((j) => j.poster_id !== user?.id);
-    const nearby = open.filter((j) => j.parish === user?.parish);
-    const elsewhere = open.filter((j) => j.parish !== user?.parish);
-    return { nearby, elsewhere };
+  // Discovery, low-friction: hide the user's own posts from the "for you" feed, surface
+  // their parish first — but still show their own open jobs in their own section.
+  const { nearby, elsewhere, ownOpen } = useMemo(() => {
+    const all = jobs ?? [];
+    const others = all.filter((j) => j.poster_id !== user?.id);
+    return {
+      nearby: others.filter((j) => j.parish === user?.parish),
+      elsewhere: others.filter((j) => j.parish !== user?.parish),
+      ownOpen: all.filter((j) => j.poster_id === user?.id),
+    };
   }, [jobs, user?.id, user?.parish]);
 
   function onSearch(e: FormEvent) {
@@ -118,6 +122,7 @@ export function SignedInHome() {
         </div>
       ) : (
         <>
+          {ownOpen.length > 0 && <JobSection title="Your open jobs" jobs={ownOpen} seeAllTo="/dashboard/posted" />}
           {nearby.length > 0 && (
             <JobSection title={`Fresh near you${user?.parish ? ` — ${user.parish}` : ''}`} jobs={nearby} />
           )}
@@ -126,14 +131,29 @@ export function SignedInHome() {
           )}
           {nearby.length === 0 && elsewhere.length === 0 && (
             <div className="mt-10 rounded-lg border border-dashed border-border px-6 py-14 text-center">
-              <p className="text-text">Quiet on the island right now.</p>
-              <p className="mt-1 text-sm text-text-muted">No open jobs yet — why not be the one to post the first?</p>
-              <Link
-                to="/jobs/new"
-                className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-5 text-sm font-medium text-on-primary hover:bg-primary-hover"
-              >
-                <Plus size={16} /> Post a job
-              </Link>
+              {ownOpen.length > 0 ? (
+                <>
+                  <p className="text-text">You’re all posted up.</p>
+                  <p className="mt-1 text-sm text-text-muted">No open jobs from other islanders right now — check back soon, or browse everything.</p>
+                  <Link
+                    to="/jobs"
+                    className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-lg border border-border px-5 text-sm font-medium text-text hover:bg-surface-2"
+                  >
+                    Browse all jobs
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className="text-text">Quiet on the island right now.</p>
+                  <p className="mt-1 text-sm text-text-muted">No open jobs yet — why not be the one to post the first?</p>
+                  <Link
+                    to="/jobs/new"
+                    className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-5 text-sm font-medium text-on-primary hover:bg-primary-hover"
+                  >
+                    <Plus size={16} /> Post a job
+                  </Link>
+                </>
+              )}
             </div>
           )}
         </>
@@ -182,12 +202,12 @@ function RecommendedSection({ recs }: { recs: JobRecommendation[] }) {
   );
 }
 
-function JobSection({ title, jobs }: { title: string; jobs: Job[] }) {
+function JobSection({ title, jobs, seeAllTo = '/jobs' }: { title: string; jobs: Job[]; seeAllTo?: string }) {
   return (
     <section className="mt-10">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-text">{title}</h2>
-        <Link to="/jobs" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+        <Link to={seeAllTo} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
           See all <ArrowRight size={15} />
         </Link>
       </div>

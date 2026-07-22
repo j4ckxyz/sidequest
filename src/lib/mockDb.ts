@@ -15,6 +15,8 @@ interface State {
   conversations: Record<string, Conversation>;
   messages: Record<string, Message>;
   reviews: Record<string, Review>;
+  /** past username (lowercased) → owner id, so old @handles keep resolving. */
+  usernameHistory: Record<string, string>;
   currentUserId: string | null;
 }
 
@@ -413,6 +415,7 @@ function seed(): State {
     conversations: Object.fromEntries(conversations.map((c) => [c.id, c])),
     messages: Object.fromEntries(messages.map((m) => [m.id, m])),
     reviews: Object.fromEntries(reviews.map((r) => [r.id, r])),
+    usernameHistory: {},
     currentUserId: null,
   };
 }
@@ -486,11 +489,37 @@ export const db = {
     },
     async getByUsername(username: string): Promise<Profile | null> {
       const u = username.toLowerCase();
-      return delay(Object.values(state.profiles).find((p) => p.username?.toLowerCase() === u) ?? null);
+      const current = Object.values(state.profiles).find((p) => p.username?.toLowerCase() === u);
+      if (current) return delay(current);
+      const ownerId = (state.usernameHistory ?? {})[u];
+      return delay(ownerId ? state.profiles[ownerId] ?? null : null);
     },
     async usernameAvailable(username: string, excludeId?: string): Promise<boolean> {
       const u = username.toLowerCase();
-      return delay(!Object.values(state.profiles).some((p) => p.username?.toLowerCase() === u && p.id !== excludeId));
+      const takenNow = Object.values(state.profiles).some((p) => p.username?.toLowerCase() === u && p.id !== excludeId);
+      const reserved = (state.usernameHistory ?? {})[u] !== undefined && (state.usernameHistory ?? {})[u] !== excludeId;
+      return delay(!takenNow && !reserved);
+    },
+    async changeUsername(newUsername: string): Promise<void> {
+      const uid = state.currentUserId;
+      if (!uid) throw new Error('You must be signed in.');
+      const lower = newUsername.toLowerCase();
+      if (!/^[a-z0-9_]{3,20}$/.test(lower)) {
+        throw new Error('Username must be 3–20 characters: lowercase letters, numbers, or underscores.');
+      }
+      const me = state.profiles[uid];
+      const old = me.username;
+      if ((old ?? '').toLowerCase() === lower) return;
+      if (Object.values(state.profiles).some((p) => p.username?.toLowerCase() === lower && p.id !== uid)) {
+        throw new Error('That username is taken.');
+      }
+      const history = (state.usernameHistory ??= {});
+      if (history[lower] && history[lower] !== uid) throw new Error('That username is reserved.');
+      if (old) history[old.toLowerCase()] = uid;
+      state.profiles[uid] = { ...me, username: lower };
+      touch();
+      notify();
+      return delay(undefined);
     },
     async update(id: string, patch: Partial<Profile>): Promise<Profile> {
       const current = state.profiles[id];

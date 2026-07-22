@@ -78,7 +78,20 @@ export const db = {
     },
     async getByUsername(username: string): Promise<Profile | null> {
       const { data } = await client().from('profiles').select('*').ilike('username', username).maybeSingle();
-      return (data as Profile | null) ?? null;
+      if (data) return data as Profile;
+      // Fall back to a past handle so old /u/<handle> links still resolve.
+      const { data: hist } = await client()
+        .from('username_history')
+        .select('user_id')
+        .eq('username_lower', username.toLowerCase())
+        .maybeSingle();
+      if (hist) return db.profiles.get((hist as { user_id: string }).user_id);
+      return null;
+    },
+    async changeUsername(newUsername: string): Promise<void> {
+      const { error } = await client().rpc('change_username', { p_new: newUsername.toLowerCase() });
+      if (error) throw new Error(error.message);
+      notify();
     },
     async usernameAvailable(username: string, excludeId?: string): Promise<boolean> {
       let query = client().from('profiles').select('id').ilike('username', username);

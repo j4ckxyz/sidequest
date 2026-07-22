@@ -5,11 +5,12 @@ import { useAuth } from '../context/AuthProvider';
 import { useUpdateProfile } from '../hooks/useProfile';
 import { useToast } from '../context/ToastProvider';
 import { PARISHES, SKILL_OPTIONS, type Parish } from '../lib/constants';
-import { Input, Label } from '../components/ui/Input';
+import { Input, Label, FieldError } from '../components/ui/Input';
 import { Textarea } from '../components/ui/Textarea';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { Avatar } from '../components/ui/Avatar';
+import { db } from '../lib/db';
 import { cx } from '../lib/utils';
 
 export function ProfileEdit() {
@@ -57,7 +58,11 @@ export function ProfileEdit() {
     <div className="mx-auto max-w-md px-6 py-10">
       <h1 className="text-2xl text-text">Edit profile</h1>
 
-      <form onSubmit={submit} className="mt-7 flex flex-col gap-4">
+      <div className="mt-6">
+        <UsernameSection current={user.username} />
+      </div>
+
+      <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
         <div className="flex justify-center">
           <label className="group relative cursor-pointer">
             <Avatar name={fullName} src={avatar} size="xl" />
@@ -116,6 +121,53 @@ export function ProfileEdit() {
           Save changes
         </Button>
       </form>
+    </div>
+  );
+}
+
+function UsernameSection({ current }: { current: string | null }) {
+  const { showToast } = useToast();
+  const [value, setValue] = useState(current ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const changed = value.trim().toLowerCase() !== (current ?? '').toLowerCase();
+
+  async function save() {
+    setError(null);
+    setSaving(true);
+    try {
+      await db.profiles.changeUsername(value.trim().toLowerCase());
+      showToast('Username updated — old links still work.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change username.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-surface p-4">
+      <Label htmlFor="username" hint="Old links keep working">
+        Username
+      </Label>
+      <div className="flex items-center gap-2">
+        <span className="text-text-muted">@</span>
+        <Input
+          id="username"
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value.toLowerCase());
+            setError(null);
+          }}
+          error={error ?? undefined}
+        />
+        <Button type="button" variant="secondary" onClick={save} isLoading={saving} disabled={!changed}>
+          Change
+        </Button>
+      </div>
+      <FieldError message={error ?? undefined} />
+      <p className="mt-1.5 text-xs text-text-muted">You can change this once a week. Your old @handle stays reserved and old links redirect here.</p>
     </div>
   );
 }
