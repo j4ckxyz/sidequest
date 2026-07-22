@@ -38,9 +38,20 @@ export const db = {
   auth: {
     async getSession(): Promise<Profile | null> {
       const { data } = await client().auth.getSession();
-      const userId = data.session?.user.id;
-      if (!userId) return null;
-      const { data: profile } = await client().from('profiles').select('*').eq('id', userId).maybeSingle();
+      const sessionUser = data.session?.user;
+      if (!sessionUser) return null;
+      let { data: profile } = await client().from('profiles').select('*').eq('id', sessionUser.id).maybeSingle();
+      // Backfill the Google avatar for accounts created before the signup trigger captured it.
+      const googleAvatar = (sessionUser.user_metadata?.avatar_url as string | undefined) ?? undefined;
+      if (profile && !(profile as Profile).avatar_url && googleAvatar) {
+        const { data: updated } = await client()
+          .from('profiles')
+          .update({ avatar_url: googleAvatar })
+          .eq('id', sessionUser.id)
+          .select()
+          .single();
+        profile = updated ?? profile;
+      }
       return (profile as Profile | null) ?? null;
     },
     async signInWithGoogle(): Promise<void> {

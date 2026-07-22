@@ -36,7 +36,7 @@ function daysFromNow(n: number): string {
 }
 
 function seed(): State {
-  const profiles: Profile[] = [
+  const profiles: Profile[] = ([
     {
       id: 'p-ellie',
       email: 'ellie.vibert@example.je',
@@ -139,7 +139,7 @@ function seed(): State {
       jobs_completed_count: 0,
       created_at: daysFromNow(-10),
     },
-  ];
+  ] as Omit<Profile, 'onboarded'>[]).map((p) => ({ ...p, onboarded: true }));
 
   const jobs: Job[] = [
     {

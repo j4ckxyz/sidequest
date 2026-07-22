@@ -15,6 +15,7 @@ export interface Profile {
   rating_count: number;
   jobs_posted_count: number;
   jobs_completed_count: number;
+  onboarded: boolean;
   created_at: string;
 }
 
