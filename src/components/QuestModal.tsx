@@ -14,7 +14,7 @@ import {
   MessageCircle,
 } from 'lucide-react'
 import type { Quest } from '../lib/types'
-import { categoryEmoji, gradientFor, initialsOf } from '../lib/constants'
+import { iconForCategory, gradientFor, initialsOf } from '../lib/constants'
 import Avatar from './Avatar'
 import Chat from './Chat'
 
@@ -47,6 +47,7 @@ export default function QuestModal({
   const canChat = owns || (me.role === 'doer' && applied)
   const spotsLeft = Math.max(0, quest.party_size - quest.accepted_count)
   const perDoer = quest.party_size > 1 ? Math.round(quest.reward / quest.party_size) : quest.reward
+  const CatIcon = iconForCategory(quest.category)
 
   async function handleApply() {
     setBusy(true)
@@ -87,7 +88,7 @@ export default function QuestModal({
 
             <div className="flex items-center gap-2">
               <span className="pill bg-white text-ink-soft shadow-soft">
-                {categoryEmoji[quest.category] ?? '⭐'} {quest.category}
+                <CatIcon className="h-3.5 w-3.5" /> {quest.category}
               </span>
               <span
                 className={`pill ${
@@ -138,7 +139,7 @@ export default function QuestModal({
             <div className="grid gap-3 sm:grid-cols-3">
               <Stat icon={Coins} tint="text-jersey-600" label="Reward" value={`£${quest.reward}`}
                 sub={quest.party_size > 1 ? `£${perDoer} each` : undefined} />
-              <Stat icon={Sparkles} tint="text-gold-600" label="XP reward" value={`+${quest.xp_reward}`} />
+              <Stat icon={Sparkles} tint="text-clay-600" label="XP reward" value={`+${quest.xp_reward}`} />
               <Stat icon={Users} tint="text-ink" label="Party"
                 value={`${quest.accepted_count}/${quest.party_size}`}
                 sub={spotsLeft > 0 ? `${spotsLeft} slot${spotsLeft === 1 ? '' : 's'} left` : 'Full'} />

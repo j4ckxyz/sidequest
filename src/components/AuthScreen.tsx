@@ -82,7 +82,7 @@ export default function AuthScreen({
   return (
     <Shell onBack={onBack}>
       <div className="mb-6 text-center">
-        <h1 className="text-[28px] font-semibold tracking-tight text-ink">
+        <h1 className="display text-[28px] font-semibold text-ink">
           {mode === 'signin' ? 'Welcome back, adventurer' : 'Join SideQuest'}
         </h1>
         <p className="mt-1 text-[15px] text-ink-muted">

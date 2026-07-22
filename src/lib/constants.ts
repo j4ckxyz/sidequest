@@ -1,3 +1,20 @@
+import type { LucideIcon } from 'lucide-react'
+import {
+  Sprout,
+  PawPrint,
+  Laptop,
+  BookOpen,
+  Sparkles,
+  Package,
+  CalendarDays,
+  ShoppingBag,
+  Wrench,
+  Compass,
+  Anchor,
+  Shield,
+  Crown,
+} from 'lucide-react'
+
 // Jersey's 12 parishes — the "Guilds" of the Quest Board.
 export const parishes = [
   'St Helier',
@@ -41,31 +58,35 @@ export const skillSuggestions = [
   'Photography',
 ]
 
-export const categoryEmoji: Record<string, string> = {
-  Gardening: '🌱',
-  Pets: '🐾',
-  'Tech Help': '💻',
-  Tutoring: '📚',
-  Cleaning: '🧽',
-  'Moving & Lifting': '📦',
-  Events: '🎉',
-  Errands: '🛍️',
-  Other: '⭐',
+export const categoryIcon: Record<string, LucideIcon> = {
+  Gardening: Sprout,
+  Pets: PawPrint,
+  'Tech Help': Laptop,
+  Tutoring: BookOpen,
+  Cleaning: Sparkles,
+  'Moving & Lifting': Package,
+  Events: CalendarDays,
+  Errands: ShoppingBag,
+  Other: Wrench,
+}
+
+export function iconForCategory(category: string): LucideIcon {
+  return categoryIcon[category] ?? Wrench
 }
 
 // ── XP & ranks ────────────────────────────────────────────────────────────────
 export interface Rank {
   name: string
   min: number
-  emoji: string
+  icon: LucideIcon
 }
 
 export const ranks: Rank[] = [
-  { name: 'Novice Adventurer', min: 0, emoji: '🌱' },
-  { name: 'Apprentice Helper', min: 150, emoji: '🧭' },
-  { name: 'Island Explorer', min: 400, emoji: '⚓' },
-  { name: 'Parish Hero', min: 800, emoji: '🛡️' },
-  { name: 'Local Legend', min: 1500, emoji: '👑' },
+  { name: 'Novice Adventurer', min: 0, icon: Sprout },
+  { name: 'Apprentice Helper', min: 150, icon: Compass },
+  { name: 'Island Explorer', min: 400, icon: Anchor },
+  { name: 'Parish Hero', min: 800, icon: Shield },
+  { name: 'Local Legend', min: 1500, icon: Crown },
 ]
 
 export function rankFor(xp: number): { current: Rank; next: Rank | null; progress: number } {
@@ -73,9 +94,7 @@ export function rankFor(xp: number): { current: Rank; next: Rank | null; progres
   for (const r of ranks) if (xp >= r.min) current = r
   const idx = ranks.indexOf(current)
   const next = idx < ranks.length - 1 ? ranks[idx + 1] : null
-  const progress = next
-    ? Math.min(1, (xp - current.min) / (next.min - current.min))
-    : 1
+  const progress = next ? Math.min(1, (xp - current.min) / (next.min - current.min)) : 1
   return { current, next, progress }
 }
 
@@ -85,15 +104,16 @@ export function xpForReward(reward: number): number {
 }
 
 // ── Avatars ──────────────────────────────────────────────────────────────────
+// Muted, earthy two-stop gradients — warm and calm, never neon.
 const gradients = [
-  'from-jersey-400 to-jersey-700',
-  'from-rose-400 to-jersey-700',
-  'from-amber-400 to-orange-600',
-  'from-orange-400 to-jersey-600',
-  'from-pink-400 to-rose-600',
-  'from-red-400 to-rose-700',
-  'from-fuchsia-400 to-jersey-700',
-  'from-amber-500 to-jersey-600',
+  'from-clay-400 to-clay-600',
+  'from-[#a8927a] to-[#7c6a55]', // taupe
+  'from-[#93a08a] to-[#6c7860]', // sage
+  'from-[#c19a86] to-[#96685a]', // sienna
+  'from-[#c7ab74] to-[#9c7f4c]', // sand
+  'from-[#9a938a] to-[#6e675f]', // stone
+  'from-[#bd8f88] to-[#8f5f5b]', // dusty rose
+  'from-[#8c9aa0] to-[#5f6d73]', // slate
 ]
 
 export function gradientFor(seed: string): string {

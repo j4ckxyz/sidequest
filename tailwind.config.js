@@ -1,17 +1,17 @@
 /** @type {import('tailwindcss').Config} */
 
-// Jersey red — the brand. Flag red anchored around 600.
-const jersey = {
-  50: '#fff1f2',
-  100: '#ffe1e3',
-  200: '#ffc8cd',
-  300: '#ff9ba4',
-  400: '#fb6270',
-  500: '#f23144',
-  600: '#d81127', // primary Jersey red
-  700: '#b60d20',
-  800: '#960f1f',
-  900: '#7d1220',
+// Terracotta / clay — the SideQuest + Claude-style accent (matches the logo).
+const clay = {
+  50: '#f9f1ec',
+  100: '#f1ddd0',
+  200: '#e5bda4',
+  300: '#d69b77',
+  400: '#c9835a',
+  500: '#bf6a41',
+  600: '#b0542f', // primary
+  700: '#8f4526',
+  800: '#733a23',
+  900: '#5f301f',
 }
 
 export default {
@@ -20,35 +20,39 @@ export default {
     extend: {
       fontFamily: {
         sans: [
+          'Inter',
           '-apple-system',
           'BlinkMacSystemFont',
-          '"SF Pro Display"',
-          '"SF Pro Text"',
-          'Inter',
+          '"Segoe UI"',
           'system-ui',
           'sans-serif',
         ],
+        serif: ['"Source Serif 4"', 'Georgia', '"Times New Roman"', 'serif'],
       },
       colors: {
+        // Warm near-black ink, like Claude's text.
         ink: {
-          DEFAULT: '#0a0a0b',
-          soft: '#1d1d1f',
-          muted: '#6e6e73',
-          faint: '#86868b',
+          DEFAULT: '#1f1d1a',
+          soft: '#37342f',
+          muted: '#6f6a61',
+          faint: '#989286',
         },
-        jersey,
-        // Alias so any legacy `sea-*` utility renders in the new brand red.
-        sea: jersey,
+        // Warm cream paper background.
+        paper: {
+          DEFAULT: '#faf9f5',
+          soft: '#f5f3ec',
+          deep: '#efece1',
+        },
+        clay,
+        // Legacy aliases so existing utilities keep working in the new palette.
+        jersey: clay,
+        sea: clay,
+        // Warm neutral scale (taupe-grey) for borders, fills, muted chips.
         granite: {
-          50: '#f7f8fa',
-          100: '#eef0f4',
-          200: '#dee2ea',
-          300: '#c4cbd8',
-        },
-        gold: {
-          400: '#f5c451',
-          500: '#e8a91e',
-          600: '#c9880c',
+          50: '#f6f4ef',
+          100: '#ece8df',
+          200: '#ddd8cc',
+          300: '#c6bfb1',
         },
       },
       borderRadius: {
@@ -56,10 +60,10 @@ export default {
         '5xl': '2.5rem',
       },
       boxShadow: {
-        glass: '0 1px 0 0 rgba(255,255,255,0.6) inset, 0 12px 40px -12px rgba(120,15,25,0.16)',
-        float: '0 24px 60px -20px rgba(120,18,28,0.28)',
-        soft: '0 2px 8px -2px rgba(15,23,42,0.08), 0 12px 30px -18px rgba(15,23,42,0.22)',
-        redglow: '0 10px 30px -10px rgba(216,17,39,0.55)',
+        glass: '0 1px 0 0 rgba(255,255,255,0.6) inset, 0 10px 34px -14px rgba(80,60,45,0.14)',
+        float: '0 22px 55px -22px rgba(80,55,40,0.24)',
+        soft: '0 1px 2px 0 rgba(60,45,35,0.05), 0 10px 26px -18px rgba(60,45,35,0.18)',
+        redglow: '0 10px 26px -12px rgba(176,84,47,0.42)',
       },
       backdropBlur: {
         xl: '24px',
@@ -76,10 +80,6 @@ export default {
         'float-slow': {
           '0%,100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-14px)' },
-        },
-        'xp-fill': {
-          '0%': { transform: 'scaleX(0)' },
-          '100%': { transform: 'scaleX(1)' },
         },
       },
       animation: {

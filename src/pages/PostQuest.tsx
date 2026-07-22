@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { PlusCircle, Loader2, Coins, Sparkles, Bus, Users } from 'lucide-react'
-import { parishes, questCategories, categoryEmoji, xpForReward } from '../lib/constants'
+import { parishes, questCategories, iconForCategory, xpForReward } from '../lib/constants'
 import type { QuestType } from '../lib/types'
 import { createQuest } from '../lib/db'
 import { useToast } from '../components/Toast'
@@ -27,6 +27,7 @@ export default function PostQuest({
   const [busy, setBusy] = useState(false)
 
   const xp = xpForReward(reward)
+  const PreviewCatIcon = iconForCategory(category)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -64,7 +65,7 @@ export default function PostQuest({
         <span className="pill bg-jersey-600 text-white">
           <PlusCircle className="h-3.5 w-3.5" /> Post a Quest
         </span>
-        <h1 className="mt-3 text-[34px] font-semibold tracking-tight text-ink sm:text-[42px]">
+        <h1 className="display mt-3 text-[34px] font-semibold text-ink sm:text-[42px]">
           Need a hand? Post a quest.
         </h1>
         <p className="mt-1.5 max-w-xl text-[16px] text-ink-muted">
@@ -201,15 +202,15 @@ export default function PostQuest({
         {/* Live preview of rewards */}
         <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-granite-50 px-4 py-3">
           <span className="text-[13px] text-ink-muted">This quest is worth</span>
-          <span className="pill bg-jersey-50 text-jersey-700">
+          <span className="pill bg-clay-50 text-clay-700">
             <Coins className="h-3.5 w-3.5" /> £{reward}
             {partySize > 1 ? ` · £${Math.round(reward / partySize)} each` : ''}
           </span>
-          <span className="pill bg-gold-400/20 text-gold-600">
+          <span className="pill bg-white text-ink-soft shadow-soft">
             <Sparkles className="h-3.5 w-3.5" /> +{xp} XP
           </span>
-          <span className="pill bg-white text-ink-muted">
-            {categoryEmoji[category]} {category}
+          <span className="pill bg-white text-ink-muted shadow-soft">
+            <PreviewCatIcon className="h-3.5 w-3.5" /> {category}
           </span>
         </div>
 

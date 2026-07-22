@@ -12,7 +12,7 @@ import {
   Trophy,
 } from 'lucide-react'
 import type { Role } from '../lib/types'
-import { categoryEmoji } from '../lib/constants'
+import { iconForCategory } from '../lib/constants'
 
 const fade = {
   hidden: { opacity: 0, y: 20 },
@@ -35,7 +35,7 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-br from-jersey-200/70 via-jersey-100/40 to-transparent blur-3xl" />
         <div className="absolute right-[-10%] top-40 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-jersey-200/40 to-transparent blur-3xl animate-float-slow" />
-        <div className="absolute left-[-8%] top-[420px] h-[360px] w-[360px] rounded-full bg-gradient-to-br from-rose-200/40 to-transparent blur-3xl" />
+        <div className="absolute left-[-8%] top-[420px] h-[360px] w-[360px] rounded-full bg-gradient-to-br from-clay-100/50 to-transparent blur-3xl" />
         <div className="absolute inset-0 grain opacity-60" />
       </div>
 
@@ -57,12 +57,10 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
           variants={fade}
           initial="hidden"
           animate="show"
-          className="text-balance mx-auto max-w-4xl text-[42px] font-semibold leading-[1.04] tracking-[-0.03em] text-ink sm:text-[66px]"
+          className="display text-balance mx-auto max-w-4xl text-[44px] font-semibold leading-[1.05] text-ink sm:text-[68px]"
         >
           Turn community chores into{' '}
-          <span className="bg-gradient-to-br from-jersey-500 to-jersey-800 bg-clip-text text-transparent">
-            completed quests.
-          </span>
+          <span className="italic text-clay-600">completed quests.</span>
         </motion.h1>
 
         <motion.p
@@ -133,31 +131,34 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              {previewQuests.map((q, i) => (
-                <motion.div
-                  key={q.title}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7 + i * 0.12 }}
-                  className="flex flex-col gap-3 rounded-2xl border border-granite-200/80 bg-white p-4 text-left shadow-soft"
-                >
-                  <span className="pill w-fit bg-granite-100 text-ink-soft">
-                    {categoryEmoji[q.cat]} {q.cat}
-                  </span>
-                  <p className="text-[15px] font-semibold leading-snug text-ink">{q.title}</p>
-                  <div className="flex items-center gap-2">
-                    <span className="pill bg-jersey-50 text-jersey-700">
-                      <Coins className="h-3.5 w-3.5" /> £{q.reward}
+              {previewQuests.map((q, i) => {
+                const CatIcon = iconForCategory(q.cat)
+                return (
+                  <motion.div
+                    key={q.title}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7 + i * 0.12 }}
+                    className="flex flex-col gap-3 rounded-2xl border border-black/[0.07] bg-white p-4 text-left shadow-soft"
+                  >
+                    <span className="pill w-fit bg-granite-100 text-ink-soft">
+                      <CatIcon className="h-3.5 w-3.5" /> {q.cat}
                     </span>
-                    <span className="pill bg-gold-400/20 text-gold-600">
-                      <Sparkles className="h-3.5 w-3.5" /> +{q.xp}
+                    <p className="text-[15px] font-semibold leading-snug text-ink">{q.title}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="pill bg-clay-50 text-clay-700">
+                        <Coins className="h-3.5 w-3.5" /> £{q.reward}
+                      </span>
+                      <span className="pill bg-granite-100 text-ink-soft">
+                        <Sparkles className="h-3.5 w-3.5" /> +{q.xp}
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[12px] text-ink-faint">
+                      <MapPin className="h-3.5 w-3.5" /> {q.parish} Guild
                     </span>
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-[12px] text-ink-faint">
-                    <MapPin className="h-3.5 w-3.5" /> {q.parish} Guild
-                  </span>
-                </motion.div>
-              ))}
+                  </motion.div>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -166,8 +167,8 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
       {/* Feature pillars */}
       <section className="mx-auto max-w-6xl px-5 py-16">
         <div className="mb-10 text-center">
-          <p className="section-label">A whole ecosystem, red-and-white</p>
-          <h2 className="text-balance mx-auto mt-3 max-w-2xl text-[32px] font-semibold tracking-tight text-ink sm:text-[40px]">
+          <p className="section-label">A whole ecosystem, one warm home</p>
+          <h2 className="display text-balance mx-auto mt-3 max-w-2xl text-[32px] font-semibold text-ink sm:text-[42px]">
             Everything you need to quest across the Rock.
           </h2>
         </div>
@@ -177,8 +178,8 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
             {
               icon: Trophy,
               title: 'XP & Ranks',
-              body: 'Every completed quest earns XP on a Jersey-red progress bar. Climb from Novice Adventurer to Local Legend.',
-              tint: 'from-jersey-500 to-jersey-700',
+              body: 'Every completed quest earns XP on a warm terracotta progress bar. Climb from Novice Adventurer to Local Legend.',
+              tint: 'from-clay-500 to-clay-700',
               role: 'doer' as Role,
               cta: 'Start levelling up',
             },
@@ -186,7 +187,7 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
               icon: Compass,
               title: 'Quest Board & Guilds',
               body: 'A live marketplace organised by all 12 parish Guilds. Filter single-time vs weekly, and spot Bus-Route-Friendly tasks.',
-              tint: 'from-rose-500 to-jersey-700',
+              tint: 'from-[#93a08a] to-[#6c7860]',
               role: 'doer' as Role,
               cta: 'Browse the board',
             },
@@ -194,7 +195,7 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
               icon: Users,
               title: 'Quest Party',
               body: 'Big job? Set a party size. Teens team up or fill open slots, and the reward splits equally across the party.',
-              tint: 'from-amber-500 to-jersey-600',
+              tint: 'from-[#c7ab74] to-[#9c7f4c]',
               role: 'poster' as Role,
               cta: 'Post a group gig',
             },
@@ -202,7 +203,7 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
               icon: MessageCircle,
               title: 'Safe-Chat',
               body: 'Built-in live messaging on every quest, so posters and doers coordinate without ever swapping phone numbers.',
-              tint: 'from-jersey-600 to-rose-800',
+              tint: 'from-clay-600 to-clay-800',
               role: 'poster' as Role,
               cta: 'See how it works',
             },
@@ -260,7 +261,7 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
         <div className="relative overflow-hidden rounded-4xl bg-jersey-600 px-8 py-14 text-center text-white shadow-float sm:px-16 sm:py-20">
           <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-white/15 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-jersey-900/40 blur-3xl" />
-          <h2 className="text-balance mx-auto max-w-2xl text-[32px] font-semibold tracking-tight sm:text-[44px]">
+          <h2 className="display text-balance mx-auto max-w-2xl text-[34px] font-semibold sm:text-[46px]">
             Ready to conquer the Rock?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-[17px] text-white/80">

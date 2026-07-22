@@ -15,23 +15,22 @@
   }
 
   body {
-    @apply bg-white text-ink antialiased;
-    font-feature-settings: 'ss01', 'cv01';
-    letter-spacing: -0.011em;
+    @apply bg-paper text-ink antialiased;
+    letter-spacing: -0.006em;
   }
 
   ::selection {
-    background: rgba(216, 17, 39, 0.18);
+    background: rgba(176, 84, 47, 0.16);
   }
 }
 
 @layer components {
   .glass {
-    @apply bg-white/70 backdrop-blur-xl border border-white/60;
+    @apply bg-paper/70 backdrop-blur-xl border border-black/[0.06];
   }
 
   .card {
-    @apply rounded-3xl bg-white border border-granite-200/70 shadow-soft;
+    @apply rounded-2xl bg-white border border-black/[0.07] shadow-soft;
   }
 
   .pill {
@@ -39,15 +38,15 @@
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all duration-300 ease-out active:scale-[0.97] select-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-300 ease-out active:scale-[0.98] select-none;
   }
 
   .btn-primary {
-    @apply btn bg-ink text-white px-5 py-2.5 hover:bg-black shadow-soft hover:shadow-float;
+    @apply btn bg-ink text-paper px-5 py-2.5 hover:bg-black shadow-soft;
   }
 
   .btn-accent {
-    @apply btn bg-jersey-600 text-white px-5 py-2.5 hover:bg-jersey-700 shadow-redglow;
+    @apply btn bg-clay-600 text-white px-5 py-2.5 hover:bg-clay-700 shadow-redglow;
   }
 
   .btn-ghost {
@@ -55,36 +54,41 @@
   }
 
   .field {
-    @apply w-full rounded-2xl border border-granite-200 bg-granite-50 px-4 py-3 text-[15px] text-ink-soft placeholder:text-ink-faint outline-none transition focus:border-jersey-400 focus:bg-white focus:ring-4 focus:ring-jersey-500/10;
+    @apply w-full rounded-xl border border-black/[0.09] bg-paper-soft px-4 py-3 text-[15px] text-ink-soft placeholder:text-ink-faint outline-none transition focus:border-clay-400 focus:bg-white focus:ring-4 focus:ring-clay-500/10;
   }
 
   .section-label {
-    @apply text-[13px] font-semibold uppercase tracking-[0.18em] text-jersey-600;
+    @apply text-[12.5px] font-semibold uppercase tracking-[0.16em] text-clay-600;
+  }
+
+  .display {
+    @apply font-serif;
+    letter-spacing: -0.02em;
   }
 }
 
 /* Elegant thin scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #c4cbd8 transparent;
+  scrollbar-color: #cfc8bb transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #d3d9e3;
+  background: #d8d1c4;
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #b9c1cf;
+  background: #c6bfb1;
   background-clip: content-box;
 }
 
 .grain {
-  background-image: radial-gradient(rgba(120, 15, 25, 0.05) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(90, 60, 40, 0.045) 1px, transparent 1px);
   background-size: 4px 4px;
 }
 

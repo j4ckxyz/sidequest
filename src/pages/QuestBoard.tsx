@@ -12,7 +12,7 @@ import {
   Compass,
   ShieldCheck,
 } from 'lucide-react'
-import { parishes, categoryEmoji, gradientFor, initialsOf } from '../lib/constants'
+import { parishes, iconForCategory, gradientFor, initialsOf } from '../lib/constants'
 import type { Quest, QuestType } from '../lib/types'
 import { applyToQuest, listQuests, myApplications } from '../lib/db'
 import { useToast } from '../components/Toast'
@@ -118,7 +118,7 @@ export default function QuestBoard({
         <span className="pill bg-jersey-600 text-white">
           <Compass className="h-3.5 w-3.5" /> The Quest Board
         </span>
-        <h1 className="mt-3 text-[34px] font-semibold tracking-tight text-ink sm:text-[42px]">
+        <h1 className="display mt-3 text-[34px] font-semibold text-ink sm:text-[42px]">
           Find your next quest.
         </h1>
         <p className="mt-1.5 max-w-xl text-[16px] text-ink-muted">
@@ -286,6 +286,7 @@ function QuestCard({
   onClick: () => void
 }) {
   const spotsLeft = Math.max(0, q.party_size - q.accepted_count)
+  const CatIcon = iconForCategory(q.category)
   return (
     <motion.button
       layout
@@ -294,11 +295,11 @@ function QuestCard({
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       onClick={onClick}
-      className="group relative flex flex-col overflow-hidden rounded-3xl border border-granite-200/80 bg-white p-5 text-left shadow-soft transition-all hover:-translate-y-1 hover:border-jersey-200 hover:shadow-float"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-black/[0.07] bg-white p-5 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:border-clay-200 hover:shadow-float"
     >
       <div className="flex items-start justify-between gap-2">
         <span className="pill bg-granite-100 text-ink-soft">
-          {categoryEmoji[q.category] ?? '⭐'} {q.category}
+          <CatIcon className="h-3.5 w-3.5" /> {q.category}
         </span>
         <div className="flex items-center gap-1.5">
           {q.bus_friendly && (
@@ -330,10 +331,10 @@ function QuestCard({
       )}
 
       <div className="mt-4 flex items-center gap-2">
-        <span className="pill bg-jersey-50 text-jersey-700">
+        <span className="pill bg-clay-50 text-clay-700">
           <Coins className="h-3.5 w-3.5" /> £{q.reward}
         </span>
-        <span className="pill bg-gold-400/20 text-gold-600">
+        <span className="pill bg-granite-100 text-ink-soft">
           <Sparkles className="h-3.5 w-3.5" /> +{q.xp_reward} XP
         </span>
         {q.party_size > 1 && (

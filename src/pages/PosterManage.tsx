@@ -16,7 +16,7 @@ import {
   Bus,
   Repeat,
 } from 'lucide-react'
-import { gradientFor, initialsOf, categoryEmoji } from '../lib/constants'
+import { gradientFor, initialsOf, iconForCategory } from '../lib/constants'
 import type { Application, Poster, Quest } from '../lib/types'
 import {
   completeQuest,
@@ -217,7 +217,7 @@ function QuestManageCard({
     try {
       await completeQuest(quest.id)
       onChanged({ ...quest, status: 'completed' })
-      notify('Quest completed! 🎉', `XP released to the party. Nice one.`)
+      notify('Quest completed', 'XP released to the party. Nice one.')
     } catch (e) {
       notify('Could not complete', (e as Error).message)
     } finally {
@@ -237,12 +237,13 @@ function QuestManageCard({
   }
 
   const acceptedCount = quest.accepted_count
+  const CatIcon = iconForCategory(quest.category)
 
   return (
     <div className={`card overflow-hidden ${completed ? 'opacity-80' : ''}`}>
       <button onClick={toggle} className="flex w-full items-center gap-4 p-5 text-left">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-jersey-500 to-jersey-700 text-[20px] text-white shadow-soft">
-          {categoryEmoji[quest.category] ?? '⭐'}
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-clay-50 text-clay-600">
+          <CatIcon className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

@@ -125,8 +125,8 @@ function DoerInner({
           <div className="flex items-center gap-4">
             <div className="relative">
               <Avatar initials={initialsOf(form.name)} gradient={gradientFor(doer.id)} size="xl" ring />
-              <span className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-white text-[16px] shadow-soft">
-                {current.emoji}
+              <span className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-clay-50 text-clay-600 shadow-soft">
+                <current.icon className="h-4 w-4" />
               </span>
             </div>
             <div>
@@ -144,8 +144,8 @@ function DoerInner({
         </div>
 
         <div className="relative mt-5 grid grid-cols-3 gap-3">
-          <MiniStat icon={Sparkles} tint="text-jersey-600" label="Total XP" value={form.xp.toLocaleString()} />
-          <MiniStat icon={Trophy} tint="text-gold-600" label="Quests done" value={String(form.quests_done)} />
+          <MiniStat icon={Sparkles} tint="text-clay-600" label="Total XP" value={form.xp.toLocaleString()} />
+          <MiniStat icon={Trophy} tint="text-clay-600" label="Quests done" value={String(form.quests_done)} />
           <MiniStat icon={Swords} tint="text-ink" label="Active" value={String(active.length)} />
         </div>
       </div>

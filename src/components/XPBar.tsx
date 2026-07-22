@@ -13,8 +13,14 @@ export default function XPBar({
   return (
     <div className="w-full">
       <div className="mb-1.5 flex items-end justify-between">
-        <div className="flex items-center gap-2">
-          <span className={size === 'md' ? 'text-[22px]' : 'text-[16px]'}>{current.emoji}</span>
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`flex items-center justify-center rounded-full bg-clay-50 text-clay-600 ${
+              size === 'md' ? 'h-9 w-9' : 'h-7 w-7'
+            }`}
+          >
+            <current.icon className={size === 'md' ? 'h-5 w-5' : 'h-4 w-4'} />
+          </span>
           <div>
             <p
               className={`font-semibold tracking-tight text-ink ${
