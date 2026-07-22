@@ -17,6 +17,10 @@ dist-ssr
 .env.production
 .env.*.local
 
+# Supabase CLI local cache, and any local zip of promo-material.
+supabase/.temp/
+promo-material.zip
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

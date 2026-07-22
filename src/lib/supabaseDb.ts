@@ -46,6 +46,12 @@ export const db = {
       });
       if (error) throw new Error(error.message);
       if (!data.user) throw new Error('Check your inbox to confirm your email before continuing.');
+      if (!data.session) {
+        // Email confirmation is on for this project: the account exists but isn't signed in yet.
+        // Don't pretend success — the caller would otherwise navigate to /onboarding as if logged
+        // in, then bounce straight back to /login the moment a protected route re-checks the session.
+        throw new Error('Account created — check your inbox for a confirmation link, then log in.');
+      }
       // The handle_new_user trigger creates the profiles row; give it a moment then read it back.
       for (let attempt = 0; attempt < 5; attempt++) {
         const { data: profile } = await client().from('profiles').select('*').eq('id', data.user.id).maybeSingle();
