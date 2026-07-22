@@ -21,6 +21,9 @@ Gemini calls are kept to the minimum:
   completed/closed ones, whose text never changes — are embedded once, then never again. Embeddings
   are cached in Postgres and survive restarts. Requests are batched (`batchEmbedContents`, 50% price)
   with exponential backoff + retry on HTTP 429/503.
+- **Preference embeddings are content-hashed too.** Skills and free-text interest keywords are only
+  re-embedded when the user changes them. Ranking blends semantic/history similarity with smaller
+  boosts for the same parish, higher pay, and posters the helper has completed work with before.
 - **Reason lines are cached per (user, job).** A refresh only calls flash-lite for *new* picks that
   don't yet have a stored reason. A refresh where nobody's top picks changed makes **zero** LLM calls.
   The `/refresh` response reports `reasonLlmCalls` vs `reasonsReused` so you can watch the ratio.

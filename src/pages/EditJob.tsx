@@ -58,6 +58,7 @@ export function EditJob() {
             budget_amount: job.budget_amount != null ? String(job.budget_amount) : '',
             estimated_hours: job.estimated_hours != null ? String(job.estimated_hours) : '',
             date_needed: job.date_needed ? job.date_needed.slice(0, 10) : '',
+            slots: String(job.slots),
             is_flexible_date: job.is_flexible_date,
             is_recurring: job.is_recurring,
             recurrence: job.recurrence ?? '',

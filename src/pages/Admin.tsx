@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck, Trash2, Sparkles, Bot } from 'lucide-react';
+import { ShieldCheck, Trash2, Sparkles, Bot, Crown } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import { useAllJobsAdmin, useAllProfiles, useAdminDeleteJob, useSetAdmin } from '../hooks/useAdmin';
 import { useRefreshRecommendations } from '../hooks/useRecommendations';
@@ -30,7 +30,9 @@ export function Admin() {
         <ShieldCheck size={20} className="text-sage" />
         <h1 className="text-2xl text-text">Admin</h1>
       </div>
-      <p className="mt-1 text-sm text-text-muted">Moderate jobs and manage who else has admin access.</p>
+      <p className="mt-1 text-sm text-text-muted">
+        Moderate jobs{user.is_owner ? ' and manage who else has admin access' : ''}.
+      </p>
 
       <RecommendationsPanel />
       <BotsPanel />
@@ -192,6 +194,8 @@ function UsersTab({ callerId }: { callerId: string }) {
   const { data: profiles, isLoading } = useAllProfiles(callerId);
   const setAdmin = useSetAdmin();
   const { showToast } = useToast();
+  const caller = profiles?.find((profile) => profile.id === callerId);
+  const canManageAdmins = caller?.is_owner === true;
 
   if (isLoading) return <PageSpinner />;
 
@@ -207,20 +211,29 @@ function UsersTab({ callerId }: { callerId: string }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {profile.is_admin && <Badge tone="sage">Admin</Badge>}
-            <Button
-              size="md"
-              variant="secondary"
-              onClick={() =>
-                setAdmin.mutate(
-                  { callerId, targetId: profile.id, isAdmin: !profile.is_admin },
-                  { onSuccess: () => showToast(profile.is_admin ? 'Admin access removed.' : 'Admin access granted.') },
-                )
-              }
-              disabled={setAdmin.isPending || profile.id === callerId}
-            >
-              {profile.is_admin ? 'Remove admin' : 'Make admin'}
-            </Button>
+            {profile.is_owner ? (
+              <Badge tone="primary" icon={<Crown size={12} />}>Owner</Badge>
+            ) : profile.is_admin ? (
+              <Badge tone="sage">Admin</Badge>
+            ) : null}
+            {canManageAdmins && !profile.is_owner && (
+              <Button
+                size="md"
+                variant="secondary"
+                onClick={() =>
+                  setAdmin.mutate(
+                    { callerId, targetId: profile.id, isAdmin: !profile.is_admin },
+                    {
+                      onSuccess: () => showToast(profile.is_admin ? 'Admin access removed.' : 'Admin access granted.'),
+                      onError: (error) => showToast(error instanceof Error ? error.message : 'Could not change admin access.', 'error'),
+                    },
+                  )
+                }
+                disabled={setAdmin.isPending}
+              >
+                {profile.is_admin ? 'Remove admin' : 'Make admin'}
+              </Button>
+            )}
           </div>
         </div>
       ))}

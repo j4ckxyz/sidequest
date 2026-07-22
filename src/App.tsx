@@ -23,6 +23,7 @@ import { MessagesEmpty } from './pages/MessagesEmpty';
 import { MessagesThreadPage } from './pages/MessagesThreadPage';
 import { ProfileView } from './pages/ProfileView';
 import { ProfileEdit } from './pages/ProfileEdit';
+import { Settings } from './pages/Settings';
 import { Admin } from './pages/Admin';
 import { NotFound } from './pages/NotFound';
 
@@ -93,6 +94,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ProfileEdit />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
                     </ProtectedRoute>
                   }
                 />

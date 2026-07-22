@@ -1,14 +1,19 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ImagePlus, X, MapPin, Repeat } from 'lucide-react';
+import { ImagePlus, X, MapPin, Repeat, Bookmark, LocateFixed } from 'lucide-react';
 import { BUDGET_TYPES, JOB_CATEGORIES, PARISHES, RECURRENCE_OPTIONS } from '../../lib/constants';
 import { Input, Label, FieldError } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
-import type { Job } from '../../types/models';
+import type { Job, SavedPin } from '../../types/models';
+import { useAuth } from '../../context/AuthProvider';
+import { useUpdateProfile } from '../../hooks/useProfile';
+import { useToast } from '../../context/ToastProvider';
+
+const LocationPicker = lazy(() => import('./LocationPicker').then((module) => ({ default: module.LocationPicker })));
 
 // Jersey bounding box — a dropped pin must fall on the island.
 const JERSEY = { latMin: 49.15, latMax: 49.27, lngMin: -2.27, lngMax: -1.99 };
@@ -80,8 +85,12 @@ export function JobForm({
   submitLabel?: string;
   isSubmitting?: boolean;
 }) {
+  const { user } = useAuth();
+  const updateProfile = useUpdateProfile();
+  const { showToast } = useToast();
   const [photos, setPhotos] = useState<string[]>(defaultPhotos);
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(defaultLocation);
+  const [savedPins, setSavedPins] = useState<SavedPin[]>(() => user?.saved_pins ?? []);
   const [locState, setLocState] = useState<'idle' | 'locating' | 'error'>('idle');
   const [locError, setLocError] = useState<string | null>(null);
   const {
@@ -113,6 +122,8 @@ export function JobForm({
   const budgetType = watch('budget_type');
   const flexible = watch('is_flexible_date');
   const recurring = watch('is_recurring');
+  const parish = watch('parish');
+  const locationDetail = watch('location_detail');
 
   function addPhotos(files: FileList | null) {
     if (!files) return;
@@ -141,7 +152,7 @@ export function JobForm({
           setLocError('That doesn’t look like Jersey — pin not set. Pick a parish instead.');
           return;
         }
-        setLoc({ lat: Number(lat.toFixed(5)), lng: Number(lng.toFixed(5)) });
+        chooseLocation({ lat: Number(lat.toFixed(5)), lng: Number(lng.toFixed(5)) });
         setLocState('idle');
       },
       () => {
@@ -150,6 +161,39 @@ export function JobForm({
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
+  }
+
+  function chooseLocation(next: { lat: number; lng: number }) {
+    if (!inJersey(next.lat, next.lng)) {
+      setLocError('Drop the pin within Jersey.');
+      return;
+    }
+    setLoc(next);
+    setLocError(null);
+  }
+
+  function persistPins(next: SavedPin[], successMessage: string) {
+    if (!user) return;
+    updateProfile.mutate(
+      { id: user.id, patch: { saved_pins: next } },
+      {
+        onSuccess: () => {
+          setSavedPins(next);
+          showToast(successMessage);
+        },
+        onError: (error) => showToast(error instanceof Error ? error.message : 'Could not update saved pins.', 'error'),
+      },
+    );
+  }
+
+  function saveCurrentPin() {
+    if (!loc || savedPins.some((pin) => pin.lat === loc.lat && pin.lng === loc.lng)) return;
+    const label = locationDetail?.trim() || parish || `Saved place ${savedPins.length + 1}`;
+    persistPins([...savedPins, { ...loc, label }].slice(-10), 'Pin saved for next time.');
+  }
+
+  function removeSavedPin(index: number) {
+    persistPins(savedPins.filter((_, pinIndex) => pinIndex !== index), 'Saved pin removed.');
   }
 
   const submit = handleSubmit((values) => {
@@ -223,13 +267,13 @@ export function JobForm({
 
       {/* Optional precise pin */}
       <div className="rounded-lg border border-border bg-surface p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-2.5">
             <MapPin size={18} className="mt-0.5 shrink-0 text-primary" />
             <div>
-              <p className="text-sm font-medium text-text">Pin the spot (optional)</p>
+              <p className="text-sm font-medium text-text">Drop a pin on the map</p>
               <p className="text-xs text-text-muted">
-                {loc ? `Pinned: ${loc.lat}, ${loc.lng}` : 'Drop your current location for a more precise map. Only a rough area is shown publicly.'}
+                {loc ? `Pinned at ${loc.lat}, ${loc.lng}` : 'Click the map, use your device location, or reuse a saved place.'}
               </p>
             </div>
           </div>
@@ -240,10 +284,42 @@ export function JobForm({
               </Button>
             )}
             <Button type="button" variant="secondary" size="sm" isLoading={locState === 'locating'} onClick={useMyLocation}>
-              Use my location
+              <LocateFixed size={14} /> Use my location
             </Button>
           </div>
         </div>
+        <div className="mt-3">
+          <Suspense fallback={<div className="h-72 animate-pulse rounded-lg bg-surface-2" />}>
+            <LocationPicker location={loc} onChange={chooseLocation} />
+          </Suspense>
+        </div>
+        {savedPins.length > 0 ? (
+          <div className="mt-3">
+            <p className="text-xs font-medium text-text-muted">Saved places</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {savedPins.map((pin, index) => (
+                <span key={`${pin.lat}:${pin.lng}`} className="inline-flex overflow-hidden rounded-full border border-border bg-surface-2 text-xs text-text">
+                  <button type="button" className="px-3 py-1.5 hover:bg-primary-soft" onClick={() => chooseLocation(pin)}>
+                    {pin.label || `Saved place ${index + 1}`}
+                  </button>
+                  <button
+                    type="button"
+                    className="border-l border-border px-2 text-text-muted hover:text-danger"
+                    onClick={() => removeSavedPin(index)}
+                    aria-label={`Remove ${pin.label || `saved place ${index + 1}`}`}
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {loc && !savedPins.some((pin) => pin.lat === loc.lat && pin.lng === loc.lng) ? (
+          <Button type="button" variant="ghost" size="sm" className="mt-2" isLoading={updateProfile.isPending} onClick={saveCurrentPin}>
+            <Bookmark size={14} /> Save this pin
+          </Button>
+        ) : null}
         {locError && <p className="mt-2 text-xs text-danger">{locError}</p>}
       </div>
 

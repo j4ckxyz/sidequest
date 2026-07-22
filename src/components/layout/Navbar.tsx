@@ -54,6 +54,9 @@ export function Navbar() {
                   <Link to="/dashboard" className="block px-3.5 py-2 text-sm text-text hover:bg-surface-2">
                     Dashboard
                   </Link>
+                  <Link to="/settings" className="block px-3.5 py-2 text-sm text-text hover:bg-surface-2">
+                    Settings
+                  </Link>
                   {user.is_admin && (
                     <Link to="/admin" className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-sage hover:bg-surface-2">
                       <ShieldCheck size={14} /> Admin

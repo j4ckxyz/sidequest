@@ -20,6 +20,7 @@ export interface Profile {
   skills: string[];
   is_verified: boolean;
   is_admin: boolean;
+  is_owner: boolean;
   is_bot: boolean;
   /** Free-text interests that nudge the recommender, beyond the fixed skill tags. */
   interest_keywords: string[];

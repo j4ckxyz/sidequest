@@ -50,7 +50,10 @@ function PostedJobRow({ job }: { job: Job }) {
   const { showToast } = useToast();
   const category = JOB_CATEGORIES.find((c) => c.slug === job.category);
 
-  const pendingOrRelevant = applications?.filter((a) => job.status === 'open' ? a.status === 'pending' : a.status === 'accepted') ?? [];
+  const pendingOrRelevant = applications?.filter((application) =>
+    job.status === 'open' ? application.status === 'pending' || application.status === 'accepted' : application.status === 'accepted',
+  ) ?? [];
+  const acceptedCount = applications?.filter((application) => application.status === 'accepted').length ?? 0;
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5">
@@ -65,6 +68,11 @@ function PostedJobRow({ job }: { job: Job }) {
       </div>
 
       <div className="mt-4 flex flex-col gap-4">
+        {job.slots > 1 && job.status === 'open' ? (
+          <p className="text-sm font-medium text-text">
+            {acceptedCount} of {job.slots} spots filled
+          </p>
+        ) : null}
         {isLoading && <p className="text-sm text-text-muted">Loading applicants…</p>}
         {!isLoading && pendingOrRelevant.length === 0 && (
           <p className="text-sm text-text-muted">
@@ -80,7 +88,12 @@ function PostedJobRow({ job }: { job: Job }) {
             status={application.status}
             proposedAmount={application.proposed_amount}
             createdAt={application.created_at}
-            onAccept={() => accept.mutate(application.id, { onSuccess: () => showToast('Hired! Contact details are now shared.') })}
+            onAccept={() =>
+              accept.mutate(application.id, {
+                onSuccess: () => showToast(acceptedCount + 1 >= job.slots ? 'Team filled — remaining applicants were declined.' : 'Person allocated to this job.'),
+                onError: (error) => showToast(error instanceof Error ? error.message : 'Could not allocate this person.', 'error'),
+              })
+            }
             onReject={() => reject.mutate(application.id)}
             busy={accept.isPending || reject.isPending}
           />

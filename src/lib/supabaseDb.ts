@@ -160,8 +160,23 @@ export const db = {
       return (data as Job[]) ?? [];
     },
     async listAssignedTo(questerId: string): Promise<Job[]> {
-      const { data } = await client().from('jobs').select('*').eq('assigned_quester_id', questerId);
-      return (data as Job[]) ?? [];
+      const { data: accepted, error: acceptedError } = await client()
+        .from('applications')
+        .select('job_id')
+        .eq('quester_id', questerId)
+        .eq('status', 'accepted');
+      if (acceptedError) throw new Error(acceptedError.message);
+      const acceptedIds = (accepted ?? []).map((row) => row.job_id as string);
+      const [firstHireResult, acceptedResult] = await Promise.all([
+        client().from('jobs').select('*').eq('assigned_quester_id', questerId),
+        acceptedIds.length > 0
+          ? client().from('jobs').select('*').in('id', acceptedIds)
+          : Promise.resolve({ data: [] as Job[], error: null }),
+      ]);
+      if (firstHireResult.error) throw new Error(firstHireResult.error.message);
+      if (acceptedResult.error) throw new Error(acceptedResult.error.message);
+      const jobs = [...((firstHireResult.data as Job[]) ?? []), ...((acceptedResult.data as Job[]) ?? [])];
+      return [...new Map(jobs.map((job) => [job.id, job])).values()];
     },
     async create(input: Omit<Job, 'id' | 'created_at' | 'status' | 'assigned_quester_id'>): Promise<Job> {
       const result = await client().from('jobs').insert(input).select().single();
@@ -177,7 +192,11 @@ export const db = {
       return db.jobs.update(id, { status: 'cancelled' });
     },
     async markInProgress(id: string): Promise<Job> {
-      return db.jobs.update(id, { status: 'in_progress' });
+      const { error } = await client().rpc('start_job', { p_job_id: id });
+      if (error) throw new Error(error.message);
+      const { data } = await client().from('jobs').select('*').eq('id', id).single();
+      notify();
+      return data as Job;
     },
     async complete(id: string): Promise<Job> {
       // RPC so either the poster or the hired helper can mark it done (RLS lets only the

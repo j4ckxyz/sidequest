@@ -45,8 +45,8 @@ export function JobDetail() {
   const createReview = useCreateReview();
 
   const isPoster = !!user && !!job && user.id === job.poster_id;
-  const isAssignedQuester = !!user && !!job && user.id === job.assigned_quester_id;
   const myApplication = applications?.find((a) => a.quester_id === user?.id);
+  const isAssignedQuester = !!user && !!job && (user.id === job.assigned_quester_id || myApplication?.status === 'accepted');
   const revieweeId = isPoster ? job?.assigned_quester_id : job?.poster_id;
   const { data: hasReviewed } = useHasReviewed(job?.status === 'completed' ? job.id : undefined, user?.id);
 
@@ -214,6 +214,9 @@ export function JobDetail() {
             )}
             {user && !isPoster && myApplication?.status === 'pending' && (
               <Badge tone="warning">Application sent — waiting to hear back</Badge>
+            )}
+            {user && !isPoster && job.status === 'open' && myApplication?.status === 'accepted' && (
+              <Badge tone="success">You’re allocated — waiting for the remaining spots to fill</Badge>
             )}
             {user && !isPoster && myApplication?.status === 'rejected' && <Badge tone="neutral">Not chosen this time</Badge>}
 

@@ -142,11 +142,12 @@ function seed(): State {
       jobs_completed_count: 0,
       created_at: daysFromNow(-10),
     },
-  ] as Omit<Profile, 'onboarded' | 'username' | 'top_category' | 'is_bot' | 'interest_keywords' | 'hide_location' | 'saved_pins'>[]).map((p) => ({
+  ] as Omit<Profile, 'onboarded' | 'username' | 'top_category' | 'is_owner' | 'is_bot' | 'interest_keywords' | 'hide_location' | 'saved_pins'>[]).map((p) => ({
     ...p,
     onboarded: true,
     username: p.full_name.toLowerCase().split(' ')[0],
     top_category: null,
+    is_owner: p.is_admin,
     is_bot: false,
     interest_keywords: [],
     hide_location: false,
@@ -435,7 +436,40 @@ function seed(): State {
 function load(): State {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as State;
+    if (raw) {
+      const parsed = JSON.parse(raw) as State;
+      const profiles = Object.values(parsed.profiles);
+      const ownerId = profiles.find((profile) => profile.is_owner)?.id
+        ?? profiles.filter((profile) => profile.is_admin).sort((a, b) => a.created_at.localeCompare(b.created_at))[0]?.id;
+      parsed.profiles = Object.fromEntries(
+        profiles.map((profile) => [
+          profile.id,
+          {
+            ...profile,
+            is_owner: profile.id === ownerId,
+            is_bot: profile.is_bot ?? false,
+            interest_keywords: profile.interest_keywords ?? [],
+            hide_location: profile.hide_location ?? false,
+            saved_pins: profile.saved_pins ?? [],
+          },
+        ]),
+      );
+      parsed.jobs = Object.fromEntries(
+        Object.values(parsed.jobs).map((job) => [
+          job.id,
+          {
+            ...job,
+            slots: job.slots ?? 1,
+            is_recurring: job.is_recurring ?? false,
+            recurrence: job.recurrence ?? null,
+            location_lat: job.location_lat ?? null,
+            location_lng: job.location_lng ?? null,
+          },
+        ]),
+      );
+      parsed.usernameHistory ??= {};
+      return parsed;
+    }
   } catch {
     // fall through to reseed
   }
@@ -555,8 +589,10 @@ export const db = {
     },
     async setAdmin(callerId: string, targetId: string, isAdmin: boolean): Promise<Profile> {
       assertAdmin(callerId);
+      if (!state.profiles[callerId]?.is_owner) throw new Error('Only the owner can change admin access.');
       const target = state.profiles[targetId];
       if (!target) throw new Error('Profile not found.');
+      if (target.is_owner && !isAdmin) throw new Error('The owner cannot be removed as an admin.');
       const next = { ...target, is_admin: isAdmin };
       state.profiles[targetId] = next;
       touch();
@@ -590,7 +626,12 @@ export const db = {
       );
     },
     async listAssignedTo(questerId: string): Promise<Job[]> {
-      return delay(Object.values(state.jobs).filter((j) => j.assigned_quester_id === questerId));
+      const acceptedJobIds = new Set(
+        Object.values(state.applications)
+          .filter((application) => application.quester_id === questerId && application.status === 'accepted')
+          .map((application) => application.job_id),
+      );
+      return delay(Object.values(state.jobs).filter((job) => job.assigned_quester_id === questerId || acceptedJobIds.has(job.id)));
     },
     async create(input: Omit<Job, 'id' | 'created_at' | 'status' | 'assigned_quester_id'>): Promise<Job> {
       const id = genId();
@@ -624,9 +665,15 @@ export const db = {
       state.jobs[id] = next;
       const poster = state.profiles[job.poster_id];
       if (poster) state.profiles[job.poster_id] = { ...poster, jobs_completed_count: poster.jobs_completed_count + 1 };
-      if (job.assigned_quester_id) {
-        const quester = state.profiles[job.assigned_quester_id];
-        if (quester) state.profiles[job.assigned_quester_id] = { ...quester, jobs_completed_count: quester.jobs_completed_count + 1 };
+      const helperIds = new Set(
+        Object.values(state.applications)
+          .filter((application) => application.job_id === id && application.status === 'accepted')
+          .map((application) => application.quester_id),
+      );
+      if (job.assigned_quester_id) helperIds.add(job.assigned_quester_id);
+      for (const helperId of helperIds) {
+        const helper = state.profiles[helperId];
+        if (helper) state.profiles[helperId] = { ...helper, jobs_completed_count: helper.jobs_completed_count + 1 };
       }
       touch();
       notify();
@@ -677,6 +724,7 @@ export const db = {
     async create(input: { job_id: string; quester_id: string; message: string; proposed_amount: number | null }): Promise<Application> {
       const job = state.jobs[input.job_id];
       if (!job) throw new Error('Job not found.');
+      if (job.status !== 'open') throw new Error('This job is no longer accepting applications.');
       if (job.poster_id === input.quester_id) throw new Error('You cannot apply to your own job.');
       const dupe = Object.values(state.applications).find((a) => a.job_id === input.job_id && a.quester_id === input.quester_id);
       if (dupe) throw new Error('You have already applied to this job.');
@@ -881,6 +929,12 @@ export const db = {
       }
       // Skills → category slug (e.g. "Pet care" → "pet-care").
       const skillCats = new Set((me?.skills ?? []).map((s) => s.toLowerCase().replace(/\s+/g, '-')));
+      const keywordText = (me?.interest_keywords ?? []).map((keyword) => keyword.toLowerCase());
+      const workedWithPosters = new Set(
+        allJobs
+          .filter((job) => job.status === 'completed' && job.assigned_quester_id === userId)
+          .map((job) => job.poster_id),
+      );
 
       const scored = allJobs
         .filter((j) => j.status === 'open' && j.poster_id !== userId && !appliedJobIds.has(j.id))
@@ -899,12 +953,22 @@ export const db = {
             score += 2;
             reason = `Close to jobs you've helped with in ${j.category.replace(/-/g, ' ')}`;
           }
+          const searchable = `${j.title} ${j.description} ${j.category}`.toLowerCase();
+          if (keywordText.some((keyword) => searchable.includes(keyword))) {
+            score += 1.5;
+            reason = 'Matches something in your interests';
+          }
+          score += Math.min(Math.log1p(j.budget_amount ?? 0) / Math.log1p(500), 1) * 0.5;
+          if (workedWithPosters.has(j.poster_id)) {
+            score += 0.75;
+            reason = "From someone you've successfully helped before";
+          }
           return { job: j, score, reason };
         })
         .sort((a, b) => b.score - a.score)
         .slice(0, 18);
 
-      return delay(scored.map(({ job, score, reason }) => ({ job, score: Math.min(score / 3, 1), reason })));
+      return delay(scored.map(({ job, score, reason }) => ({ job, score: Math.min(score / 5, 1), reason })));
     },
     async refresh(): Promise<{ ok: boolean }> {
       return delay({ ok: true });
@@ -941,6 +1005,7 @@ export const db = {
           skills: [...skills],
           is_verified: false,
           is_admin: false,
+          is_owner: false,
           is_bot: true,
           interest_keywords: [],
           hide_location: false,
