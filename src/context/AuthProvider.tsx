@@ -1,13 +1,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { db } from '../lib/db';
-import type { Parish } from '../lib/constants';
 import type { Profile } from '../types/models';
 
 interface AuthContextValue {
   user: Profile | null;
   isLoading: boolean;
-  signUp: (input: { email: string; password: string; fullName: string; parish: Parish }) => Promise<Profile>;
-  signIn: (input: { email: string; password: string }) => Promise<Profile>;
+  /** Redirects to Google, then back to the app with a session (production).
+   *  On the dev mock backend this signs straight into the demo account. */
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -37,8 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     user,
     isLoading,
-    signUp: (input) => db.auth.signUp(input),
-    signIn: (input) => db.auth.signIn(input),
+    signInWithGoogle: () => db.auth.signInWithGoogle(),
     signOut: () => db.auth.signOut(),
   };
 

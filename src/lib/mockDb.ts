@@ -455,41 +455,16 @@ export const db = {
     async getSession(): Promise<Profile | null> {
       return delay(state.currentUserId ? state.profiles[state.currentUserId] ?? null : null);
     },
-    async signUp(input: { email: string; password: string; fullName: string; parish: Profile['parish'] }): Promise<Profile> {
-      const existing = Object.values(state.profiles).find((p) => p.email.toLowerCase() === input.email.toLowerCase());
-      if (existing) throw new Error('An account with that email already exists.');
-      const id = genId();
-      const isFirstEver = Object.keys(state.profiles).length === 0;
-      const profile: Profile = {
-        id,
-        email: input.email,
-        full_name: input.fullName,
-        avatar_url: null,
-        bio: '',
-        parish: input.parish,
-        phone: null,
-        skills: [],
-        is_verified: false,
-        is_admin: isFirstEver,
-        rating_avg: 0,
-        rating_count: 0,
-        jobs_posted_count: 0,
-        jobs_completed_count: 0,
-        created_at: new Date().toISOString(),
-      };
-      state.profiles[id] = profile;
-      state.currentUserId = id;
-      touch();
-      notify();
-      return delay(profile);
-    },
-    async signIn(input: { email: string }): Promise<Profile> {
-      const profile = Object.values(state.profiles).find((p) => p.email.toLowerCase() === input.email.toLowerCase());
-      if (!profile) throw new Error('No account found with that email — try signing up instead.');
-      state.currentUserId = profile.id;
-      touch();
-      notify();
-      return delay(profile);
+    // Dev stand-in for Google OAuth: sign straight into the demo account (Ellie, an admin
+    // in the seed) so the mock backend exercises the whole signed-in app without real OAuth.
+    async signInWithGoogle(): Promise<void> {
+      const demo = Object.values(state.profiles).find((p) => p.email === 'ellie.vibert@example.je') ?? Object.values(state.profiles)[0];
+      if (demo) {
+        state.currentUserId = demo.id;
+        touch();
+        notify();
+      }
+      return delay(undefined);
     },
     async signOut(): Promise<void> {
       state.currentUserId = null;

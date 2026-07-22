@@ -1,6 +1,5 @@
 import { supabase } from './supabase';
 import type { Application, Conversation, Job, JobRecommendation, Message, Profile, Review } from '../types/models';
-import type { Parish } from './constants';
 
 const RECS_API_URL = import.meta.env.VITE_RECS_API_URL as string | undefined;
 
@@ -25,6 +24,10 @@ function notify() {
   listeners.forEach((fn) => fn());
 }
 
+// Propagate Supabase auth changes (incl. the session that lands after the Google redirect)
+// to AuthProvider, which re-reads the session on every notify().
+supabase?.auth.onAuthStateChange(() => notify());
+
 export const db = {
   subscribe(fn: () => void) {
     listeners.add(fn);
@@ -40,38 +43,15 @@ export const db = {
       const { data: profile } = await client().from('profiles').select('*').eq('id', userId).maybeSingle();
       return (profile as Profile | null) ?? null;
     },
-    async signUp(input: { email: string; password: string; fullName: string; parish: Parish }): Promise<Profile> {
-      const { data, error } = await client().auth.signUp({
-        email: input.email,
-        password: input.password,
-        options: { data: { full_name: input.fullName, parish: input.parish } },
+    async signInWithGoogle(): Promise<void> {
+      // Redirects the browser to Google and back to this origin. The handle_new_user trigger
+      // creates the profiles row on first sign-in; onAuthStateChange (below) picks up the
+      // returning session and notifies AuthProvider.
+      const { error } = await client().auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
       });
       if (error) throw new Error(error.message);
-      if (!data.user) throw new Error('Check your inbox to confirm your email before continuing.');
-      if (!data.session) {
-        // Email confirmation is on for this project: the account exists but isn't signed in yet.
-        // Don't pretend success — the caller would otherwise navigate to /onboarding as if logged
-        // in, then bounce straight back to /login the moment a protected route re-checks the session.
-        throw new Error('Account created — check your inbox for a confirmation link, then log in.');
-      }
-      // The handle_new_user trigger creates the profiles row; give it a moment then read it back.
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const { data: profile } = await client().from('profiles').select('*').eq('id', data.user.id).maybeSingle();
-        if (profile) {
-          notify();
-          return profile as Profile;
-        }
-        await new Promise((r) => setTimeout(r, 300));
-      }
-      throw new Error('Account created, but your profile is still being set up — try refreshing in a moment.');
-    },
-    async signIn(input: { email: string; password: string }): Promise<Profile> {
-      const { data, error } = await client().auth.signInWithPassword({ email: input.email, password: input.password });
-      if (error) throw new Error(error.message);
-      const { data: profile, error: profileError } = await client().from('profiles').select('*').eq('id', data.user.id).single();
-      if (profileError) throw new Error(profileError.message);
-      notify();
-      return profile as Profile;
     },
     async signOut(): Promise<void> {
       await client().auth.signOut();

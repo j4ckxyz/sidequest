@@ -56,20 +56,20 @@ export function LandingPage() {
         </p>
         <div className="sq-rise sq-rise-3 mt-8 flex flex-wrap items-center gap-3">
           <Link
-            to="/signup"
+            to="/login"
             className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-6 text-base font-medium text-on-primary shadow-sm transition hover:bg-primary-hover"
           >
-            Sign up — it’s free <ArrowRight size={18} />
+            Get started <ArrowRight size={18} />
           </Link>
           <Link
-            to="/login"
+            to="/jobs"
             className="inline-flex h-12 items-center rounded-lg border border-border px-6 text-base font-medium text-text transition hover:bg-surface-2"
           >
-            Log in
+            Browse jobs
           </Link>
         </div>
         <p className="sq-rise sq-rise-4 mt-5 text-sm text-text-muted">
-          Free to post · All twelve parishes · Islanders helping islanders
+          Free to post · Sign in with Google · Islanders helping islanders
         </p>
       </section>
 
@@ -156,10 +156,10 @@ export function LandingPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
-              to="/signup"
+              to="/login"
               className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-6 text-base font-medium text-on-primary transition hover:bg-primary-hover"
             >
-              Sign up — it’s free <ArrowRight size={18} />
+              Get started <ArrowRight size={18} />
             </Link>
             <Link
               to="/jobs"

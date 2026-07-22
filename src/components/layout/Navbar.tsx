@@ -69,14 +69,9 @@ export function Navbar() {
               </details>
             </>
           ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>
-                Log in
-              </Button>
-              <Button size="sm" onClick={() => navigate('/signup')}>
-                Sign up
-              </Button>
-            </div>
+            <Button size="sm" onClick={() => navigate('/login')}>
+              Sign in
+            </Button>
           )}
         </div>
       </div>
