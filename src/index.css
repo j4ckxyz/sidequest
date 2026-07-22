@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-white text-ink antialiased;
+    font-feature-settings: 'ss01', 'cv01';
+    letter-spacing: -0.011em;
+  }
+
+  ::selection {
+    background: rgba(47, 131, 247, 0.22);
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/60;
+  }
+
+  .card {
+    @apply rounded-3xl bg-white border border-granite-200/70 shadow-soft;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all duration-300 ease-out active:scale-[0.97] select-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-ink text-white px-5 py-2.5 hover:bg-black shadow-soft hover:shadow-float;
+  }
+
+  .btn-accent {
+    @apply btn bg-sea-600 text-white px-5 py-2.5 hover:bg-sea-700 shadow-[0_10px_30px_-10px_rgba(26,99,230,0.6)];
+  }
+
+  .btn-ghost {
+    @apply btn bg-granite-100 text-ink-soft px-5 py-2.5 hover:bg-granite-200;
+  }
+
+  .field {
+    @apply w-full rounded-2xl border border-granite-200 bg-granite-50 px-4 py-3 text-[15px] text-ink-soft placeholder:text-ink-faint outline-none transition focus:border-sea-400 focus:bg-white focus:ring-4 focus:ring-sea-500/10;
+  }
+
+  .section-label {
+    @apply text-[13px] font-semibold uppercase tracking-[0.18em] text-sea-600;
+  }
+}
+
+/* Elegant thin scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c4cbd8 transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #d3d9e3;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #b9c1cf;
+  background-clip: content-box;
+}
+
+.grain {
+  background-image: radial-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
