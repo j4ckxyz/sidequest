@@ -7,7 +7,7 @@ export function MessageBubble({ message, isOwn }: { message: Message; isOwn: boo
     <div className={cx('flex flex-col', isOwn ? 'items-end' : 'items-start')}>
       <div
         className={cx(
-          'max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-snug',
+          'max-w-[75%] rounded-lg px-4 py-2.5 text-sm leading-snug',
           isOwn ? 'rounded-br-sm bg-primary text-on-primary' : 'rounded-bl-sm bg-surface-2 text-text',
         )}
       >

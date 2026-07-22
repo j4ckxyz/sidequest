@@ -53,9 +53,9 @@ function PostedJobRow({ job }: { job: Job }) {
   const pendingOrRelevant = applications?.filter((a) => job.status === 'open' ? a.status === 'pending' : a.status === 'accepted') ?? [];
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5">
+    <div className="rounded-lg border border-border bg-surface p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link to={`/jobs/${job.id}`} className="font-display text-lg text-text hover:text-primary">
+        <Link to={`/jobs/${job.id}`} className="text-lg text-text hover:text-primary">
           {job.title}
         </Link>
         <div className="flex items-center gap-2">

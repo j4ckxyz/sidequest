@@ -41,7 +41,7 @@ export function Onboarding() {
         <Compass size={22} className="text-primary" strokeWidth={2.25} />
         SideQuest
       </div>
-      <h1 className="text-center font-display text-2xl text-text">Tell us a bit about you</h1>
+      <h1 className="text-center text-2xl text-text">Tell us a bit about you</h1>
       <p className="mt-1.5 text-center text-sm text-text-muted">Takes thirty seconds — this is what neighbours will see.</p>
 
       <form onSubmit={submit} className="mt-7 flex flex-col gap-4">

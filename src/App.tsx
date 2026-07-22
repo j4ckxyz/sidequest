@@ -15,6 +15,7 @@ import { JobDetail } from './pages/JobDetail';
 import { PostJob } from './pages/PostJob';
 import { EditJob } from './pages/EditJob';
 import { Dashboard } from './pages/Dashboard';
+import { DashboardOverview } from './pages/DashboardOverview';
 import { DashboardPosted } from './pages/DashboardPosted';
 import { DashboardApplications } from './pages/DashboardApplications';
 import { Messages } from './pages/Messages';
@@ -70,7 +71,7 @@ function App() {
                     </ProtectedRoute>
                   }
                 >
-                  <Route index element={<DashboardPosted />} />
+                  <Route index element={<DashboardOverview />} />
                   <Route path="posted" element={<DashboardPosted />} />
                   <Route path="applications" element={<DashboardApplications />} />
                 </Route>

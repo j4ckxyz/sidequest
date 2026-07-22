@@ -1,4 +1,4 @@
-import type { Application, Conversation, Job, Message, Profile, Review } from '../types/models';
+import type { Application, Conversation, Job, JobRecommendation, Message, Profile, Review } from '../types/models';
 
 /**
  * Local, browser-only stand-in for the Supabase backend described in TODO.md.
@@ -817,6 +817,57 @@ export const db = {
     },
     async existsFor(jobId: string, reviewerId: string): Promise<boolean> {
       return delay(Object.values(state.reviews).some((r) => r.job_id === jobId && r.reviewer_id === reviewerId));
+    },
+  },
+
+  // ---- recommendations -------------------------------------------------
+  // Dev stand-in for the embeddings service: a category/parish heuristic so the
+  // "Picked for you" UI is exercised on mock data. Production reads real rows.
+  recommendations: {
+    async listForUser(userId: string): Promise<JobRecommendation[]> {
+      const me = state.profiles[userId];
+      const allJobs = Object.values(state.jobs);
+      const appliedJobIds = new Set(
+        Object.values(state.applications)
+          .filter((a) => a.quester_id === userId)
+          .map((a) => a.job_id),
+      );
+
+      // Categories the user has touched before (posted / assigned / applied).
+      const historyCats = new Map<string, number>();
+      for (const j of allJobs) {
+        const mine = j.poster_id === userId || j.assigned_quester_id === userId || appliedJobIds.has(j.id);
+        if (mine) historyCats.set(j.category, (historyCats.get(j.category) ?? 0) + 1);
+      }
+      // Skills → category slug (e.g. "Pet care" → "pet-care").
+      const skillCats = new Set((me?.skills ?? []).map((s) => s.toLowerCase().replace(/\s+/g, '-')));
+
+      const scored = allJobs
+        .filter((j) => j.status === 'open' && j.poster_id !== userId && !appliedJobIds.has(j.id))
+        .map((j) => {
+          let score = 0.1; // base so eligible jobs always surface; overlaps rank higher
+          let reason = 'Fresh on the island — might be up your street';
+          if (me && j.parish === me.parish) {
+            score += 1;
+            reason = `Local to you in ${j.parish}`;
+          }
+          if (skillCats.has(j.category)) {
+            score += 1;
+            reason = `Matches your ${j.category.replace(/-/g, ' ')} skills`;
+          }
+          if (historyCats.has(j.category)) {
+            score += 2;
+            reason = `Close to jobs you've helped with in ${j.category.replace(/-/g, ' ')}`;
+          }
+          return { job: j, score, reason };
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 18);
+
+      return delay(scored.map(({ job, score, reason }) => ({ job, score: Math.min(score / 3, 1), reason })));
+    },
+    async refresh(): Promise<{ ok: boolean }> {
+      return delay({ ok: true });
     },
   },
 };

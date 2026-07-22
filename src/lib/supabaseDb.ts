@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
-import type { Application, Conversation, Job, Message, Profile, Review } from '../types/models';
+import type { Application, Conversation, Job, JobRecommendation, Message, Profile, Review } from '../types/models';
 import type { Parish } from './constants';
+
+const RECS_API_URL = import.meta.env.VITE_RECS_API_URL as string | undefined;
 
 /**
  * Real Supabase-backed implementation of the same interface as src/lib/mockDb.ts's `db`.
@@ -289,6 +291,36 @@ export const db = {
     async existsFor(jobId: string, reviewerId: string): Promise<boolean> {
       const { data } = await client().from('reviews').select('id').eq('job_id', jobId).eq('reviewer_id', reviewerId).maybeSingle();
       return !!data;
+    },
+  },
+
+  // ---- recommendations -------------------------------------------------
+  recommendations: {
+    async listForUser(userId: string): Promise<JobRecommendation[]> {
+      const { data, error } = await client()
+        .from('recommendations')
+        .select('score, rank, reason, job:jobs(*)')
+        .eq('user_id', userId)
+        .order('rank', { ascending: true });
+      if (error) throw new Error(error.message);
+      return ((data as unknown as { score: number; reason: string; job: Job | null }[]) ?? [])
+        .filter((r) => r.job)
+        .map((r) => ({ job: r.job as Job, reason: r.reason, score: r.score }));
+    },
+    async refresh(): Promise<{ ok: boolean }> {
+      if (!RECS_API_URL) throw new Error('Recommendations service URL is not configured (VITE_RECS_API_URL).');
+      const { data } = await client().auth.getSession();
+      const accessToken = data.session?.access_token;
+      const res = await fetch(`${RECS_API_URL}/refresh`, {
+        method: 'POST',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? `Refresh failed (${res.status})`);
+      }
+      notify();
+      return { ok: true };
     },
   },
 };

@@ -53,7 +53,7 @@ export function JobDetail() {
   if (!job) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <p className="font-display text-xl text-text">Job not found</p>
+        <p className="text-xl text-text">Job not found</p>
         <Link to="/jobs" className="mt-3 inline-block text-sm text-primary hover:underline">
           Back to browse
         </Link>
@@ -81,7 +81,7 @@ export function JobDetail() {
           <Badge tone={STATUS_TONE[job.status]}>{JOB_STATUS_LABEL[job.status]}</Badge>
         </div>
 
-        <h1 className="mt-4 font-display text-3xl leading-tight text-text">{job.title}</h1>
+        <h1 className="mt-4 text-3xl leading-tight text-text">{job.title}</h1>
 
         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-text-muted">
           <span className="flex items-center gap-1.5">
@@ -109,7 +109,7 @@ export function JobDetail() {
         )}
 
         {isPoster && job.status === 'open' && (
-          <div className="mt-8 rounded-2xl border border-border bg-surface-2/60 p-4 text-sm text-text-muted">
+          <div className="mt-8 rounded-lg border border-border bg-surface-2/60 p-4 text-sm text-text-muted">
             {applications?.length ?? 0} {applications?.length === 1 ? 'person has' : 'people have'} applied.{' '}
             <Link to="/dashboard/posted" className="font-medium text-primary hover:underline">
               Review applicants
@@ -136,7 +136,7 @@ export function JobDetail() {
             <Link to={`/profile/${poster.id}`} className="flex items-center gap-3 hover:opacity-80">
               <Avatar name={poster.full_name} src={poster.avatar_url} size="lg" />
               <div>
-                <p className="flex items-center gap-1 font-display text-base text-text">
+                <p className="flex items-center gap-1 text-base text-text">
                   {poster.full_name}
                   {poster.is_verified && <BadgeCheck size={14} className="text-sage" />}
                 </p>
@@ -152,7 +152,7 @@ export function JobDetail() {
             </Link>
           )}
 
-          <p className="mt-5 font-display text-2xl text-text">
+          <p className="mt-5 text-2xl text-text">
             {formatCurrency(job.budget_amount)}
             {job.budget_type === 'hourly' && job.budget_amount != null && <span className="text-sm text-text-muted"> /hr</span>}
           </p>
@@ -215,7 +215,7 @@ export function JobDetail() {
               <div className="flex gap-2">
                 <Link
                   to={`/jobs/${job.id}/edit`}
-                  className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-border bg-surface text-sm font-medium text-text hover:bg-surface-2"
+                  className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface text-sm font-medium text-text hover:bg-surface-2"
                 >
                   <Pencil size={14} /> Edit
                 </Link>

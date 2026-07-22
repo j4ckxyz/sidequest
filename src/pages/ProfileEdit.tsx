@@ -55,7 +55,7 @@ export function ProfileEdit() {
 
   return (
     <div className="mx-auto max-w-md px-6 py-10">
-      <h1 className="font-display text-2xl text-text">Edit profile</h1>
+      <h1 className="text-2xl text-text">Edit profile</h1>
 
       <form onSubmit={submit} className="mt-7 flex flex-col gap-4">
         <div className="flex justify-center">

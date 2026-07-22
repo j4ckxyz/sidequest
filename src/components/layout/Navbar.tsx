@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Compass, MessageCircle, Plus, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthProvider';
 import { useUnreadCount } from '../../hooks/useMessages';
@@ -20,15 +20,9 @@ export function Navbar() {
           SideQuest
         </Link>
 
-        <nav className="flex items-center gap-6 text-sm font-medium text-text-muted">
-          <Link to="/jobs" className="hover:text-text">
-            Browse
-          </Link>
-          {user && (
-            <Link to="/dashboard" className="hover:text-text">
-              Dashboard
-            </Link>
-          )}
+        <nav className="flex items-center gap-1 text-sm font-medium">
+          <NavItem to="/jobs" label="Browse jobs" />
+          {user && <NavItem to="/dashboard" label="My jobs" />}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -87,5 +81,21 @@ export function Navbar() {
         </div>
       </div>
     </header>
+  );
+}
+
+function NavItem({ to, label }: { to: string; label: string }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        cx(
+          'rounded-md px-3 py-1.5 transition-colors',
+          isActive ? 'bg-surface-2 text-text' : 'text-text-muted hover:bg-surface-2 hover:text-text',
+        )
+      }
+    >
+      {label}
+    </NavLink>
   );
 }

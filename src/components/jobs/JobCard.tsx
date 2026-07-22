@@ -22,7 +22,7 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
   return (
     <Link
       to={`/jobs/${job.id}`}
-      className="group flex flex-col rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-primary/40"
+      className="group flex flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-primary/40"
     >
       <div className="flex items-start justify-between gap-3">
         <Badge tone="neutral" icon={category && <CategoryIcon name={category.icon} size={13} />}>
@@ -31,7 +31,7 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
         <Badge tone={STATUS_TONE[job.status]}>{JOB_STATUS_LABEL[job.status]}</Badge>
       </div>
 
-      <h3 className="mt-3.5 font-display text-lg leading-snug text-text group-hover:text-primary">{job.title}</h3>
+      <h3 className="mt-3.5 text-lg leading-snug text-text group-hover:text-primary">{job.title}</h3>
       <p className="mt-1.5 line-clamp-2 text-sm text-text-muted">{job.description}</p>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-text-muted">
@@ -62,7 +62,7 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
         ) : (
           <span />
         )}
-        <p className="font-display text-base text-text">
+        <p className="text-base text-text">
           {formatCurrency(job.budget_amount)}
           {job.budget_type === 'hourly' && job.budget_amount != null && <span className="text-xs text-text-muted">/hr</span>}
         </p>

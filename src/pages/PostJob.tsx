@@ -28,7 +28,7 @@ export function PostJob() {
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="font-display text-2xl text-text">Post a job</h1>
+      <h1 className="text-2xl text-text">Post a job</h1>
       <p className="mt-1 text-sm text-text-muted">Be specific — the clearer the ask, the faster someone local will pick it up.</p>
       <div className="mt-7">
         <JobForm onSubmit={submit} isSubmitting={isPending} submitLabel="Post job" />

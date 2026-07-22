@@ -9,10 +9,10 @@ export function ProfileStats({ profile }: { profile: Profile }) {
   ];
 
   return (
-    <div className="grid grid-cols-3 divide-x divide-border rounded-2xl border border-border bg-surface">
+    <div className="grid grid-cols-3 divide-x divide-border rounded-lg border border-border bg-surface">
       {stats.map((s) => (
         <div key={s.label} className="px-4 py-4 text-center">
-          <p className="font-display text-xl text-text">{s.value}</p>
+          <p className="text-xl text-text">{s.value}</p>
           <p className="mt-0.5 text-xs text-text-muted">{s.label}</p>
         </div>
       ))}

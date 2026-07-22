@@ -84,11 +84,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1,
-h2,
-h3,
+/* Serif is opt-in via .font-display — reserved for the marketing homepage and
+   the SideQuest wordmark. App chrome (dashboards, forms, listings, tables) uses
+   the sans stack so it reads as a working product, not a landing page. */
 .font-display {
   font-family: var(--font-display);
+}
+
+/* Sans headings need a touch more weight/tightening to hold hierarchy without serif. */
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  letter-spacing: -0.011em;
 }
 
 /* Fluid display sizes for marketing/hero copy only — app chrome uses fixed rem via Tailwind utilities. */
@@ -105,4 +113,46 @@ h3,
 ::selection {
   background: var(--color-primary-soft);
   color: var(--color-text);
+}
+
+/* Landing page motion — a quiet staggered rise on first paint. Marketing only. */
+@keyframes sq-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.sq-rise {
+  opacity: 0;
+  animation: sq-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.sq-rise-1 {
+  animation-delay: 0.05s;
+}
+.sq-rise-2 {
+  animation-delay: 0.15s;
+}
+.sq-rise-3 {
+  animation-delay: 0.25s;
+}
+.sq-rise-4 {
+  animation-delay: 0.35s;
+}
+
+/* Hand-drawn island underline under the hero's key word. */
+.sq-underline {
+  background-image: linear-gradient(transparent 62%, var(--color-primary-soft) 62%);
+  background-repeat: no-repeat;
+  padding: 0 0.06em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sq-rise {
+    opacity: 1;
+    animation: none;
+  }
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { useJobsList } from '../hooks/useJobs';
 import { useProfile } from '../hooks/useProfile';
@@ -14,7 +15,13 @@ function PosterFor({ posterId, children }: { posterId: string; children: (p: Pro
 }
 
 export function BrowseJobs() {
-  const [filters, setFilters] = useState<JobFilterState>({ search: '', category: '', parish: '', sort: 'newest' });
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = useState<JobFilterState>({
+    search: searchParams.get('search') ?? '',
+    category: searchParams.get('category') ?? '',
+    parish: searchParams.get('parish') ?? '',
+    sort: 'newest',
+  });
   const { data: jobs, isLoading } = useJobsList({ search: filters.search, category: filters.category, parish: filters.parish });
 
   const sorted = useMemo(() => {
@@ -27,8 +34,12 @@ export function BrowseJobs() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <h1 className="font-display text-2xl text-text">Browse jobs</h1>
-      <p className="mt-1 text-sm text-text-muted">Every open side quest across the island, right now.</p>
+      <h1 className="text-2xl text-text">Browse jobs</h1>
+      <p className="mt-1 text-sm text-text-muted">
+        {isLoading
+          ? 'Loading jobs…'
+          : `${sorted.length} ${sorted.length === 1 ? 'job' : 'jobs'} across the island right now`}
+      </p>
 
       <div className="mt-6">
         <JobFilters value={filters} onChange={setFilters} />

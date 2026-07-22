@@ -32,7 +32,7 @@ export function ChatThread({ messages, currentUserId, onSend, isSending }: { mes
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Write a message…"
-          className="h-11 flex-1 rounded-full border border-border bg-surface px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+          className="h-11 flex-1 rounded-lg border border-border bg-surface px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
         />
         <Button type="submit" size="md" disabled={!body.trim()} isLoading={isSending} className="shrink-0 !px-3">
           <Send size={17} />

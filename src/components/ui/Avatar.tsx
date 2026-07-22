@@ -10,7 +10,7 @@ export function Avatar({ name, src, size = 'md' }: { name: string; src?: string 
   return (
     <div
       className={cx(
-        'flex shrink-0 items-center justify-center rounded-full bg-sage-soft font-display font-medium text-sage',
+        'flex shrink-0 items-center justify-center rounded-full bg-sage-soft font-medium text-sage',
         sizeMap[size],
       )}
       aria-hidden

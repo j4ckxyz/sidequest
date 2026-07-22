@@ -45,7 +45,7 @@ export function EditJob() {
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="font-display text-2xl text-text">Edit job</h1>
+      <h1 className="text-2xl text-text">Edit job</h1>
       <div className="mt-7">
         <JobForm
           defaultValues={{

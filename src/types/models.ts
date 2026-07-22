@@ -74,3 +74,11 @@ export interface Review {
   comment: string;
   created_at: string;
 }
+
+/** A recommended open job plus the "why" line — produced by the recommendations service
+ *  in production, or a local heuristic in dev (mock backend). */
+export interface JobRecommendation {
+  job: Job;
+  reason: string;
+  score: number;
+}

@@ -26,7 +26,7 @@ export function ProfileView() {
       </div>
 
       <div className="mt-8">
-        <h2 className="font-display text-lg text-text">
+        <h2 className="text-lg text-text">
           Reviews {reviews && reviews.length > 0 && <span className="text-text-muted">({reviews.length})</span>}
         </h2>
         {reviews && reviews.length > 0 ? (

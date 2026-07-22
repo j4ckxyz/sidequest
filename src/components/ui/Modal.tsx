@@ -29,12 +29,12 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
         if (e.target === ref.current) onClose();
       }}
       className={cx(
-        'm-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-border bg-surface p-0 text-text backdrop:bg-text/40 backdrop:backdrop-blur-[2px]',
+        'm-auto w-[calc(100%-2rem)] max-w-md rounded-lg border border-border bg-surface p-0 text-text backdrop:bg-text/40 backdrop:backdrop-blur-[2px]',
         className,
       )}
     >
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <h2 className="font-display text-lg">{title}</h2>
+        <h2 className="text-lg">{title}</h2>
         <button
           onClick={onClose}
           className="-mr-2 flex h-9 w-9 items-center justify-center rounded-full text-text-muted hover:bg-surface-2 hover:text-text"

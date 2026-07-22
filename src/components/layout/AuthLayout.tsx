@@ -9,7 +9,7 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: strin
         <Compass size={22} className="text-primary" strokeWidth={2.25} />
         SideQuest
       </Link>
-      <h1 className="text-center font-display text-2xl text-text">{title}</h1>
+      <h1 className="text-center text-2xl text-text">{title}</h1>
       <p className="mt-1.5 text-center text-sm text-text-muted">{subtitle}</p>
       <div className="mt-7">{children}</div>
       {footer && <div className="mt-6 text-center text-sm text-text-muted">{footer}</div>}

@@ -1,0 +1,20 @@
+[Unit]
+Description=SideQuest recommendations service (embeddings + hourly refresh)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/sidequest
+EnvironmentFile=/opt/sidequest/.env
+# Adjust if bun lives elsewhere (which bun): commonly /root/.bun/bin or /home/<user>/.bun/bin
+ExecStart=/usr/local/bin/bun run server/index.ts
+Restart=always
+RestartSec=5
+# Basic hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/sidequest
+
+[Install]
+WantedBy=multi-user.target
