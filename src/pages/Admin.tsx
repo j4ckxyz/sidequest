@@ -71,7 +71,7 @@ function JobsTab({ callerId }: { callerId: string }) {
             <div className="flex shrink-0 items-center gap-2">
               <Badge tone={STATUS_TONE[job.status]}>{JOB_STATUS_LABEL[job.status]}</Badge>
               <Button
-                size="sm"
+                size="md"
                 variant="secondary"
                 onClick={() => {
                   if (!confirm(`Delete "${job.title}"? This can't be undone.`)) return;
@@ -110,7 +110,7 @@ function UsersTab({ callerId }: { callerId: string }) {
           <div className="flex items-center gap-2">
             {profile.is_admin && <Badge tone="sage">Admin</Badge>}
             <Button
-              size="sm"
+              size="md"
               variant="secondary"
               onClick={() =>
                 setAdmin.mutate(

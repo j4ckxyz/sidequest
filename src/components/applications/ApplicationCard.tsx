@@ -72,16 +72,16 @@ export function ApplicationCard({
 
         {viewer === 'poster' && application.status === 'pending' && (
           <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={onReject} disabled={busy}>
+            <Button size="md" variant="secondary" onClick={onReject} disabled={busy}>
               <X size={14} /> Decline
             </Button>
-            <Button size="sm" onClick={onAccept} disabled={busy}>
+            <Button size="md" onClick={onAccept} disabled={busy}>
               <Check size={14} /> Hire
             </Button>
           </div>
         )}
         {viewer === 'quester' && application.status === 'pending' && (
-          <Button size="sm" variant="secondary" onClick={onWithdraw} disabled={busy}>
+          <Button size="md" variant="secondary" onClick={onWithdraw} disabled={busy}>
             Withdraw
           </Button>
         )}

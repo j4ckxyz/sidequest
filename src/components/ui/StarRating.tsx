@@ -20,7 +20,7 @@ export function StarRatingInput({ value, onChange }: { value: number; onChange: 
   const [hovered, setHovered] = useState<number | null>(null);
   const display = hovered ?? value;
   return (
-    <div className="flex items-center gap-1" role="radiogroup" aria-label="Rating">
+    <div className="-ml-2.5 flex items-center" role="radiogroup" aria-label="Rating">
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
@@ -30,9 +30,9 @@ export function StarRatingInput({ value, onChange }: { value: number; onChange: 
           onClick={() => onChange(n)}
           onMouseEnter={() => setHovered(n)}
           onMouseLeave={() => setHovered(null)}
-          className="p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded"
+          className="flex h-11 w-11 items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
         >
-          <Star size={26} className={cx('transition-colors', n <= display ? 'fill-warning text-warning' : 'fill-surface-2 text-surface-2')} />
+          <Star size={24} className={cx('transition-colors', n <= display ? 'fill-warning text-warning' : 'fill-surface-2 text-surface-2')} />
         </button>
       ))}
     </div>

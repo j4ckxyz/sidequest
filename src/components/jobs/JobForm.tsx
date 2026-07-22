@@ -219,10 +219,10 @@ export function JobForm({
               <button
                 type="button"
                 onClick={() => setPhotos((prev) => prev.filter((_, idx) => idx !== i))}
-                className="absolute right-1 top-1 rounded-full bg-text/60 p-0.5 text-canvas"
+                className="absolute right-0.5 top-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-text/60 text-canvas"
                 aria-label="Remove photo"
               >
-                <X size={12} />
+                <X size={14} />
               </button>
             </div>
           ))}
