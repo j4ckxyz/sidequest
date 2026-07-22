@@ -25,6 +25,7 @@ import { MessagesThreadPage } from './pages/MessagesThreadPage';
 import { ProfileView } from './pages/ProfileView';
 import { ProfileEdit } from './pages/ProfileEdit';
 import { Settings } from './pages/Settings';
+import { Notifications } from './pages/Notifications';
 import { Admin } from './pages/Admin';
 import { NotFound } from './pages/NotFound';
 
@@ -107,6 +108,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/notifications"
+                  element={
+                    <ProtectedRoute>
+                      <Notifications />
                     </ProtectedRoute>
                   }
                 />

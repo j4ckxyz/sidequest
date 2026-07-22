@@ -6,7 +6,9 @@ import type {
   JobPreferenceState,
   JobRecommendation,
   Message,
+  Notification,
   Profile,
+  PushSubscriptionInput,
   Review,
 } from '../types/models';
 
@@ -366,6 +368,45 @@ export const db = {
     async existsFor(jobId: string, reviewerId: string): Promise<boolean> {
       const { data } = await client().from('reviews').select('id').eq('job_id', jobId).eq('reviewer_id', reviewerId).maybeSingle();
       return !!data;
+    },
+  },
+
+  notifications: {
+    async listForUser(userId: string): Promise<Notification[]> {
+      const { data } = await client()
+        .from('notifications')
+        .select('*')
+        .eq('recipient_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      return (data as Notification[]) ?? [];
+    },
+    async unreadCount(userId: string): Promise<number> {
+      const { count } = await client()
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('recipient_id', userId)
+        .is('read_at', null);
+      return count ?? 0;
+    },
+    async markRead(id: string): Promise<void> {
+      await client().from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id);
+      notify();
+    },
+    async markAllRead(userId: string): Promise<void> {
+      await client().from('notifications').update({ read_at: new Date().toISOString() }).eq('recipient_id', userId).is('read_at', null);
+      notify();
+    },
+  },
+
+  push: {
+    async subscribe(userId: string, sub: PushSubscriptionInput): Promise<void> {
+      await client()
+        .from('push_subscriptions')
+        .upsert({ user_id: userId, endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }, { onConflict: 'endpoint' });
+    },
+    async unsubscribe(endpoint: string): Promise<void> {
+      await client().from('push_subscriptions').delete().eq('endpoint', endpoint);
     },
   },
 

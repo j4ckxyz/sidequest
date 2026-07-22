@@ -90,6 +90,28 @@ export interface Message {
   created_at: string;
 }
 
+export type NotificationType = 'new_application' | 'new_message' | 'application_accepted' | 'application_rejected';
+
+export interface Notification {
+  id: string;
+  recipient_id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  /** In-app deep link (e.g. /jobs/:id or /messages/:conversationId). */
+  link: string;
+  job_id: string | null;
+  actor_id: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface PushSubscriptionInput {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
 export interface Review {
   id: string;
   job_id: string;

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Compass, MessageCircle, Plus, ShieldCheck } from 'lucide-react';
+import { Bell, Compass, MessageCircle, Plus, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthProvider';
 import { useUnreadCount } from '../../hooks/useMessages';
+import { useUnreadNotificationCount } from '../../hooks/useNotifications';
 import { ThemeToggle } from './ThemeToggle';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
@@ -12,6 +13,7 @@ export function Navbar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const unread = useUnreadCount(user?.id);
+  const unreadNotifications = useUnreadNotificationCount(user?.id);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -49,6 +51,18 @@ export function Navbar() {
           <ThemeToggle />
           {user ? (
             <>
+              <Link
+                to="/notifications"
+                className="relative flex h-9 w-9 items-center justify-center rounded-full text-text-muted hover:bg-surface-2 hover:text-text"
+                aria-label={unreadNotifications > 0 ? `Notifications (${unreadNotifications} unread)` : 'Notifications'}
+              >
+                <Bell size={18} />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-4 text-on-primary">
+                    {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                  </span>
+                )}
+              </Link>
               <Link
                 to="/messages"
                 className="relative flex h-9 w-9 items-center justify-center rounded-full text-text-muted hover:bg-surface-2 hover:text-text"

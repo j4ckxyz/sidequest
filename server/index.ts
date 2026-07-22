@@ -8,6 +8,7 @@ import { admin, isAdmin, userIdFromToken } from './supabaseAdmin';
 import { embedOne, preferenceChat, type PreferenceChatTurn } from './gemini';
 import { refresh, pendingNewJobCount, pendingPreferenceChangeCount, type RefreshResult } from './pipeline';
 import { summonBots, removeBots } from './bots';
+import { startNotificationPushWatcher } from './push';
 
 const PORT = Number(process.env.PORT ?? '8787');
 // Bind to localhost by default — Nginx (public :443) reverse-proxies to this. Set HOST=0.0.0.0
@@ -399,5 +400,8 @@ setInterval(async () => {
 console.log(
   `SideQuest recs service on :${PORT} — hourly refresh, watch every ${Math.round(WATCH_INTERVAL_MS / 60000)}m (threshold ${NEW_JOBS_THRESHOLD} new jobs)`,
 );
+
+// Web-push fan-out for new notifications (no-op unless VAPID keys are set).
+startNotificationPushWatcher();
 
 export default { port: PORT, hostname: HOST, fetch: app.fetch };

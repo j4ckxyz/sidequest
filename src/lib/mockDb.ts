@@ -6,7 +6,10 @@ import type {
   JobPreferenceState,
   JobRecommendation,
   Message,
+  Notification,
+  NotificationType,
   Profile,
+  PushSubscriptionInput,
   Review,
 } from '../types/models';
 import { PARISHES, JOB_CATEGORIES, SKILL_OPTIONS } from './constants';
@@ -26,6 +29,7 @@ interface State {
   conversations: Record<string, Conversation>;
   messages: Record<string, Message>;
   reviews: Record<string, Review>;
+  notifications: Record<string, Notification>;
   /** past username (lowercased) → owner id, so old @handles keep resolving. */
   usernameHistory: Record<string, string>;
   jobPreferences: Record<string, Omit<JobPreferenceState, 'messages' | 'remaining_today' | 'daily_limit'>>;
@@ -460,6 +464,7 @@ function seed(): State {
     conversations: Object.fromEntries(conversations.map((c) => [c.id, c])),
     messages: Object.fromEntries(messages.map((m) => [m.id, m])),
     reviews: Object.fromEntries(reviews.map((r) => [r.id, r])),
+    notifications: {},
     usernameHistory: {},
     jobPreferences: {},
     jobPreferenceMessages: {},
@@ -502,6 +507,7 @@ function load(): State {
           },
         ]),
       );
+      parsed.notifications ??= {};
       parsed.usernameHistory ??= {};
       parsed.jobPreferences ??= {};
       parsed.jobPreferenceMessages ??= {};
@@ -533,6 +539,33 @@ function notify() {
 
 function assertAdmin(callerId: string) {
   if (!state.profiles[callerId]?.is_admin) throw new Error('Admins only.');
+}
+
+/** Mock equivalent of the DB notification triggers — creates an in-app notification
+ *  (skipping self-notifications). Prod does this with Postgres triggers (migration 0014). */
+function emitNotification(
+  recipientId: string,
+  type: NotificationType,
+  fields: { title: string; body: string; link: string; jobId?: string | null; actorId?: string | null },
+) {
+  if (!recipientId || recipientId === fields.actorId) return;
+  const id = genId();
+  state.notifications[id] = {
+    id,
+    recipient_id: recipientId,
+    type,
+    title: fields.title,
+    body: fields.body,
+    link: fields.link,
+    job_id: fields.jobId ?? null,
+    actor_id: fields.actorId ?? null,
+    read_at: null,
+    created_at: new Date().toISOString(),
+  };
+}
+
+function actorName(id: string): string {
+  return state.profiles[id]?.full_name ?? 'Someone';
 }
 
 export const db = {
@@ -792,6 +825,13 @@ export const db = {
           created_at: new Date().toISOString(),
         };
       }
+      emitNotification(job.poster_id, 'new_application', {
+        title: 'New application',
+        body: `${actorName(input.quester_id)} applied to “${job.title}”`,
+        link: `/jobs/${job.id}`,
+        jobId: job.id,
+        actorId: input.quester_id,
+      });
       touch();
       notify();
       return delay(application);
@@ -815,6 +855,14 @@ export const db = {
       // First hire keeps assigned_quester_id (single-helper UI/messaging).
       const firstHire = job.assigned_quester_id ?? app.quester_id;
 
+      emitNotification(app.quester_id, 'application_accepted', {
+        title: 'You’re hired',
+        body: `You were accepted for “${job.title}”`,
+        link: `/jobs/${job.id}`,
+        jobId: job.id,
+        actorId: job.poster_id,
+      });
+
       const accepted = Object.values(state.applications).filter((a) => a.job_id === job.id && a.status === 'accepted').length;
       if (accepted >= job.slots) {
         // All spots filled → reject the rest and close the job.
@@ -822,6 +870,13 @@ export const db = {
           .filter((a) => a.job_id === job.id && a.status === 'pending')
           .forEach((a) => {
             state.applications[a.id] = { ...a, status: 'rejected' };
+            emitNotification(a.quester_id, 'application_rejected', {
+              title: 'Application update',
+              body: `Your application for “${job.title}” wasn’t chosen this time`,
+              link: `/jobs/${job.id}`,
+              jobId: job.id,
+              actorId: job.poster_id,
+            });
           });
         state.jobs[job.id] = { ...job, status: 'assigned', assigned_quester_id: firstHire };
       } else {
@@ -837,6 +892,14 @@ export const db = {
       if (!app) throw new Error('Application not found.');
       const next = { ...app, status: 'rejected' as const };
       state.applications[id] = next;
+      const job = state.jobs[app.job_id];
+      emitNotification(app.quester_id, 'application_rejected', {
+        title: 'Application update',
+        body: job ? `Your application for “${job.title}” wasn’t chosen this time` : 'Your application wasn’t chosen this time',
+        link: job ? `/jobs/${job.id}` : '/dashboard/applications',
+        jobId: app.job_id,
+        actorId: job?.poster_id ?? null,
+      });
       touch();
       notify();
       return delay(next);
@@ -903,7 +966,17 @@ export const db = {
       const message: Message = { id, conversation_id: conversationId, sender_id: senderId, body, read_at: null, created_at: new Date().toISOString() };
       state.messages[id] = message;
       const conv = state.conversations[conversationId];
-      if (conv) state.conversations[conversationId] = { ...conv, last_message_at: message.created_at };
+      if (conv) {
+        state.conversations[conversationId] = { ...conv, last_message_at: message.created_at };
+        const recipient = senderId === conv.poster_id ? conv.quester_id : conv.poster_id;
+        emitNotification(recipient, 'new_message', {
+          title: 'New message',
+          body: `${actorName(senderId)}: ${body.slice(0, 120)}`,
+          link: `/messages/${conv.id}`,
+          jobId: conv.job_id,
+          actorId: senderId,
+        });
+      }
       touch();
       notify();
       return delay(message);
@@ -945,6 +1018,53 @@ export const db = {
     },
     async existsFor(jobId: string, reviewerId: string): Promise<boolean> {
       return delay(Object.values(state.reviews).some((r) => r.job_id === jobId && r.reviewer_id === reviewerId));
+    },
+  },
+
+  notifications: {
+    async listForUser(userId: string): Promise<Notification[]> {
+      return delay(
+        Object.values(state.notifications)
+          .filter((n) => n.recipient_id === userId)
+          .sort((a, b) => b.created_at.localeCompare(a.created_at)),
+      );
+    },
+    async unreadCount(userId: string): Promise<number> {
+      return delay(Object.values(state.notifications).filter((n) => n.recipient_id === userId && !n.read_at).length);
+    },
+    async markRead(id: string): Promise<void> {
+      const n = state.notifications[id];
+      if (n && !n.read_at) {
+        state.notifications[id] = { ...n, read_at: new Date().toISOString() };
+        touch();
+        notify();
+      }
+      return delay(undefined);
+    },
+    async markAllRead(userId: string): Promise<void> {
+      let changed = false;
+      Object.values(state.notifications)
+        .filter((n) => n.recipient_id === userId && !n.read_at)
+        .forEach((n) => {
+          state.notifications[n.id] = { ...n, read_at: new Date().toISOString() };
+          changed = true;
+        });
+      if (changed) {
+        touch();
+        notify();
+      }
+      return delay(undefined);
+    },
+  },
+
+  // Web push only fires against the real server; on mock these are inert stubs
+  // so the subscribe UI can run without a backend.
+  push: {
+    async subscribe(_userId: string, _sub: PushSubscriptionInput): Promise<void> {
+      return delay(undefined);
+    },
+    async unsubscribe(_endpoint: string): Promise<void> {
+      return delay(undefined);
     },
   },
 
