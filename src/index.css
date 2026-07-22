@@ -1,0 +1,98 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  --font-display: 'Petrona', ui-serif, Georgia, serif;
+  --font-sans: 'Karla', ui-sans-serif, system-ui, sans-serif;
+
+  /* Light mode surfaces + text, warm neutral tinted toward the brand hue (45). */
+  --color-canvas: oklch(97.3% 0.011 60);
+  --color-surface: oklch(99.2% 0.006 60);
+  --color-surface-2: oklch(95% 0.014 60);
+  --color-border: oklch(87% 0.02 60);
+  --color-text: oklch(23% 0.018 60);
+  --color-text-muted: oklch(46% 0.02 60);
+
+  /* Terracotta primary — warm, local, not corporate blue. */
+  --color-primary: oklch(58% 0.15 45);
+  --color-primary-hover: oklch(52% 0.16 45);
+  --color-primary-soft: oklch(93% 0.04 45);
+  --color-on-primary: oklch(99% 0.008 45);
+
+  /* Deep sea-blue secondary — trust, verification, links. */
+  --color-sea: oklch(42% 0.09 230);
+  --color-sea-soft: oklch(92% 0.035 230);
+
+  /* Status colors — muted, not neon. */
+  --color-success: oklch(52% 0.11 150);
+  --color-success-soft: oklch(92% 0.05 150);
+  --color-warning: oklch(58% 0.13 75);
+  --color-warning-soft: oklch(92% 0.06 75);
+  --color-danger: oklch(52% 0.16 25);
+  --color-danger-soft: oklch(92% 0.05 25);
+}
+
+:root[data-theme='dark'] {
+  --color-canvas: oklch(19% 0.014 60);
+  --color-surface: oklch(23.5% 0.016 60);
+  --color-surface-2: oklch(29% 0.018 60);
+  --color-border: oklch(36% 0.02 60);
+  --color-text: oklch(93% 0.01 60);
+  --color-text-muted: oklch(68% 0.016 60);
+
+  --color-primary: oklch(70% 0.15 45);
+  --color-primary-hover: oklch(76% 0.15 45);
+  --color-primary-soft: oklch(32% 0.06 45);
+  --color-on-primary: oklch(15% 0.02 45);
+
+  --color-sea: oklch(76% 0.09 230);
+  --color-sea-soft: oklch(30% 0.05 230);
+
+  --color-success: oklch(72% 0.13 150);
+  --color-success-soft: oklch(28% 0.06 150);
+  --color-warning: oklch(78% 0.13 75);
+  --color-warning-soft: oklch(30% 0.07 75);
+  --color-danger: oklch(72% 0.15 25);
+  --color-danger-soft: oklch(30% 0.06 25);
+}
+
+html {
+  color-scheme: light;
+}
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Fluid display sizes for marketing/hero copy only — app chrome uses fixed rem via Tailwind utilities. */
+.text-hero {
+  font-size: clamp(2.25rem, 4.5vw + 1rem, 4rem);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+.text-section-title {
+  font-size: clamp(1.5rem, 1.5vw + 1rem, 2rem);
+  line-height: 1.15;
+}
+
+::selection {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
