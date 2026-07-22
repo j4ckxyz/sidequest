@@ -20,6 +20,7 @@ import { PageSpinner } from '../components/ui/Spinner';
 import { ApplyModal } from '../components/applications/ApplyModal';
 import { Modal } from '../components/ui/Modal';
 import { ReviewForm } from '../components/reviews/ReviewForm';
+import { ReportButton } from '../components/moderation/ReportButton';
 import { useToast } from '../context/ToastProvider';
 
 const STATUS_TONE = { open: 'success', assigned: 'primary', in_progress: 'warning', completed: 'neutral', cancelled: 'danger' } as const;
@@ -132,6 +133,12 @@ export function JobDetail() {
         </div>
 
         <p className="mt-6 max-w-[65ch] whitespace-pre-line text-base leading-relaxed text-text">{job.description}</p>
+
+        {user && !isPoster && (
+          <div className="mt-4">
+            <ReportButton targetType="job" targetId={job.id} label={job.title} />
+          </div>
+        )}
 
         {job.photos.length > 0 && (
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

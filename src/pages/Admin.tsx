@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck, Trash2, Sparkles, Bot, Crown } from 'lucide-react';
+import { ShieldCheck, Trash2, Sparkles, Bot, Crown, Ban } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import { useAllJobsAdmin, useAllProfiles, useAdminDeleteJob, useSetAdmin } from '../hooks/useAdmin';
 import { useRefreshRecommendations } from '../hooks/useRecommendations';
+import { useAdminBan, useAdminUnban } from '../hooks/useModeration';
+import { ModerationPanel } from '../components/moderation/ModerationPanel';
+import { userBlock } from '../components/layout/BannedScreen';
 import { db } from '../lib/db';
 import { Input } from '../components/ui/Input';
 import { JOB_CATEGORIES, JOB_STATUS_LABEL } from '../lib/constants';
@@ -34,6 +37,7 @@ export function Admin() {
         Moderate jobs{user.is_owner ? ' and manage who else has admin access' : ''}.
       </p>
 
+      <ModerationPanel callerId={user.id} />
       <RecommendationsPanel />
       <BotsPanel />
 
@@ -193,7 +197,10 @@ function JobsTab({ callerId }: { callerId: string }) {
 function UsersTab({ callerId }: { callerId: string }) {
   const { data: profiles, isLoading } = useAllProfiles(callerId);
   const setAdmin = useSetAdmin();
+  const ban = useAdminBan();
+  const unban = useAdminUnban();
   const { showToast } = useToast();
+  const humanProfiles = profiles?.filter((profile) => !profile.is_bot);
   const caller = profiles?.find((profile) => profile.id === callerId);
   const canManageAdmins = caller?.is_owner === true;
 
@@ -201,42 +208,82 @@ function UsersTab({ callerId }: { callerId: string }) {
 
   return (
     <div className="flex flex-col divide-y divide-border rounded-lg border border-border bg-surface">
-      {profiles?.map((profile) => (
-        <div key={profile.id} className="flex items-center justify-between gap-3 p-4">
-          <div className="flex items-center gap-3">
-            <Avatar name={profile.full_name} src={profile.avatar_url} size="sm" />
-            <div>
-              <p className="text-sm text-text">{profile.full_name}</p>
-              <p className="text-xs text-text-muted">{profile.parish}</p>
+      {(!humanProfiles || humanProfiles.length === 0) && (
+        <p className="p-5 text-sm text-text-muted">No registered human users yet.</p>
+      )}
+      {humanProfiles?.map((profile) => {
+        const block = userBlock(profile);
+        return (
+          <div key={profile.id} className="flex items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <Avatar name={profile.full_name} src={profile.avatar_url} size="sm" />
+              <div>
+                <p className="text-sm text-text">{profile.full_name}</p>
+                <p className="text-xs text-text-muted">
+                  {profile.parish}
+                  {block.blocked && (
+                    <span className="text-danger"> · {block.suspended ? 'suspended' : 'banned'}</span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {profile.is_owner ? (
+                <Badge tone="primary" icon={<Crown size={12} />}>Owner</Badge>
+              ) : profile.is_admin ? (
+                <Badge tone="sage">Admin</Badge>
+              ) : null}
+              {!profile.is_owner && profile.id !== callerId && (
+                block.blocked ? (
+                  <Button
+                    size="md"
+                    variant="secondary"
+                    disabled={unban.isPending}
+                    onClick={() =>
+                      unban.mutate({ callerId, targetId: profile.id }, { onSuccess: () => showToast('Restriction lifted.') })
+                    }
+                  >
+                    Unban
+                  </Button>
+                ) : (
+                  <Button
+                    size="md"
+                    variant="secondary"
+                    disabled={ban.isPending}
+                    onClick={() => {
+                      if (!confirm(`Ban ${profile.full_name} for 7 days?`)) return;
+                      ban.mutate(
+                        { callerId, targetId: profile.id, days: 7, reason: 'Banned by an admin for breaking the community rules.' },
+                        { onSuccess: () => showToast(`${profile.full_name} banned for 7 days.`) },
+                      );
+                    }}
+                  >
+                    <Ban size={14} /> Ban
+                  </Button>
+                )
+              )}
+              {canManageAdmins && !profile.is_owner && (
+                <Button
+                  size="md"
+                  variant="secondary"
+                  onClick={() =>
+                    setAdmin.mutate(
+                      { callerId, targetId: profile.id, isAdmin: !profile.is_admin },
+                      {
+                        onSuccess: () => showToast(profile.is_admin ? 'Admin access removed.' : 'Admin access granted.'),
+                        onError: (error) => showToast(error instanceof Error ? error.message : 'Could not change admin access.', 'error'),
+                      },
+                    )
+                  }
+                  disabled={setAdmin.isPending}
+                >
+                  {profile.is_admin ? 'Remove admin' : 'Make admin'}
+                </Button>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {profile.is_owner ? (
-              <Badge tone="primary" icon={<Crown size={12} />}>Owner</Badge>
-            ) : profile.is_admin ? (
-              <Badge tone="sage">Admin</Badge>
-            ) : null}
-            {canManageAdmins && !profile.is_owner && (
-              <Button
-                size="md"
-                variant="secondary"
-                onClick={() =>
-                  setAdmin.mutate(
-                    { callerId, targetId: profile.id, isAdmin: !profile.is_admin },
-                    {
-                      onSuccess: () => showToast(profile.is_admin ? 'Admin access removed.' : 'Admin access granted.'),
-                      onError: (error) => showToast(error instanceof Error ? error.message : 'Could not change admin access.', 'error'),
-                    },
-                  )
-                }
-                disabled={setAdmin.isPending}
-              >
-                {profile.is_admin ? 'Remove admin' : 'Make admin'}
-              </Button>
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

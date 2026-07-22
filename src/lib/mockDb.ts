@@ -6,10 +6,14 @@ import type {
   JobPreferenceState,
   JobRecommendation,
   Message,
+  ModerationAction,
+  ModerationDecision,
+  ModerationEvent,
   Notification,
   NotificationType,
   Profile,
   PushSubscriptionInput,
+  Report,
   Review,
 } from '../types/models';
 import { PARISHES, JOB_CATEGORIES, SKILL_OPTIONS } from './constants';
@@ -30,6 +34,9 @@ interface State {
   messages: Record<string, Message>;
   reviews: Record<string, Review>;
   notifications: Record<string, Notification>;
+  reports: Record<string, Report>;
+  moderationActions: Record<string, ModerationAction>;
+  moderationEvents: Record<string, ModerationEvent>;
   /** past username (lowercased) → owner id, so old @handles keep resolving. */
   usernameHistory: Record<string, string>;
   jobPreferences: Record<string, Omit<JobPreferenceState, 'messages' | 'remaining_today' | 'daily_limit'>>;
@@ -176,7 +183,29 @@ function seed(): State {
       jobs_completed_count: 0,
       created_at: daysFromNow(-10),
     },
-  ] as Omit<Profile, 'onboarded' | 'username' | 'top_category' | 'is_owner' | 'is_bot' | 'interest_keywords' | 'hide_location' | 'saved_pins'>[]).map((p) => ({
+    {
+      // Demo bad actor — obvious scam posts + a prior removal on record, so a
+      // fresh report makes the moderation agent escalate to a ban on stage.
+      id: 'p-spam',
+      email: 'deals@totally-legit.example',
+      full_name: 'Deals Direct',
+      avatar_url: null,
+      bio: 'DM me on WhatsApp for GUARANTEED money-making deals. Crypto investment, fast cash, no questions asked!!!',
+      parish: 'St Helier',
+      phone: '07700 000 000',
+      skills: [],
+      is_verified: false,
+      is_admin: false,
+      rating_avg: 0,
+      rating_count: 0,
+      jobs_posted_count: 2,
+      jobs_completed_count: 0,
+      created_at: daysFromNow(-3),
+    },
+  ] as Omit<
+    Profile,
+    'onboarded' | 'username' | 'top_category' | 'is_owner' | 'is_bot' | 'interest_keywords' | 'hide_location' | 'saved_pins' | 'banned_until' | 'suspended' | 'ban_reason'
+  >[]).map((p) => ({
     ...p,
     onboarded: true,
     username: p.full_name.toLowerCase().split(' ')[0],
@@ -186,6 +215,9 @@ function seed(): State {
     interest_keywords: [],
     hide_location: false,
     saved_pins: [],
+    banned_until: null,
+    suspended: false,
+    ban_reason: null,
   }));
 
   const jobs: Job[] = ([
@@ -353,6 +385,25 @@ function seed(): State {
       photos: [],
       created_at: daysFromNow(-9),
     },
+    {
+      id: 'j-scam1',
+      poster_id: 'p-spam',
+      title: 'EARN £500/day from home — no experience!!!',
+      description:
+        'Guaranteed crypto investment returns. Send me a small deposit via gift card or bitcoin first and I DOUBLE it. WhatsApp me on 07700 000 000, click here www.totally-legit.example. Fast cash, act now!',
+      category: 'other',
+      parish: 'St Helier',
+      location_detail: null,
+      budget_type: 'negotiable',
+      budget_amount: null,
+      estimated_hours: null,
+      date_needed: null,
+      is_flexible_date: true,
+      status: 'open',
+      assigned_quester_id: null,
+      photos: [],
+      created_at: daysFromNow(-1),
+    },
   ] as Omit<Job, 'is_recurring' | 'recurrence' | 'location_lat' | 'location_lng' | 'slots' | 'public_id'>[]).map((j) => ({
     ...j,
     // Stable, readable public ids for the seed data (real jobs get a base62 snowflake).
@@ -465,6 +516,22 @@ function seed(): State {
     messages: Object.fromEntries(messages.map((m) => [m.id, m])),
     reviews: Object.fromEntries(reviews.map((r) => [r.id, r])),
     notifications: {},
+    reports: {},
+    // One prior removal on the demo bad actor so a new report escalates to a ban.
+    moderationActions: {
+      'ma-seed-1': {
+        id: 'ma-seed-1',
+        report_id: null,
+        decided_by: 'gemini',
+        action: 'remove_post',
+        target_user_id: 'p-spam',
+        job_id: null,
+        reason: 'Previous listing removed: off-platform payment scam and spam links.',
+        ban_until: null,
+        created_at: daysFromNow(-2),
+      },
+    },
+    moderationEvents: {},
     usernameHistory: {},
     jobPreferences: {},
     jobPreferenceMessages: {},
@@ -490,6 +557,9 @@ function load(): State {
             interest_keywords: profile.interest_keywords ?? [],
             hide_location: profile.hide_location ?? false,
             saved_pins: profile.saved_pins ?? [],
+            banned_until: profile.banned_until ?? null,
+            suspended: profile.suspended ?? false,
+            ban_reason: profile.ban_reason ?? null,
           },
         ]),
       );
@@ -508,6 +578,9 @@ function load(): State {
         ]),
       );
       parsed.notifications ??= {};
+      parsed.reports ??= {};
+      parsed.moderationActions ??= {};
+      parsed.moderationEvents ??= {};
       parsed.usernameHistory ??= {};
       parsed.jobPreferences ??= {};
       parsed.jobPreferenceMessages ??= {};
@@ -566,6 +639,161 @@ function emitNotification(
 
 function actorName(id: string): string {
   return state.profiles[id]?.full_name ?? 'Someone';
+}
+
+// ── Moderation (mock stand-in for the server-side Gemini agent) ────────────
+// A deterministic classifier + streamed status steps so the whole report →
+// decide → act → live-feed flow works in `bun run dev`. Prod runs the real
+// Gemini agent (server/moderation.ts) which writes the same rows.
+
+const SEVERE_TERMS = [
+  'crypto', 'bitcoin', 'gift card', 'wire transfer', 'western union', 'guaranteed money',
+  'guaranteed', 'double it', 'investment', 'send money', 'deposit first', 'escort', 'onlyfans',
+  'nsfw', 'weapon', 'drugs', 'sugar daddy', 'sugar baby',
+];
+const SPAM_TERMS = ['whatsapp me', 'dm me', 'telegram', 'click here', 'http://', 'https://', 'www.', 'subscribe', 'follow my', 'act now', 'no experience'];
+
+function classifyContent(text: string): { severity: 'none' | 'spam' | 'severe'; matched: string[] } {
+  const t = text.toLowerCase();
+  const severe = SEVERE_TERMS.filter((k) => t.includes(k));
+  const spam = SPAM_TERMS.filter((k) => t.includes(k));
+  if (severe.length) return { severity: 'severe', matched: [...severe, ...spam] };
+  if (spam.length >= 2) return { severity: 'spam', matched: spam };
+  return { severity: 'none', matched: [] };
+}
+
+function priorSeriousActions(userId: string): number {
+  return Object.values(state.moderationActions).filter(
+    (a) => a.target_user_id === userId && (a.action === 'remove_post' || a.action === 'ban_user' || a.action === 'suspend_user'),
+  ).length;
+}
+
+function addModEvent(reportId: string, kind: ModerationEvent['kind'], message: string) {
+  const id = genId();
+  state.moderationEvents[id] = { id, report_id: reportId, kind, message, created_at: new Date().toISOString() };
+  touch();
+  notify();
+}
+
+function logModAction(
+  reportId: string | null,
+  decidedBy: string,
+  action: ModerationDecision,
+  targetUserId: string,
+  jobId: string | null,
+  reason: string,
+  banUntil: string | null,
+) {
+  const id = genId();
+  state.moderationActions[id] = {
+    id,
+    report_id: reportId,
+    decided_by: decidedBy,
+    action,
+    target_user_id: targetUserId,
+    job_id: jobId,
+    reason,
+    ban_until: banUntil,
+    created_at: new Date().toISOString(),
+  };
+}
+
+function applyRemovePost(jobId: string, reportId: string, decidedBy: string, reason: string) {
+  const job = state.jobs[jobId];
+  if (!job) return;
+  // Cascade: drop the job's applications, conversations, and their messages.
+  Object.values(state.applications).filter((a) => a.job_id === jobId).forEach((a) => delete state.applications[a.id]);
+  const convIds = Object.values(state.conversations).filter((c) => c.job_id === jobId).map((c) => c.id);
+  convIds.forEach((cid) => {
+    Object.values(state.messages).filter((m) => m.conversation_id === cid).forEach((m) => delete state.messages[m.id]);
+    delete state.conversations[cid];
+  });
+  delete state.jobs[jobId];
+  logModAction(reportId, decidedBy, 'remove_post', job.poster_id, jobId, reason, null);
+}
+
+function applyBan(userId: string, days: number, reportId: string | null, decidedBy: string, reason: string) {
+  const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+  const p = state.profiles[userId];
+  if (p) state.profiles[userId] = { ...p, banned_until: until, ban_reason: reason };
+  logModAction(reportId, decidedBy, 'ban_user', userId, null, reason, until);
+}
+
+function applySuspend(userId: string, reportId: string | null, decidedBy: string, reason: string) {
+  const p = state.profiles[userId];
+  if (p) state.profiles[userId] = { ...p, suspended: true, ban_reason: reason };
+  logModAction(reportId, decidedBy, 'suspend_user', userId, null, reason, null);
+}
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Fire-and-forget: stream the agent's steps and enforce a decision. */
+async function runModerationAgent(report: Report) {
+  const targetId = report.target_user_id;
+  const target = state.profiles[targetId];
+  const content =
+    report.target_type === 'job'
+      ? (() => {
+          const j = state.jobs[report.target_id];
+          return j ? `${j.title}\n${j.description}` : '';
+        })()
+      : target
+        ? `${target.full_name}\n${target.bio}`
+        : '';
+
+  state.reports[report.id] = { ...report, status: 'reviewing' };
+  addModEvent(report.id, 'received', `Report received on a ${report.target_type} — “${report.reason || 'no reason given'}”. Starting review.`);
+  await wait(650);
+
+  const priors = priorSeriousActions(targetId);
+  addModEvent(
+    report.id,
+    'context',
+    `Pulled ${target?.full_name ?? 'the user'}'s record: ${priors} prior enforcement action${priors === 1 ? '' : 's'}, ${target?.rating_count ?? 0} reviews, joined ${target ? new Date(target.created_at).toLocaleDateString('en-GB') : '—'}.`,
+  );
+  await wait(800);
+
+  addModEvent(report.id, 'analyzing', 'Checking the content against the rules: scams, off-platform payment, spam links, harassment…');
+  await wait(950);
+
+  const { severity, matched } = classifyContent(content);
+  const flagged = matched.length ? ` Flagged: ${matched.slice(0, 4).join(', ')}.` : '';
+
+  const decisions: { action: ModerationDecision; reason: string; days?: number }[] = [];
+  if (severity === 'none') {
+    decisions.push({ action: 'dismiss', reason: 'Content is within the community rules — no action taken.' });
+  } else {
+    if (report.target_type === 'job') {
+      decisions.push({
+        action: 'remove_post',
+        reason: `Listing removed — ${severity === 'severe' ? 'off-platform payment scam' : 'spam / solicitation'}.${flagged}`,
+      });
+    }
+    if (severity === 'severe' && priors >= 1) {
+      decisions.push({ action: 'suspend_user', reason: `Repeat serious violation after a prior action — account suspended pending human review.${flagged}` });
+    } else if (severity === 'severe') {
+      decisions.push({ action: 'ban_user', days: 30, reason: `Serious violation (scam) — 30-day ban.${flagged}` });
+    } else if (priors >= 1) {
+      decisions.push({ action: 'ban_user', days: 7, reason: `Repeat spam after a prior removal — 7-day ban.${flagged}` });
+    }
+  }
+
+  addModEvent(report.id, 'decision', `Decision: ${decisions.map((d) => d.action.replace('_', ' ')).join(' + ')}.`);
+  await wait(700);
+
+  for (const d of decisions) {
+    if (d.action === 'remove_post' && report.target_type === 'job') applyRemovePost(report.target_id, report.id, 'gemini', d.reason);
+    else if (d.action === 'ban_user') applyBan(targetId, d.days ?? 7, report.id, 'gemini', d.reason);
+    else if (d.action === 'suspend_user') applySuspend(targetId, report.id, 'gemini', d.reason);
+    else logModAction(report.id, 'gemini', 'dismiss', targetId, null, d.reason, null);
+    addModEvent(report.id, 'applied', d.reason);
+    await wait(550);
+  }
+
+  state.reports[report.id] = { ...state.reports[report.id], status: 'resolved' };
+  addModEvent(report.id, 'done', 'Review complete.');
+  touch();
+  notify();
 }
 
 export const db = {
@@ -1068,6 +1296,72 @@ export const db = {
     },
   },
 
+  moderation: {
+    async createReport(input: { reporter_id: string; target_type: 'job' | 'user'; target_id: string; reason: string }): Promise<Report> {
+      const targetUserId = input.target_type === 'job' ? state.jobs[input.target_id]?.poster_id ?? input.target_id : input.target_id;
+      const id = genId();
+      const report: Report = {
+        id,
+        reporter_id: input.reporter_id,
+        target_type: input.target_type,
+        target_id: input.target_id,
+        target_user_id: targetUserId,
+        reason: input.reason,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      };
+      state.reports[id] = report;
+      touch();
+      notify();
+      // The agent runs in the background, streaming status to the admin feed.
+      void runModerationAgent(report);
+      return delay(report);
+    },
+    async listReports(callerId: string): Promise<Report[]> {
+      assertAdmin(callerId);
+      return delay(Object.values(state.reports).sort((a, b) => b.created_at.localeCompare(a.created_at)));
+    },
+    async listEvents(callerId: string): Promise<ModerationEvent[]> {
+      assertAdmin(callerId);
+      return delay(
+        Object.values(state.moderationEvents)
+          .sort((a, b) => b.created_at.localeCompare(a.created_at))
+          .slice(0, 60),
+      );
+    },
+    async listActions(callerId: string): Promise<ModerationAction[]> {
+      assertAdmin(callerId);
+      return delay(
+        Object.values(state.moderationActions)
+          .sort((a, b) => b.created_at.localeCompare(a.created_at))
+          .slice(0, 60),
+      );
+    },
+    async adminBan(callerId: string, targetId: string, days: number, reason: string): Promise<void> {
+      assertAdmin(callerId);
+      applyBan(targetId, days, null, callerId, reason);
+      touch();
+      notify();
+      return delay(undefined);
+    },
+    async adminSuspend(callerId: string, targetId: string, reason: string): Promise<void> {
+      assertAdmin(callerId);
+      applySuspend(targetId, null, callerId, reason);
+      touch();
+      notify();
+      return delay(undefined);
+    },
+    async adminUnban(callerId: string, targetId: string): Promise<void> {
+      assertAdmin(callerId);
+      const p = state.profiles[targetId];
+      if (p) state.profiles[targetId] = { ...p, banned_until: null, suspended: false, ban_reason: null };
+      logModAction(null, callerId, 'unban', targetId, null, 'Lifted by admin.', null);
+      touch();
+      notify();
+      return delay(undefined);
+    },
+  },
+
   // ---- recommendations -------------------------------------------------
   // Dev stand-in for the embeddings service: a category/parish heuristic so the
   // "Picked for you" UI is exercised on mock data. Production reads real rows.
@@ -1243,6 +1537,9 @@ export const db = {
           jobs_posted_count: 0,
           jobs_completed_count: 0,
           onboarded: true,
+          banned_until: null,
+          suspended: false,
+          ban_reason: null,
           created_at: new Date().toISOString(),
         };
         state.profiles[id] = bot;

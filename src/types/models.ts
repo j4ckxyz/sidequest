@@ -33,6 +33,52 @@ export interface Profile {
   jobs_posted_count: number;
   jobs_completed_count: number;
   onboarded: boolean;
+  /** Timed ban — the user can't act until this time passes. Null when not banned. */
+  banned_until: string | null;
+  /** Indefinite suspension until an admin lifts it. */
+  suspended: boolean;
+  /** Human-readable reason shown to the user on the blocked screen. */
+  ban_reason: string | null;
+  created_at: string;
+}
+
+export type ReportTargetType = 'job' | 'user';
+export type ReportStatus = 'pending' | 'reviewing' | 'resolved';
+
+export interface Report {
+  id: string;
+  reporter_id: string;
+  target_type: ReportTargetType;
+  target_id: string;
+  /** For a job report, the job's owner — so the agent can pull their history. */
+  target_user_id: string;
+  reason: string;
+  status: ReportStatus;
+  created_at: string;
+}
+
+export type ModerationDecision = 'dismiss' | 'remove_post' | 'ban_user' | 'suspend_user' | 'unban';
+
+export interface ModerationAction {
+  id: string;
+  report_id: string | null;
+  /** 'gemini' for the agent, or an admin's user id for a manual action. */
+  decided_by: string;
+  action: ModerationDecision;
+  target_user_id: string;
+  job_id: string | null;
+  reason: string;
+  /** For ban_user: when the ban lifts. */
+  ban_until: string | null;
+  created_at: string;
+}
+
+/** A single step the moderation agent streams to the admin live feed. */
+export interface ModerationEvent {
+  id: string;
+  report_id: string;
+  kind: 'received' | 'context' | 'analyzing' | 'decision' | 'applied' | 'done' | 'error';
+  message: string;
   created_at: string;
 }
 

@@ -26,6 +26,7 @@ import { ProfileView } from './pages/ProfileView';
 import { ProfileEdit } from './pages/ProfileEdit';
 import { Settings } from './pages/Settings';
 import { Notifications } from './pages/Notifications';
+import { About } from './pages/About';
 import { Admin } from './pages/Admin';
 import { NotFound } from './pages/NotFound';
 
@@ -49,6 +50,7 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="/about" element={<About />} />
                 <Route path="/jobs" element={<BrowseJobs />} />
                 <Route
                   path="/jobs/new"

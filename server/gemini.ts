@@ -196,6 +196,75 @@ export async function preferenceChat(
   };
 }
 
+export interface ModerationVerdict {
+  decision: 'dismiss' | 'remove_post' | 'ban_user' | 'suspend_user';
+  ban_days: number | null;
+  reason: string; // shown to the reported user
+  rationale: string; // one line for the moderation log
+}
+
+const MOD_RULES = [
+  'HEALTHY (allow): genuine short local tasks; fair, upfront pay; keeping payment and chat on SideQuest; honest reviews; ordinary neighbourly requests.',
+  'VIOLATING: scams or "get rich quick"/investment schemes; asking to pay off-platform or via gift cards / crypto / wire transfer; spam, advertising, or external links to solicit; anything illegal; harassment, hate, or abuse; clearly sexual/adult solicitation.',
+].join('\n');
+
+/**
+ * Autonomous moderation decision. The model chooses ONE enforcement tool and its
+ * arguments (returned as JSON); the server executes it. Given the reported content
+ * plus the user's prior enforcement history so repeat offenders escalate.
+ */
+export async function moderationDecision(input: {
+  targetType: 'job' | 'user';
+  reason: string;
+  content: string;
+  priorActions: number;
+  historyLines: string[];
+}): Promise<ModerationVerdict> {
+  const prompt = [
+    "You are SideQuest's autonomous moderation agent for a neighbourly local-jobs marketplace in Jersey.",
+    'Pick the single best enforcement action for the reported content using the rules and the user history.',
+    '',
+    'RULES:',
+    MOD_RULES,
+    '',
+    'TOOLS (choose exactly one):',
+    '- dismiss: content is within the rules; take no action.',
+    '- remove_post: the reported job/post breaks the rules; take it down.',
+    '- ban_user: temporary ban (set ban_days 7–30); use for repeat offenders or a serious first violation.',
+    '- suspend_user: indefinite suspension; use for repeat serious violations after a prior action, or egregious abuse.',
+    '',
+    'ESCALATION: first-time spam on a post → remove_post. If the user already has prior enforcement actions → ban_user. Serious violation again after a prior action → suspend_user. Clearly fine → dismiss. Be fair and proportionate; do not punish honest posts.',
+    '',
+    `REPORTED ${input.targetType.toUpperCase()} (reporter said: "${input.reason || 'no reason given'}"):`,
+    input.content.slice(0, 4000),
+    '',
+    `PRIOR ENFORCEMENT ACTIONS AGAINST THIS USER: ${input.priorActions}`,
+    input.historyLines.length ? `HISTORY:\n${input.historyLines.join('\n')}` : 'No prior history.',
+    '',
+    'Return JSON: {"decision":"dismiss|remove_post|ban_user|suspend_user","ban_days":number|null,"reason":"one sentence shown to the reported user, plain and factual","rationale":"one short sentence for the moderation log"}',
+  ].join('\n');
+
+  const json = (await post(
+    CHAT_MODEL,
+    'generateContent',
+    {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.15, maxOutputTokens: 400 },
+    },
+    2,
+  )) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  const raw = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+  const p = JSON.parse(raw) as Partial<ModerationVerdict>;
+  const allowed = ['dismiss', 'remove_post', 'ban_user', 'suspend_user'];
+  const decision = (allowed.includes(p.decision as string) ? p.decision : 'dismiss') as ModerationVerdict['decision'];
+  return {
+    decision,
+    ban_days: typeof p.ban_days === 'number' ? Math.max(1, Math.min(365, Math.round(p.ban_days))) : null,
+    reason: (typeof p.reason === 'string' ? p.reason : 'Reviewed by moderation.').slice(0, 300),
+    rationale: (typeof p.rationale === 'string' ? p.rationale : '').slice(0, 300),
+  };
+}
+
 function normalize(v: number[]): number[] {
   let sum = 0;
   for (const x of v) sum += x * x;

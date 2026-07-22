@@ -6,9 +6,12 @@ import type {
   JobPreferenceState,
   JobRecommendation,
   Message,
+  ModerationAction,
+  ModerationEvent,
   Notification,
   Profile,
   PushSubscriptionInput,
+  Report,
   Review,
 } from '../types/models';
 
@@ -407,6 +410,53 @@ export const db = {
     },
     async unsubscribe(endpoint: string): Promise<void> {
       await client().from('push_subscriptions').delete().eq('endpoint', endpoint);
+    },
+  },
+
+  moderation: {
+    async createReport(input: { reporter_id: string; target_type: 'job' | 'user'; target_id: string; reason: string }): Promise<Report> {
+      let targetUserId = input.target_id;
+      if (input.target_type === 'job') {
+        const { data } = await client().from('jobs').select('poster_id').eq('id', input.target_id).maybeSingle();
+        targetUserId = (data as { poster_id: string } | null)?.poster_id ?? input.target_id;
+      }
+      const result = await client()
+        .from('reports')
+        .insert({ reporter_id: input.reporter_id, target_type: input.target_type, target_id: input.target_id, target_user_id: targetUserId, reason: input.reason })
+        .select()
+        .single();
+      const report = unwrap<Report>(result);
+      // Fire-and-forget server moderation agent
+      void recsPost('/moderate', { report_id: report.id }).catch(() => {});
+      return report;
+    },
+    async listReports(_callerId: string): Promise<Report[]> {
+      const { data } = await client().from('reports').select('*').order('created_at', { ascending: false }).limit(60);
+      return (data as Report[]) ?? [];
+    },
+    async listEvents(_callerId: string): Promise<ModerationEvent[]> {
+      const { data } = await client().from('moderation_events').select('*').order('created_at', { ascending: false }).limit(60);
+      return (data as ModerationEvent[]) ?? [];
+    },
+    async listActions(_callerId: string): Promise<ModerationAction[]> {
+      const { data } = await client().from('moderation_actions').select('*').order('created_at', { ascending: false }).limit(60);
+      return (data as ModerationAction[]) ?? [];
+    },
+    async adminBan(callerId: string, targetId: string, days: number, reason: string): Promise<void> {
+      const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+      await client().from('profiles').update({ banned_until: until, ban_reason: reason }).eq('id', targetId);
+      await client().from('moderation_actions').insert({ decided_by: callerId, action: 'ban_user', target_user_id: targetId, reason, ban_until: until });
+      notify();
+    },
+    async adminSuspend(callerId: string, targetId: string, reason: string): Promise<void> {
+      await client().from('profiles').update({ suspended: true, ban_reason: reason }).eq('id', targetId);
+      await client().from('moderation_actions').insert({ decided_by: callerId, action: 'suspend_user', target_user_id: targetId, reason });
+      notify();
+    },
+    async adminUnban(callerId: string, targetId: string): Promise<void> {
+      await client().from('profiles').update({ banned_until: null, suspended: false, ban_reason: null }).eq('id', targetId);
+      await client().from('moderation_actions').insert({ decided_by: callerId, action: 'unban', target_user_id: targetId, reason: 'Lifted by admin.' });
+      notify();
     },
   },
 

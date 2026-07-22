@@ -9,6 +9,7 @@ import { embedOne, preferenceChat, type PreferenceChatTurn } from './gemini';
 import { refresh, pendingNewJobCount, pendingPreferenceChangeCount, type RefreshResult } from './pipeline';
 import { summonBots, removeBots } from './bots';
 import { startNotificationPushWatcher } from './push';
+import { processReport, processPendingReports } from './moderation';
 
 const PORT = Number(process.env.PORT ?? '8787');
 // Bind to localhost by default — Nginx (public :443) reverse-proxies to this. Set HOST=0.0.0.0
@@ -130,6 +131,25 @@ app.post('/bots/remove', rateLimit(4, 60_000), async (c) => {
     return c.json({ ok: true, ...(await removeBots()) });
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : 'Remove failed' }, 500);
+  }
+});
+
+/** Trigger autonomous Gemini moderation agent to review a specific report or pending reports. */
+app.post('/moderate', rateLimit(20, 60_000), async (c) => {
+  const userId = await authenticatedUserId(c.req.header('Authorization'));
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+
+  const body = (await c.req.json().catch(() => ({}))) as { report_id?: string };
+  try {
+    if (body.report_id && typeof body.report_id === 'string') {
+      void processReport(body.report_id);
+    } else {
+      void processPendingReports();
+    }
+    return c.json({ ok: true });
+  } catch (err) {
+    console.error('[moderate] trigger failed:', err);
+    return c.json({ error: err instanceof Error ? err.message : 'Moderation failed' }, 500);
   }
 });
 
@@ -396,6 +416,18 @@ setInterval(async () => {
     console.error('[watch] failed:', err);
   }
 }, WATCH_INTERVAL_MS);
+
+// Moderation watcher: automatically process any pending reports with Gemini agent every 5s
+setInterval(async () => {
+  try {
+    const processed = await processPendingReports();
+    if (processed > 0) {
+      console.log(`[moderation] Processed ${processed} pending report(s)`);
+    }
+  } catch (err) {
+    console.error('[moderation] watcher failed:', err);
+  }
+}, 5_000);
 
 console.log(
   `SideQuest recs service on :${PORT} — hourly refresh, watch every ${Math.round(WATCH_INTERVAL_MS / 60000)}m (threshold ${NEW_JOBS_THRESHOLD} new jobs)`,

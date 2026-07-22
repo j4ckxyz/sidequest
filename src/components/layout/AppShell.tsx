@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthProvider';
 import { Navbar } from './Navbar';
 import { BottomNav } from './BottomNav';
 import { MobileTopBar } from './MobileTopBar';
+import { BannedScreen, userBlock } from './BannedScreen';
 
 const CHROMELESS_ROUTES = ['/login', '/signup', '/onboarding'];
 
@@ -11,6 +12,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { user } = useAuth();
   const isChromeless = CHROMELESS_ROUTES.includes(location.pathname);
+
+  // Blocked users see only the restriction notice (with a way to sign out).
+  if (user && userBlock(user).blocked) {
+    return <BannedScreen />;
+  }
 
   // New (incl. Google) users finish setup before anything else.
   if (user && !user.onboarded && location.pathname !== '/onboarding') {

@@ -45,6 +45,7 @@ export function Navbar() {
         <nav className="flex items-center gap-1 text-sm font-medium">
           <NavItem to="/jobs" label="Browse jobs" />
           {user && <NavItem to="/dashboard" label="My jobs" />}
+          <NavItem to="/about" label="About" />
         </nav>
 
         <div className="flex items-center gap-2">

@@ -7,6 +7,7 @@ import { useReviewsFor } from '../hooks/useReviews';
 import { useJobsByPoster, useJobsAssignedTo } from '../hooks/useJobs';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
 import { ProfileStats } from '../components/profile/ProfileStats';
+import { ReportButton } from '../components/moderation/ReportButton';
 import { ReviewCard } from '../components/reviews/ReviewCard';
 import { CategoryIcon } from '../components/jobs/CategoryIcon';
 import { PageSpinner } from '../components/ui/Spinner';
@@ -44,6 +45,11 @@ export function ProfileView() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
       <ProfileHeader profile={profile} isOwn={user?.id === profile.id} />
+      {user && user.id !== profile.id && (
+        <div className="mt-4 flex justify-end">
+          <ReportButton targetType="user" targetId={profile.id} label={profile.full_name} />
+        </div>
+      )}
       <div className="mt-8">
         <ProfileStats profile={profile} />
       </div>
