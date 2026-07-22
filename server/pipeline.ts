@@ -79,6 +79,13 @@ interface ProfileRow {
   is_bot: boolean;
 }
 
+interface JobPreferenceRow {
+  user_id: string;
+  preferred_categories: string[];
+  summary: string;
+  keywords: string[];
+}
+
 interface ApplicationRow {
   job_id: string;
   quester_id: string;
@@ -89,10 +96,15 @@ function sourceText(j: JobRow): string {
   return `${j.title}\n${j.description}\nCategory: ${j.category}\nParish: ${j.parish}`;
 }
 
-function preferenceText(profile: ProfileRow): string {
+function preferenceText(profile: ProfileRow, privatePreference?: JobPreferenceRow): string {
   return [
     profile.skills.length ? `Skills: ${profile.skills.join(', ')}` : '',
     profile.interest_keywords.length ? `Interests: ${profile.interest_keywords.join(', ')}` : '',
+    privatePreference?.preferred_categories.length
+      ? `Preferred job categories: ${privatePreference.preferred_categories.join(', ')}`
+      : '',
+    privatePreference?.keywords.length ? `Job preference phrases: ${privatePreference.keywords.join(', ')}` : '',
+    privatePreference?.summary ? `What they want: ${privatePreference.summary}` : '',
   ]
     .filter(Boolean)
     .join('\n');
@@ -125,14 +137,39 @@ export async function pendingNewJobCount(): Promise<number> {
   return (open ?? []).filter((j) => !embedded.has((j as { id: string }).id)).length;
 }
 
+/** Detect saved preference changes from hashes without spending a Gemini request. */
+export async function pendingPreferenceChangeCount(): Promise<number> {
+  const [profilesResult, preferencesResult, hashesResult] = await Promise.all([
+    admin.from('profiles').select('id, parish, skills, interest_keywords, is_bot'),
+    admin.from('job_preferences').select('user_id, preferred_categories, summary, keywords'),
+    admin.from('profile_embeddings').select('user_id, source_hash'),
+  ]);
+  if (profilesResult.error) throw new Error(`check profile preferences: ${profilesResult.error.message}`);
+  if (preferencesResult.error) throw new Error(`check private preferences: ${preferencesResult.error.message}`);
+  if (hashesResult.error) throw new Error(`check preference embeddings: ${hashesResult.error.message}`);
+
+  const preferences = new Map(
+    ((preferencesResult.data ?? []) as JobPreferenceRow[]).map((preference) => [preference.user_id, preference]),
+  );
+  const hashes = new Map(
+    (hashesResult.data ?? []).map((row) => [row.user_id as string, row.source_hash as string]),
+  );
+  return ((profilesResult.data ?? []) as ProfileRow[]).filter((profile) => {
+    if (profile.is_bot) return false;
+    const text = preferenceText(profile, preferences.get(profile.id));
+    return text ? hashes.get(profile.id) !== hash(text) : hashes.has(profile.id);
+  }).length;
+}
+
 export async function refresh(): Promise<RefreshResult> {
   // ---- load everything (island-scale: whole tables are small) ----
-  const [jobsResult, appsResult, profilesResult, jobHashesResult, profileHashesResult, existingRecsResult] = await Promise.all([
+  const [jobsResult, appsResult, profilesResult, preferencesResult, jobHashesResult, profileHashesResult, existingRecsResult] = await Promise.all([
     admin
       .from('jobs')
       .select('id, poster_id, assigned_quester_id, title, description, category, parish, budget_type, budget_amount, status'),
     admin.from('applications').select('job_id, quester_id, status'),
     admin.from('profiles').select('id, parish, skills, interest_keywords, is_bot'),
+    admin.from('job_preferences').select('user_id, preferred_categories, summary, keywords'),
     admin.from('job_embeddings').select('job_id, source_hash'),
     admin.from('profile_embeddings').select('user_id, source_hash'),
     admin.from('recommendations').select('user_id, job_id, reason'),
@@ -150,6 +187,12 @@ export async function refresh(): Promise<RefreshResult> {
   if (profilesErr) throw new Error(`load profiles: ${profilesErr.message} — is migration 0007 applied?`);
   const profiles = ((profilesData ?? []) as ProfileRow[]).filter((profile) => !profile.is_bot);
 
+  const { data: preferencesData, error: preferencesErr } = preferencesResult;
+  if (preferencesErr) throw new Error(`load private preferences: ${preferencesErr.message} — is migration 0012 applied?`);
+  const preferencesByUser = new Map(
+    ((preferencesData ?? []) as JobPreferenceRow[]).map((preference) => [preference.user_id, preference]),
+  );
+
   const { data: embRows, error: jobHashesErr } = jobHashesResult;
   if (jobHashesErr) throw new Error(`read job embedding hashes: ${jobHashesErr.message}`);
   const existingHash = new Map((embRows ?? []).map((r) => [r.job_id as string, r.source_hash as string]));
@@ -161,11 +204,11 @@ export async function refresh(): Promise<RefreshResult> {
   // ---- 1. embed jobs and preferences only when their source text changed ----
   const stale = jobs.filter((j) => existingHash.get(j.id) !== hash(sourceText(j)));
   const staleProfiles = profiles.filter((profile) => {
-    const text = preferenceText(profile);
+    const text = preferenceText(profile, preferencesByUser.get(profile.id));
     return text && existingProfileHash.get(profile.id) !== hash(text);
   });
   const clearedProfileIds = profiles
-    .filter((profile) => !preferenceText(profile) && existingProfileHash.has(profile.id))
+    .filter((profile) => !preferenceText(profile, preferencesByUser.get(profile.id)) && existingProfileHash.has(profile.id))
     .map((profile) => profile.id);
   if (clearedProfileIds.length > 0) {
     const { error } = await admin.from('profile_embeddings').delete().in('user_id', clearedProfileIds);
@@ -173,7 +216,9 @@ export async function refresh(): Promise<RefreshResult> {
   }
   const [jobVectors, profileVectors] = await Promise.all([
     stale.length > 0 ? embedBatch(stale.map(sourceText), 'RETRIEVAL_DOCUMENT') : Promise.resolve([]),
-    staleProfiles.length > 0 ? embedBatch(staleProfiles.map(preferenceText), 'RETRIEVAL_QUERY') : Promise.resolve([]),
+    staleProfiles.length > 0
+      ? embedBatch(staleProfiles.map((profile) => preferenceText(profile, preferencesByUser.get(profile.id))), 'RETRIEVAL_QUERY')
+      : Promise.resolve([]),
   ]);
   if (stale.length > 0) {
     const rows = stale.map((j, i) => ({
@@ -189,7 +234,7 @@ export async function refresh(): Promise<RefreshResult> {
     const rows = staleProfiles.map((profile, index) => ({
       user_id: profile.id,
       embedding: toVectorLiteral(profileVectors[index]),
-      source_hash: hash(preferenceText(profile)),
+      source_hash: hash(preferenceText(profile, preferencesByUser.get(profile.id))),
       updated_at: new Date().toISOString(),
     }));
     const { error } = await admin.from('profile_embeddings').upsert(rows);
@@ -252,7 +297,12 @@ export async function refresh(): Promise<RefreshResult> {
   const { data: existingRecs, error: existingRecsErr } = existingRecsResult;
   if (existingRecsErr) throw new Error(`read recommendations: ${existingRecsErr.message}`);
   const cachedReason = new Map<string, string>();
-  for (const r of existingRecs ?? []) cachedReason.set(`${r.user_id}:${r.job_id}`, (r.reason as string) ?? '');
+  const changedPreferenceUsers = new Set(staleProfiles.map((profile) => profile.id));
+  for (const r of existingRecs ?? []) {
+    if (!changedPreferenceUsers.has(r.user_id as string)) {
+      cachedReason.set(`${r.user_id}:${r.job_id}`, (r.reason as string) ?? '');
+    }
+  }
 
   const cats = await ensureCategoryVecs();
 
@@ -322,7 +372,7 @@ export async function refresh(): Promise<RefreshResult> {
     if (missingIdx.length > 0) {
       const missJobs = missingIdx.map((i) => jobById.get(candidates[i].job_id)).filter(Boolean) as JobRow[];
       const fresh = await reasons(
-        userTasteSummary(profile, weights, jobById),
+        userTasteSummary(profile, preferencesByUser.get(profile.id), weights, jobById),
         missJobs.map((j) => `${j.title} (${j.category}, ${j.parish})`),
       );
       reasonLlmCalls++;
@@ -367,7 +417,7 @@ function weightedMean(weights: Map<string, number>, embById: Map<string, number[
 function blendTaste(historyTaste: number[] | null, preferenceTaste: number[] | null): number[] | null {
   if (!historyTaste) return preferenceTaste;
   if (!preferenceTaste) return historyTaste;
-  const blended = historyTaste.map((value, index) => value * 0.7 + preferenceTaste[index] * 0.3);
+  const blended = historyTaste.map((value, index) => value * 0.55 + preferenceTaste[index] * 0.45);
   const magnitude = Math.sqrt(blended.reduce((sum, value) => sum + value * value, 0)) || 1;
   return blended.map((value) => value / magnitude);
 }
@@ -381,10 +431,19 @@ function payScore(amount: number | null): number {
   return clamp(Math.log1p(amount) / Math.log1p(500));
 }
 
-function userTasteSummary(profile: ProfileRow, weights: Map<string, number>, jobById: Map<string, JobRow>): string {
+function userTasteSummary(
+  profile: ProfileRow,
+  privatePreference: JobPreferenceRow | undefined,
+  weights: Map<string, number>,
+  jobById: Map<string, JobRow>,
+): string {
   const parts = [historySummary(weights, jobById)];
   if (profile.skills.length) parts.push(`skills: ${profile.skills.join(', ')}`);
   if (profile.interest_keywords.length) parts.push(`interests: ${profile.interest_keywords.join(', ')}`);
+  if (privatePreference?.preferred_categories.length) {
+    parts.push(`preferred categories: ${privatePreference.preferred_categories.join(', ')}`);
+  }
+  if (privatePreference?.summary) parts.push(`job preferences: ${privatePreference.summary}`);
   return parts.filter(Boolean).join('; ');
 }
 

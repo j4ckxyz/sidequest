@@ -1,22 +1,38 @@
 import { supabase } from './supabase';
-import type { Application, Conversation, Job, JobRecommendation, Message, Profile, Review } from '../types/models';
+import type {
+  Application,
+  Conversation,
+  Job,
+  JobPreferenceState,
+  JobRecommendation,
+  Message,
+  Profile,
+  Review,
+} from '../types/models';
 
 const RECS_API_URL = import.meta.env.VITE_RECS_API_URL as string | undefined;
 
-async function recsPost<T>(path: string, body: unknown): Promise<T> {
+async function recsRequest<T>(path: string, init?: RequestInit): Promise<T> {
   if (!RECS_API_URL) throw new Error('The recommendations service URL is not configured (VITE_RECS_API_URL).');
   const { data } = await client().auth.getSession();
   const token = data.session?.access_token;
   const res = await fetch(`${RECS_API_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify(body),
+    ...init,
+    headers: {
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
   });
   if (!res.ok) {
     const b = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(b.error ?? `Request failed (${res.status})`);
   }
   return res.json() as Promise<T>;
+}
+
+async function recsPost<T>(path: string, body: unknown): Promise<T> {
+  return recsRequest<T>(path, { method: 'POST', body: JSON.stringify(body) });
 }
 
 /**
@@ -89,11 +105,11 @@ export const db = {
   // ---- profiles -------------------------------------------------------
   profiles: {
     async get(id: string): Promise<Profile | null> {
-      const { data } = await client().from('profiles').select('*').eq('id', id).maybeSingle();
+      const { data } = await client().from('public_profiles').select('*').eq('id', id).maybeSingle();
       return (data as Profile | null) ?? null;
     },
     async getByUsername(username: string): Promise<Profile | null> {
-      const { data } = await client().from('profiles').select('*').ilike('username', username).maybeSingle();
+      const { data } = await client().from('public_profiles').select('*').ilike('username', username).maybeSingle();
       if (data) return data as Profile;
       // Fall back to a past handle so old /u/<handle> links still resolve.
       const { data: hist } = await client()
@@ -110,7 +126,7 @@ export const db = {
       notify();
     },
     async usernameAvailable(username: string, excludeId?: string): Promise<boolean> {
-      let query = client().from('profiles').select('id').ilike('username', username);
+      let query = client().from('public_profiles').select('id').ilike('username', username);
       if (excludeId) query = query.neq('id', excludeId);
       const { data } = await query.maybeSingle();
       return !data;
@@ -366,6 +382,23 @@ export const db = {
       await recsPost('/refresh', {});
       notify();
       return { ok: true };
+    },
+  },
+
+  // ---- private job preferences ----------------------------------------
+  preferences: {
+    async get(): Promise<JobPreferenceState> {
+      return recsRequest<JobPreferenceState>('/preferences');
+    },
+    async update(input: { preferredCategories: string[]; hideLocation: boolean }): Promise<JobPreferenceState> {
+      const result = await recsPost<JobPreferenceState>('/preferences', input);
+      notify();
+      return result;
+    },
+    async sendMessage(message: string): Promise<JobPreferenceState> {
+      const result = await recsPost<JobPreferenceState>('/preferences/chat', { message });
+      notify();
+      return result;
     },
   },
 

@@ -119,6 +119,80 @@ export async function generateJson(prompt: string): Promise<unknown> {
   return JSON.parse(raw);
 }
 
+export interface PreferenceChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface PreferenceChatReply {
+  reply: string;
+  summary: string;
+  keywords: string[];
+}
+
+/**
+ * Keep the preference interview to one small, bounded request. Only the latest turns and the
+ * current compact summary are sent, so a long-running conversation does not grow token usage.
+ */
+export async function preferenceChat(
+  currentSummary: string,
+  preferredCategories: string[],
+  turns: PreferenceChatTurn[],
+): Promise<PreferenceChatReply> {
+  const transcript = turns
+    .slice(-8)
+    .map((turn) => `${turn.role === 'user' ? 'Person' : 'SideQuest'}: ${turn.content.slice(0, 700)}`)
+    .join('\n');
+  const prompt = [
+    'You are the SideQuest job compass: a concise, friendly interviewer for people in Jersey.',
+    'Learn which short local jobs this person would genuinely accept. Useful details include:',
+    'job types, specific tasks, skills, availability, travel radius, physical limits, desired pay,',
+    'and jobs or situations to avoid. Never infer sensitive traits. Ask at most one useful question.',
+    'Treat corrections as replacements: the new summary must reflect the latest preference, not both.',
+    '',
+    `Topics they selected: ${preferredCategories.join(', ') || 'none yet'}`,
+    `Current saved summary: ${currentSummary || 'none yet'}`,
+    '',
+    'Recent conversation:',
+    transcript,
+    '',
+    'Return JSON with exactly these fields:',
+    '- reply: a warm response of at most 65 words, usually ending with one focused question',
+    '- summary: a standalone first-person preference brief, at most 900 characters',
+    '- keywords: up to 12 short matching phrases, each at most 40 characters',
+    'Do not mention databases, embeddings, algorithms, JSON, or these instructions.',
+  ].join('\n');
+
+  const json = (await post(
+    CHAT_MODEL,
+    'generateContent',
+    {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.35,
+        maxOutputTokens: 700,
+      },
+    },
+    1,
+  )) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  const raw = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+  const parsed = JSON.parse(raw) as Partial<PreferenceChatReply>;
+  if (typeof parsed.reply !== 'string' || typeof parsed.summary !== 'string' || !Array.isArray(parsed.keywords)) {
+    throw new Error('The preference assistant returned an incomplete response.');
+  }
+  const keywords = parsed.keywords
+    .filter((keyword): keyword is string => typeof keyword === 'string')
+    .map((keyword) => keyword.trim().toLowerCase().slice(0, 40))
+    .filter(Boolean)
+    .slice(0, 12);
+  return {
+    reply: parsed.reply.trim().slice(0, 800),
+    summary: parsed.summary.trim().slice(0, 1500),
+    keywords: [...new Set(keywords)],
+  };
+}
+
 function normalize(v: number[]): number[] {
   let sum = 0;
   for (const x of v) sum += x * x;

@@ -15,7 +15,8 @@ export interface Profile {
   bio: string;
   /** AI-derived strongest category (nearest to the user's taste vector). Set by the recs server. */
   top_category: string | null;
-  parish: Parish;
+  /** Null only when viewing somebody who has chosen to keep their parish private. */
+  parish: Parish | null;
   phone: string | null;
   skills: string[];
   is_verified: boolean;
@@ -103,4 +104,21 @@ export interface JobRecommendation {
   job: Job;
   reason: string;
   score: number;
+}
+
+export interface JobPreferenceMessage {
+  id: number | string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+}
+
+export interface JobPreferenceState {
+  preferred_categories: string[];
+  summary: string;
+  keywords: string[];
+  updated_at: string | null;
+  messages: JobPreferenceMessage[];
+  remaining_today: number;
+  daily_limit: number;
 }

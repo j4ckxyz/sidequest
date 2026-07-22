@@ -1,4 +1,14 @@
-import type { Application, Conversation, Job, JobRecommendation, Message, Profile, Review } from '../types/models';
+import type {
+  Application,
+  Conversation,
+  Job,
+  JobPreferenceMessage,
+  JobPreferenceState,
+  JobRecommendation,
+  Message,
+  Profile,
+  Review,
+} from '../types/models';
 import { PARISHES, JOB_CATEGORIES, SKILL_OPTIONS } from './constants';
 
 /**
@@ -18,6 +28,8 @@ interface State {
   reviews: Record<string, Review>;
   /** past username (lowercased) → owner id, so old @handles keep resolving. */
   usernameHistory: Record<string, string>;
+  jobPreferences: Record<string, Omit<JobPreferenceState, 'messages' | 'remaining_today' | 'daily_limit'>>;
+  jobPreferenceMessages: Record<string, JobPreferenceMessage[]>;
   currentUserId: string | null;
 }
 
@@ -429,6 +441,8 @@ function seed(): State {
     messages: Object.fromEntries(messages.map((m) => [m.id, m])),
     reviews: Object.fromEntries(reviews.map((r) => [r.id, r])),
     usernameHistory: {},
+    jobPreferences: {},
+    jobPreferenceMessages: {},
     currentUserId: null,
   };
 }
@@ -468,6 +482,8 @@ function load(): State {
         ]),
       );
       parsed.usernameHistory ??= {};
+      parsed.jobPreferences ??= {};
+      parsed.jobPreferenceMessages ??= {};
       return parsed;
     }
   } catch {
@@ -930,6 +946,9 @@ export const db = {
       // Skills → category slug (e.g. "Pet care" → "pet-care").
       const skillCats = new Set((me?.skills ?? []).map((s) => s.toLowerCase().replace(/\s+/g, '-')));
       const keywordText = (me?.interest_keywords ?? []).map((keyword) => keyword.toLowerCase());
+      const privatePreferences = state.jobPreferences[userId];
+      const preferredCategories = new Set(privatePreferences?.preferred_categories ?? []);
+      const preferenceText = `${privatePreferences?.summary ?? ''} ${(privatePreferences?.keywords ?? []).join(' ')}`.toLowerCase();
       const workedWithPosters = new Set(
         allJobs
           .filter((job) => job.status === 'completed' && job.assigned_quester_id === userId)
@@ -953,10 +972,18 @@ export const db = {
             score += 2;
             reason = `Close to jobs you've helped with in ${j.category.replace(/-/g, ' ')}`;
           }
+          if (preferredCategories.has(j.category)) {
+            score += 2;
+            reason = 'One of the job topics you picked';
+          }
           const searchable = `${j.title} ${j.description} ${j.category}`.toLowerCase();
           if (keywordText.some((keyword) => searchable.includes(keyword))) {
             score += 1.5;
             reason = 'Matches something in your interests';
+          }
+          if (preferenceText && searchable.split(/\s+/).some((word) => word.length > 4 && preferenceText.includes(word))) {
+            score += 1.5;
+            reason = 'Fits what you told the job assistant';
           }
           score += Math.min(Math.log1p(j.budget_amount ?? 0) / Math.log1p(500), 1) * 0.5;
           if (workedWithPosters.has(j.poster_id)) {
@@ -972,6 +999,63 @@ export const db = {
     },
     async refresh(): Promise<{ ok: boolean }> {
       return delay({ ok: true });
+    },
+  },
+
+  // ---- private job preferences ----------------------------------------
+  preferences: {
+    async get(): Promise<JobPreferenceState> {
+      const userId = state.currentUserId;
+      if (!userId) throw new Error('You must be signed in.');
+      const saved = state.jobPreferences[userId];
+      return delay({
+        preferred_categories: saved?.preferred_categories ?? [],
+        summary: saved?.summary ?? '',
+        keywords: saved?.keywords ?? [],
+        updated_at: saved?.updated_at ?? null,
+        messages: state.jobPreferenceMessages[userId] ?? [],
+        remaining_today: 20,
+        daily_limit: 20,
+      });
+    },
+    async update(input: { preferredCategories: string[]; hideLocation: boolean }): Promise<JobPreferenceState> {
+      const userId = state.currentUserId;
+      if (!userId) throw new Error('You must be signed in.');
+      const existing = state.jobPreferences[userId];
+      state.jobPreferences[userId] = {
+        preferred_categories: input.preferredCategories,
+        summary: existing?.summary ?? '',
+        keywords: existing?.keywords ?? [],
+        updated_at: new Date().toISOString(),
+      };
+      state.profiles[userId] = { ...state.profiles[userId], hide_location: input.hideLocation };
+      touch();
+      notify();
+      return db.preferences.get();
+    },
+    async sendMessage(message: string): Promise<JobPreferenceState> {
+      const userId = state.currentUserId;
+      if (!userId) throw new Error('You must be signed in.');
+      const now = new Date().toISOString();
+      const existing = state.jobPreferences[userId];
+      const words = message.toLowerCase().match(/[a-z][a-z-]{3,}/g) ?? [];
+      const keywords = [...new Set([...(existing?.keywords ?? []), ...words])].slice(-12);
+      const summary = [existing?.summary, message.trim()].filter(Boolean).join(' ').slice(-1500);
+      const assistant = 'Got it — I’ve added that to your job compass. You can tell me about timing, travel, pay, things you enjoy, or anything you want me to avoid.';
+      const messages = [
+        ...(state.jobPreferenceMessages[userId] ?? []),
+        { id: genId(), role: 'user' as const, content: message.trim(), created_at: now },
+        { id: genId(), role: 'assistant' as const, content: assistant, created_at: now },
+      ];
+      state.jobPreferenceMessages[userId] = messages;
+      state.jobPreferences[userId] = {
+        preferred_categories: existing?.preferred_categories ?? [],
+        summary,
+        keywords,
+        updated_at: now,
+      };
+      touch();
+      return delay({ ...(await db.preferences.get()), messages });
     },
   },
 

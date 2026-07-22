@@ -10,6 +10,8 @@ service key.
 - Hourly (configurable) it runs the full refresh pipeline (`pipeline.ts`).
 - `POST /refresh` triggers a refresh on demand (cron secret or an admin's Supabase token).
 - `POST /search` — semantic job search (scaffolded, not yet used by the app).
+- `GET/POST /preferences` — read and save private topic/location settings for the signed-in user.
+- `POST /preferences/chat` — one bounded Gemini turn that updates the user's private matching brief.
 - `GET /health` — liveness.
 
 ## Free-tier safety / caching
@@ -29,7 +31,12 @@ Gemini calls are kept to the minimum:
   The `/refresh` response reports `reasonLlmCalls` vs `reasonsReused` so you can watch the ratio.
 - **Refreshes coalesce.** Hourly, watch-triggered, cron, and admin-button triggers all share one
   in-flight run — never two refreshes at once. The watch loop only fires once `NEW_JOBS_THRESHOLD`
-  new jobs exist, and its polling is DB-only (no Gemini).
+  new jobs exist or a preference hash changes, and its polling is DB-only (no Gemini).
+- **Preference chat is limited per person and per project.** Burst buckets default to 4 turns/minute
+  per user and 10/minute globally. Atomic Postgres allowances default to 20 turns/day per user and
+  100/day globally; both survive restarts and are claimed before calling Gemini. Daily windows align
+  with Gemini's Pacific-time reset. Conversation context is capped to the latest 8 turns and each
+  request has bounded input/output lengths.
 
 Net effect: a steady state with no new/changed jobs costs nothing; a burst of new jobs costs one
 embedding batch plus one small flash-lite call per user whose picks actually changed.
@@ -40,6 +47,9 @@ Uses the repo-root `.env`. Required: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `GEM
 Optional: `GEMINI_EMBED_MODEL` (default `gemini-embedding-001`), `GEMINI_CHAT_MODEL`
 (default `gemini-flash-lite-latest`), `EMBED_DIMS` (default `768`), `PORT` (default `8787`),
 `CRON_SECRET`, `REFRESH_INTERVAL_MS`.
+Preference chat limits are configurable with `PREFERENCE_CHAT_DAILY_LIMIT`,
+`PREFERENCE_CHAT_BURST_LIMIT`, `PREFERENCE_CHAT_GLOBAL_DAILY_LIMIT`,
+`PREFERENCE_CHAT_GLOBAL_BURST_LIMIT`, and `PREFERENCE_CHAT_BURST_WINDOW_MS`.
 
 ```sh
 bun run server                # from repo root
