@@ -7,6 +7,7 @@ import type {
   Poster,
   Profile,
   Quest,
+  WeekLog,
 } from './types'
 
 const QUEST_WITH_POSTER = '*, poster:posters(name, community_verified, kind)'
@@ -103,6 +104,12 @@ export async function completeQuest(id: string): Promise<void> {
   if (error) throw error
 }
 
+// Archive a (weekly) quest to history without awarding bulk XP.
+export async function archiveQuest(id: string): Promise<void> {
+  const { error } = await supabase.from('quests').update({ status: 'completed' }).eq('id', id)
+  if (error) throw error
+}
+
 // ── Applications ─────────────────────────────────────────────────────────────
 
 export async function applyToQuest(
@@ -147,13 +154,14 @@ export async function setApplicationStatus(
   if (error) throw error
 }
 
-// ── Messages (Safe-Chat) ─────────────────────────────────────────────────────
+// ── Messages (Safe-Chat) — one private thread per (quest, doer) ───────────────
 
-export async function listMessages(questId: string): Promise<Message[]> {
+export async function listMessages(questId: string, doerId: string): Promise<Message[]> {
   const { data, error } = await supabase
     .from('messages')
     .select('*')
     .eq('quest_id', questId)
+    .eq('doer_id', doerId)
     .order('created_at', { ascending: true })
   if (error) throw error
   return (data ?? []) as Message[]
@@ -161,12 +169,54 @@ export async function listMessages(questId: string): Promise<Message[]> {
 
 export async function sendMessage(
   questId: string,
+  doerId: string,
   senderId: string,
   senderName: string,
   body: string,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('messages')
-    .insert({ quest_id: questId, sender_id: senderId, sender_name: senderName, body })
+  const { error } = await supabase.from('messages').insert({
+    quest_id: questId,
+    doer_id: doerId,
+    sender_id: senderId,
+    sender_name: senderName,
+    body,
+  })
+  if (error) throw error
+}
+
+// ── Weekly logs ──────────────────────────────────────────────────────────────
+
+export async function questWeekLogs(questId: string): Promise<WeekLog[]> {
+  const { data, error } = await supabase
+    .from('week_logs')
+    .select('*')
+    .eq('quest_id', questId)
+  if (error) throw error
+  return (data ?? []) as WeekLog[]
+}
+
+export async function logWeek(
+  questId: string,
+  doerId: string,
+  weekStart: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('log_week', {
+    p_quest: questId,
+    p_doer: doerId,
+    p_week: weekStart,
+  })
+  if (error) throw error
+}
+
+export async function unlogWeek(
+  questId: string,
+  doerId: string,
+  weekStart: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('unlog_week', {
+    p_quest: questId,
+    p_doer: doerId,
+    p_week: weekStart,
+  })
   if (error) throw error
 }

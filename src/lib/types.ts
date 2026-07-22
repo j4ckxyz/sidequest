@@ -70,8 +70,17 @@ export interface Application {
 export interface Message {
   id: string
   quest_id: string
+  doer_id: string
   sender_id: string
   sender_name: string
   body: string
+  created_at: string
+}
+
+export interface WeekLog {
+  id: string
+  quest_id: string
+  doer_id: string
+  week_start: string // YYYY-MM-DD
   created_at: string
 }

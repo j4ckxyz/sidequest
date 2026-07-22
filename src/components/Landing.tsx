@@ -7,7 +7,6 @@ import {
   MessageCircle,
   Coins,
   Bus,
-  ShieldCheck,
   MapPin,
   Trophy,
 } from 'lucide-react'
@@ -239,12 +238,12 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
       <section className="mx-auto max-w-6xl px-5 pb-8">
         <div className="grid gap-3 sm:grid-cols-3">
           {[
-            { icon: ShieldCheck, title: 'Community Verified', body: 'Trusted posters carry a verified badge so doers know who they’re helping.' },
+            { icon: Trophy, title: 'Earn XP & rank up', body: 'Every completed quest levels you up — from Novice Adventurer to Local Legend.' },
             { icon: Bus, title: 'Bus-route friendly', body: 'Tasks along LibertyBus routes are tagged, so non-drivers can reach them.' },
             { icon: MessageCircle, title: 'Stay on-platform', body: 'Coordinate through Safe-Chat — no personal numbers exchanged.' },
           ].map((t) => (
             <div key={t.title} className="card flex items-start gap-3 p-5">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-jersey-50 text-jersey-600">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-clay-500/10 text-clay-600 dark:text-clay-400">
                 <t.icon className="h-5 w-5" />
               </span>
               <div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Search,
@@ -10,7 +10,6 @@ import {
   MapPin,
   Loader2,
   Compass,
-  ShieldCheck,
   Tag,
   X,
   ChevronDown,
@@ -50,6 +49,25 @@ export default function QuestBoard({
   const [minPay, setMinPay] = useState(0)
   const [busOnly, setBusOnly] = useState(false)
   const [selected, setSelected] = useState<Quest | null>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  // Press "/" anywhere to jump to the search bar.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement | null
+      const typing =
+        el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
+      if (e.key === '/' && !typing) {
+        e.preventDefault()
+        searchRef.current?.focus()
+        searchRef.current?.scrollIntoView({ block: 'nearest' })
+      } else if (e.key === 'Escape' && document.activeElement === searchRef.current) {
+        searchRef.current?.blur()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const filtersActive =
     type !== 'All' || parish !== 'All' || category !== 'All' || minPay > 0 || busOnly || !!query
@@ -127,7 +145,7 @@ export default function QuestBoard({
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-10">
+    <div className="mx-auto max-w-6xl px-5 pb-28 pt-10">
       <div className="mb-6">
         <span className="pill bg-jersey-600 text-white">
           <Compass className="h-3.5 w-3.5" /> The Quest Board
@@ -141,19 +159,9 @@ export default function QuestBoard({
         </p>
       </div>
 
-      {/* Search + dropdown filters */}
+      {/* Dropdown filters */}
       <div className="sticky top-[76px] z-30 mb-6 rounded-2xl border border-line/10 bg-surface/80 p-3 shadow-glass backdrop-blur-xl">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-ink-faint" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search quests — “dog walking”, “tech help”, “moving”…"
-            className="field pl-11"
-          />
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <FilterSelect
             icon={MapPin}
             value={parish}
@@ -263,6 +271,33 @@ export default function QuestBoard({
           onClose={() => setSelected(null)}
         />
       )}
+
+      {/* Always-visible floating search bar */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
+        <div className="pointer-events-auto flex w-full max-w-xl items-center gap-2 rounded-2xl border border-line/10 bg-surface/90 p-2 pl-4 shadow-float backdrop-blur-xl">
+          <Search className="h-4.5 w-4.5 shrink-0 text-ink-faint" />
+          <input
+            ref={searchRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search quests — dog walking, tech help, moving…"
+            className="w-full bg-transparent text-[15px] text-ink-soft placeholder:text-ink-faint outline-none"
+          />
+          {query ? (
+            <button
+              onClick={() => setQuery('')}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-faint transition hover:bg-granite-100 hover:text-ink"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : (
+            <kbd className="hidden shrink-0 rounded-md border border-line/15 bg-granite-100 px-1.5 py-0.5 text-[11px] font-medium text-ink-faint sm:block">
+              /
+            </kbd>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -381,12 +416,7 @@ function QuestCard({
             gradient={gradientFor(q.poster_id)}
             size="sm"
           />
-          <span className="inline-flex items-center gap-1">
-            {q.poster?.name ?? 'A local'}
-            {q.poster?.community_verified && (
-              <ShieldCheck className="h-3.5 w-3.5 text-jersey-600" />
-            )}
-          </span>
+          <span className="inline-flex items-center gap-1">{q.poster?.name ?? 'A local'}</span>
         </span>
         {applied ? (
           <span className="pill bg-emerald-100 text-emerald-700">Applied</span>

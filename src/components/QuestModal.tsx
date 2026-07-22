@@ -10,7 +10,6 @@ import {
   Bus,
   Repeat,
   Check,
-  ShieldCheck,
   MessageCircle,
 } from 'lucide-react'
 import type { Quest } from '../lib/types'
@@ -43,8 +42,7 @@ export default function QuestModal({
 
   if (!quest) return null
 
-  const owns = me.role === 'poster' && quest.poster_id === me.id
-  const canChat = owns || (me.role === 'doer' && applied)
+  const canChat = me.role === 'doer' && applied
   const spotsLeft = Math.max(0, quest.party_size - quest.accepted_count)
   const perDoer = quest.party_size > 1 ? Math.round(quest.reward / quest.party_size) : quest.reward
   const CatIcon = iconForCategory(quest.category)
@@ -127,9 +125,6 @@ export default function QuestModal({
               )}
               <span className="inline-flex items-center gap-1.5">
                 Posted by <strong className="text-ink-soft">{quest.poster?.name ?? 'A local'}</strong>
-                {quest.poster?.community_verified && (
-                  <ShieldCheck className="h-3.5 w-3.5 text-jersey-600" aria-label="Community Verified" />
-                )}
               </span>
             </div>
           </div>
@@ -197,7 +192,9 @@ export default function QuestModal({
                   <MessageCircle className="h-4 w-4" />
                   {showChat ? 'Hide Safe-Chat' : 'Open Safe-Chat'}
                 </button>
-                {showChat && <Chat questId={quest.id} meId={me.id} meName={me.name} />}
+                {showChat && (
+                  <Chat questId={quest.id} doerId={me.id} meId={me.id} meName={me.name} />
+                )}
               </div>
             )}
           </div>

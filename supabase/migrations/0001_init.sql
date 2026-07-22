@@ -87,21 +87,34 @@ create table public.applications (
   unique (quest_id, doer_id)
 );
 
--- Safe-Chat messages, scoped to a quest (Supabase Realtime).
+-- Safe-Chat messages. Each belongs to a private (quest, doer) thread between the
+-- quest's poster and one doer.
 create table public.messages (
   id         uuid primary key default gen_random_uuid(),
   quest_id   uuid not null references public.quests on delete cascade,
+  doer_id    uuid not null references public.doers on delete cascade,
   sender_id  uuid not null references public.profiles on delete cascade,
   sender_name text not null default '',
   body       text not null,
   created_at timestamptz not null default now()
 );
 
+-- Weekly completion log — one row per week a doer completed a weekly quest.
+create table public.week_logs (
+  id         uuid primary key default gen_random_uuid(),
+  quest_id   uuid not null references public.quests on delete cascade,
+  doer_id    uuid not null references public.doers on delete cascade,
+  week_start date not null,
+  created_at timestamptz not null default now(),
+  unique (quest_id, doer_id, week_start)
+);
+
 create index quests_parish_idx on public.quests (parish);
 create index quests_status_idx on public.quests (status);
 create index applications_quest_idx on public.applications (quest_id);
 create index applications_doer_idx on public.applications (doer_id);
-create index messages_quest_idx on public.messages (quest_id, created_at);
+create index messages_thread_idx on public.messages (quest_id, doer_id, created_at);
+create index week_logs_quest_idx on public.week_logs (quest_id, doer_id);
 
 -- ── New-user trigger ─────────────────────────────────────────────────────────
 create or replace function public.handle_new_user()
@@ -167,6 +180,9 @@ begin
   select * into q from public.quests where id = p_quest;
   if q is null then raise exception 'Quest not found'; end if;
   if q.poster_id <> auth.uid() then raise exception 'Not your quest'; end if;
+  if q.type = 'weekly' then
+    raise exception 'Weekly quests are logged per week, not completed';
+  end if;
 
   update public.quests set status = 'completed' where id = p_quest;
 
@@ -179,6 +195,50 @@ end;
 $$;
 grant execute on function public.complete_quest(uuid) to authenticated;
 
+-- ── Weekly: log / unlog a week the doer completed (poster only), awarding XP ──
+create or replace function public.log_week(p_quest uuid, p_doer uuid, p_week date)
+returns void language plpgsql security definer set search_path = public as $$
+declare q record; inserted boolean := false;
+begin
+  select * into q from public.quests where id = p_quest;
+  if q is null then raise exception 'Quest not found'; end if;
+  if q.poster_id <> auth.uid() then raise exception 'Not your quest'; end if;
+
+  insert into public.week_logs (quest_id, doer_id, week_start)
+  values (p_quest, p_doer, p_week)
+  on conflict (quest_id, doer_id, week_start) do nothing;
+  get diagnostics inserted = row_count;
+
+  if inserted then
+    update public.doers set xp = xp + q.xp_reward, quests_done = quests_done + 1
+    where id = p_doer;
+  end if;
+end;
+$$;
+grant execute on function public.log_week(uuid, uuid, date) to authenticated;
+
+create or replace function public.unlog_week(p_quest uuid, p_doer uuid, p_week date)
+returns void language plpgsql security definer set search_path = public as $$
+declare q record; removed int := 0;
+begin
+  select * into q from public.quests where id = p_quest;
+  if q is null then raise exception 'Quest not found'; end if;
+  if q.poster_id <> auth.uid() then raise exception 'Not your quest'; end if;
+
+  delete from public.week_logs
+  where quest_id = p_quest and doer_id = p_doer and week_start = p_week;
+  get diagnostics removed = row_count;
+
+  if removed > 0 then
+    update public.doers
+      set xp = greatest(0, xp - q.xp_reward),
+          quests_done = greatest(0, quests_done - 1)
+    where id = p_doer;
+  end if;
+end;
+$$;
+grant execute on function public.unlog_week(uuid, uuid, date) to authenticated;
+
 -- ── Row Level Security ───────────────────────────────────────────────────────
 alter table public.profiles     enable row level security;
 alter table public.doers        enable row level security;
@@ -186,6 +246,7 @@ alter table public.posters      enable row level security;
 alter table public.quests       enable row level security;
 alter table public.applications enable row level security;
 alter table public.messages     enable row level security;
+alter table public.week_logs    enable row level security;
 
 -- profiles: read/create only your own row.
 create policy profiles_select_own on public.profiles
@@ -229,19 +290,27 @@ create policy applications_update on public.applications
     or exists (select 1 from public.quests q where q.id = applications.quest_id and q.poster_id = auth.uid())
   );
 
--- messages: readable/writable by the quest's poster and anyone who applied.
+-- messages: each private (quest, doer) thread is visible to the quest's poster
+-- and to that one doer.
 create policy messages_select on public.messages
   for select using (
-    exists (select 1 from public.quests q where q.id = messages.quest_id and q.poster_id = auth.uid())
-    or exists (select 1 from public.applications a where a.quest_id = messages.quest_id and a.doer_id = auth.uid())
+    doer_id = auth.uid()
+    or exists (select 1 from public.quests q where q.id = messages.quest_id and q.poster_id = auth.uid())
   );
 create policy messages_insert on public.messages
   for insert with check (
     sender_id = auth.uid()
     and (
-      exists (select 1 from public.quests q where q.id = messages.quest_id and q.poster_id = auth.uid())
-      or exists (select 1 from public.applications a where a.quest_id = messages.quest_id and a.doer_id = auth.uid())
+      doer_id = auth.uid()
+      or exists (select 1 from public.quests q where q.id = messages.quest_id and q.poster_id = auth.uid())
     )
+  );
+
+-- week_logs: visible to the quest's poster and the doer; only written via RPC.
+create policy week_logs_select on public.week_logs
+  for select using (
+    doer_id = auth.uid()
+    or exists (select 1 from public.quests q where q.id = week_logs.quest_id and q.poster_id = auth.uid())
   );
 
 -- ── Realtime ─────────────────────────────────────────────────────────────────

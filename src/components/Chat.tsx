@@ -8,10 +8,12 @@ import Avatar from './Avatar'
 
 export default function Chat({
   questId,
+  doerId,
   meId,
   meName,
 }: {
   questId: string
+  doerId: string
   meId: string
   meName: string
 }) {
@@ -24,17 +26,18 @@ export default function Chat({
   useEffect(() => {
     let alive = true
     setLoading(true)
-    listMessages(questId)
+    listMessages(questId, doerId)
       .then((m) => alive && setMessages(m))
       .finally(() => alive && setLoading(false))
 
     const channel = supabase
-      .channel(`quest-chat-${questId}`)
+      .channel(`quest-chat-${questId}-${doerId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `quest_id=eq.${questId}` },
         (payload) => {
           const msg = payload.new as Message
+          if (msg.doer_id !== doerId) return
           setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
         },
       )
@@ -44,7 +47,7 @@ export default function Chat({
       alive = false
       supabase.removeChannel(channel)
     }
-  }, [questId])
+  }, [questId, doerId])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -57,8 +60,7 @@ export default function Chat({
     setSending(true)
     setDraft('')
     try {
-      await sendMessage(questId, meId, meName, body)
-      // Realtime echoes it back; if it doesn't arrive, it's still persisted.
+      await sendMessage(questId, doerId, meId, meName, body)
     } catch {
       setDraft(body)
     } finally {
@@ -68,14 +70,14 @@ export default function Chat({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-2 flex items-center gap-1.5 rounded-xl bg-jersey-50 px-3 py-2 text-[12px] font-medium text-jersey-700">
+      <div className="mb-2 flex items-center gap-1.5 rounded-xl bg-clay-500/10 px-3 py-2 text-[12px] font-medium text-clay-700 dark:text-clay-300">
         <ShieldCheck className="h-3.5 w-3.5" />
         Safe-Chat — keep it on-platform. No phone numbers needed.
       </div>
 
       <div
         ref={scrollRef}
-        className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-granite-200 bg-granite-50/50 p-3"
+        className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-line/10 bg-granite-50/60 p-3"
         style={{ minHeight: 200, maxHeight: 340 }}
       >
         {loading ? (
@@ -101,8 +103,8 @@ export default function Chat({
                   <div
                     className={`inline-block rounded-2xl px-3.5 py-2 text-[14px] leading-snug ${
                       mine
-                        ? 'rounded-tr-sm bg-jersey-600 text-white'
-                        : 'rounded-tl-sm border border-granite-200 bg-surface text-ink-soft'
+                        ? 'rounded-tr-sm bg-clay-600 text-white'
+                        : 'rounded-tl-sm border border-line/10 bg-surface text-ink-soft'
                     }`}
                   >
                     {m.body}
