@@ -77,16 +77,19 @@ export async function embedOne(text: string, taskType: EmbedTask): Promise<numbe
 export async function reasons(historySummary: string, candidates: string[]): Promise<string[]> {
   if (candidates.length === 0) return [];
   const prompt = [
-    'You write one short, warm, plain reason (max 12 words) why each job below suits a Jersey',
-    'neighbour, based on what they have helped with before. No emojis. No job title echo.',
+    'You write one short, warm, positive reason (max 12 words) explaining why each job below is a GREAT MATCH for this person.',
+    'Focus strictly on positive aspects (matching skills, convenient location, favorite topics, or good fit).',
+    'CRITICAL: Never write negative explanations, caveats, or reasons why a job does not fit (such as "outside your area" or "not a tech job"). Every string must be an encouraging positive reason.',
+    'No emojis. No job title echo.',
     '',
-    `What they've done before: ${historySummary || 'nothing yet'}`,
+    `Person's preferences & background: ${historySummary || 'general helper'}`,
     '',
     'Jobs:',
     ...candidates.map((c, i) => `${i + 1}. ${c}`),
     '',
-    `Reply with a JSON array of exactly ${candidates.length} strings, in order.`,
+    `Reply with a JSON array of exactly ${candidates.length} positive recommendation strings, in order.`,
   ].join('\n');
+
 
   try {
     const json = (await post(CHAT_MODEL, 'generateContent', {

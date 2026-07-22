@@ -291,16 +291,29 @@ export async function refresh(): Promise<RefreshResult> {
     }
   }
 
-  // Reason cache: reuse the "why" line for any (user, job) pair we've already explained, so a
-  // refresh only calls the LLM for genuinely new picks. Main free-tier safeguard — a refresh
-  // where nobody's top picks changed makes zero LLM calls.
+  // Reason cache: reuse positive "why" lines for any (user, job) pair we've already explained.
+  function isNegativeReason(reason: string): boolean {
+    const lower = reason.toLowerCase();
+    return (
+      lower.includes('outside') ||
+      lower.includes('too far') ||
+      lower.includes('not a') ||
+      lower.includes('unrelated') ||
+      lower.includes('different') ||
+      lower.includes('instead') ||
+      lower.includes('not related')
+    );
+  }
+
+
   const { data: existingRecs, error: existingRecsErr } = existingRecsResult;
   if (existingRecsErr) throw new Error(`read recommendations: ${existingRecsErr.message}`);
   const cachedReason = new Map<string, string>();
   const changedPreferenceUsers = new Set(staleProfiles.map((profile) => profile.id));
   for (const r of existingRecs ?? []) {
-    if (!changedPreferenceUsers.has(r.user_id as string)) {
-      cachedReason.set(`${r.user_id}:${r.job_id}`, (r.reason as string) ?? '');
+    const reasonText = (r.reason as string) ?? '';
+    if (!changedPreferenceUsers.has(r.user_id as string) && !isNegativeReason(reasonText)) {
+      cachedReason.set(`${r.user_id}:${r.job_id}`, reasonText);
     }
   }
 
@@ -343,7 +356,6 @@ export async function refresh(): Promise<RefreshResult> {
         const pref = preferencesByUser.get(userId);
         const prefTextLower = ((pref?.summary ?? '') + ' ' + (pref?.keywords ?? []).join(' ')).toLowerCase();
 
-
         const semantic = clamp(1 - candidate.distance);
         const nearby =
           job?.parish === profile.parish ||
@@ -367,10 +379,11 @@ export async function refresh(): Promise<RefreshResult> {
             repeatPoster * SCORE_WEIGHT.repeatPoster +
             categoryBoost,
         };
-
       })
+      .filter((candidate) => candidate.score >= 0.70)
       .sort((a, b) => b.score - a.score)
       .slice(0, POOL_K);
+
     usersProcessed++;
     if (candidates.length === 0) {
       await admin.from('recommendations').delete().eq('user_id', userId);
