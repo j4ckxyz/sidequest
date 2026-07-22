@@ -339,8 +339,10 @@ export async function refresh(): Promise<RefreshResult> {
     if (matchErr) throw new Error(`match_open_jobs(${userId}): ${matchErr.message}`);
     const candidates = ((matches ?? []) as { job_id: string; distance: number }[])
       .map((candidate) => {
+        const job = jobById.get(candidate.job_id);
         const pref = preferencesByUser.get(userId);
         const prefTextLower = ((pref?.summary ?? '') + ' ' + (pref?.keywords ?? []).join(' ')).toLowerCase();
+
 
         const semantic = clamp(1 - candidate.distance);
         const nearby =
