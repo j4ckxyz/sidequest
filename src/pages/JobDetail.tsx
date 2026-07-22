@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { MapPin, CalendarDays, Clock, BadgeCheck, Pencil, Ban, ArrowRight, Lock } from 'lucide-react';
+import { MapPin, CalendarDays, Clock, BadgeCheck, Pencil, Ban, ArrowRight, Lock, Repeat } from 'lucide-react';
 import { useJob, useCancelJob, useCompleteJob, useMarkJobInProgress } from '../hooks/useJobs';
 import { useProfile } from '../hooks/useProfile';
 import { useAuth } from '../context/AuthProvider';
 import { useApplicationsByJob } from '../hooks/useApplications';
 import { useGetOrCreateConversation } from '../hooks/useMessages';
 import { useHasReviewed, useCreateReview } from '../hooks/useReviews';
-import { JOB_CATEGORIES, JOB_STATUS_LABEL } from '../lib/constants';
+import { JOB_CATEGORIES, JOB_STATUS_LABEL, recurrenceLabel } from '../lib/constants';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { CategoryIcon } from '../components/jobs/CategoryIcon';
 import { JobMap } from '../components/jobs/JobMap';
@@ -98,8 +98,14 @@ export function JobDetail() {
             )}
           </span>
           <span className="flex items-center gap-1.5">
-            <CalendarDays size={15} /> {job.is_flexible_date ? 'Flexible date' : formatDate(job.date_needed, { day: 'numeric', month: 'long' })}
+            <CalendarDays size={15} />{' '}
+            {job.is_flexible_date || !job.date_needed ? 'Flexible date' : formatDate(job.date_needed, { day: 'numeric', month: 'long' })}
           </span>
+          {job.is_recurring && recurrenceLabel(job.recurrence) && (
+            <span className="flex items-center gap-1.5">
+              <Repeat size={15} /> {recurrenceLabel(job.recurrence)}
+            </span>
+          )}
           {job.estimated_hours && (
             <span className="flex items-center gap-1.5">
               <Clock size={15} /> ~{job.estimated_hours}h
@@ -123,7 +129,7 @@ export function JobDetail() {
               <MapPin size={15} /> {job.parish}
               {job.location_detail && <span>· {job.location_detail}</span>}
             </h2>
-            <JobMap parish={job.parish} />
+            <JobMap parish={job.parish} lat={job.location_lat} lng={job.location_lng} />
           </div>
         ) : (
           <div className="mt-6 flex items-center gap-2.5 rounded-lg border border-dashed border-border px-4 py-4 text-sm text-text-muted">
@@ -218,7 +224,14 @@ export function JobDetail() {
                 {job.status === 'in_progress' && (
                   <Button
                     className="w-full"
-                    onClick={() => completeJob.mutate(job.id, { onSuccess: () => showToast('Marked as done — you can both leave a review now.') })}
+                    onClick={() =>
+                      completeJob.mutate(job.id, {
+                        onSuccess: () => {
+                          showToast('Nice one — done! Leave a quick review.');
+                          setReviewOpen(true);
+                        },
+                      })
+                    }
                     isLoading={completeJob.isPending}
                   >
                     Mark as done
@@ -240,7 +253,10 @@ export function JobDetail() {
                   className="w-full"
                   onClick={() =>
                     completeJob.mutate(job.id, {
-                      onSuccess: () => showToast('Marked as completed — you can both leave a review now.'),
+                      onSuccess: () => {
+                        showToast('Marked as completed — leave a quick review.');
+                        setReviewOpen(true);
+                      },
                     })
                   }
                   isLoading={completeJob.isPending}

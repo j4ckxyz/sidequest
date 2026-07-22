@@ -191,7 +191,7 @@ function PostedJobRow({ job }: { job: Job }) {
       <Link to={`/jobs/${job.id}`} className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-text hover:text-primary">{job.title}</p>
         <p className="mt-0.5 text-xs text-text-muted">
-          {job.is_flexible_date ? 'Flexible date' : formatDate(job.date_needed)}
+          {job.is_flexible_date || !job.date_needed ? 'Flexible date' : formatDate(job.date_needed)}
           {job.status === 'open' && ` · ${pending} ${pending === 1 ? 'applicant' : 'applicants'}`}
         </p>
       </Link>

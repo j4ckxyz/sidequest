@@ -17,8 +17,8 @@ const PARISH_COORDS: Record<Parish, [number, number]> = {
   'St Lawrence': [49.207, -2.13],
 };
 
-export function JobMap({ parish }: { parish: Parish }) {
-  const [lat, lon] = PARISH_COORDS[parish];
+export function JobMap({ parish, lat: pinLat, lng: pinLng }: { parish: Parish; lat?: number | null; lng?: number | null }) {
+  const [lat, lon] = pinLat != null && pinLng != null ? [pinLat, pinLng] : PARISH_COORDS[parish];
   // Small window around the parish; OpenStreetMap tiles, no key needed.
   const bbox = [lon - 0.035, lat - 0.018, lon + 0.035, lat + 0.018].join(',');
   const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`;

@@ -2,13 +2,18 @@ import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ImagePlus, X } from 'lucide-react';
-import { BUDGET_TYPES, JOB_CATEGORIES, PARISHES } from '../../lib/constants';
+import { ImagePlus, X, MapPin, Repeat } from 'lucide-react';
+import { BUDGET_TYPES, JOB_CATEGORIES, PARISHES, RECURRENCE_OPTIONS } from '../../lib/constants';
 import { Input, Label, FieldError } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import type { Job } from '../../types/models';
+
+// Jersey bounding box — a dropped pin must fall on the island.
+const JERSEY = { latMin: 49.15, latMax: 49.27, lngMin: -2.27, lngMax: -1.99 };
+const inJersey = (lat: number, lng: number) =>
+  lat >= JERSEY.latMin && lat <= JERSEY.latMax && lng >= JERSEY.lngMin && lng <= JERSEY.lngMax;
 
 const schema = z
   .object({
@@ -20,12 +25,22 @@ const schema = z
     budget_type: z.enum(BUDGET_TYPES),
     budget_amount: z.string().optional(),
     estimated_hours: z.string().optional(),
-    date_needed: z.string().min(1, 'When do you need this done?'),
+    date_needed: z.string().optional(),
     is_flexible_date: z.boolean(),
+    is_recurring: z.boolean(),
+    recurrence: z.string().optional(),
   })
   .refine((data) => data.budget_type === 'negotiable' || (data.budget_amount && Number(data.budget_amount) > 0), {
     message: 'Add an amount, or switch to negotiable',
     path: ['budget_amount'],
+  })
+  .refine((data) => data.is_flexible_date || (data.date_needed && data.date_needed.length > 0), {
+    message: 'Pick a date, or tick “flexible”',
+    path: ['date_needed'],
+  })
+  .refine((data) => !data.is_recurring || (data.recurrence && data.recurrence.length > 0), {
+    message: 'How often does it repeat?',
+    path: ['recurrence'],
   });
 
 export type JobFormValues = z.infer<typeof schema>;
@@ -39,25 +54,34 @@ export interface JobFormSubmitValues {
   budget_type: Job['budget_type'];
   budget_amount: number | null;
   estimated_hours: number | null;
-  date_needed: string;
+  date_needed: string | null;
   is_flexible_date: boolean;
+  is_recurring: boolean;
+  recurrence: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
   photos: string[];
 }
 
 export function JobForm({
   defaultValues,
   defaultPhotos = [],
+  defaultLocation = null,
   onSubmit,
   submitLabel = 'Post job',
   isSubmitting,
 }: {
   defaultValues?: Partial<JobFormValues>;
   defaultPhotos?: string[];
+  defaultLocation?: { lat: number; lng: number } | null;
   onSubmit: (values: JobFormSubmitValues) => void;
   submitLabel?: string;
   isSubmitting?: boolean;
 }) {
   const [photos, setPhotos] = useState<string[]>(defaultPhotos);
+  const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(defaultLocation);
+  const [locState, setLocState] = useState<'idle' | 'locating' | 'error'>('idle');
+  const [locError, setLocError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -77,11 +101,15 @@ export function JobForm({
       estimated_hours: '',
       date_needed: '',
       is_flexible_date: false,
+      is_recurring: false,
+      recurrence: '',
       ...defaultValues,
     },
   });
 
   const budgetType = watch('budget_type');
+  const flexible = watch('is_flexible_date');
+  const recurring = watch('is_recurring');
 
   function addPhotos(files: FileList | null) {
     if (!files) return;
@@ -94,6 +122,33 @@ export function JobForm({
       });
   }
 
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      setLocError('Your device doesn’t support location.');
+      return;
+    }
+    setLocState('locating');
+    setLocError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        if (!inJersey(lat, lng)) {
+          setLocState('error');
+          setLocError('That doesn’t look like Jersey — pin not set. Pick a parish instead.');
+          return;
+        }
+        setLoc({ lat: Number(lat.toFixed(5)), lng: Number(lng.toFixed(5)) });
+        setLocState('idle');
+      },
+      () => {
+        setLocState('error');
+        setLocError('Couldn’t get your location — check permissions.');
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
+
   const submit = handleSubmit((values) => {
     onSubmit({
       title: values.title,
@@ -104,8 +159,12 @@ export function JobForm({
       budget_type: values.budget_type,
       budget_amount: values.budget_type === 'negotiable' ? null : Number(values.budget_amount),
       estimated_hours: values.estimated_hours ? Number(values.estimated_hours) : null,
-      date_needed: values.date_needed,
+      date_needed: values.is_flexible_date ? null : values.date_needed || null,
       is_flexible_date: values.is_flexible_date,
+      is_recurring: values.is_recurring,
+      recurrence: values.is_recurring ? values.recurrence || null : null,
+      location_lat: loc?.lat ?? null,
+      location_lng: loc?.lng ?? null,
       photos,
     });
   });
@@ -158,6 +217,32 @@ export function JobForm({
         <Input id="location_detail" {...register('location_detail')} placeholder="e.g. Near Gorey Pier — exact address shared once you hire someone" />
       </div>
 
+      {/* Optional precise pin */}
+      <div className="rounded-lg border border-border bg-surface p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <MapPin size={18} className="mt-0.5 shrink-0 text-primary" />
+            <div>
+              <p className="text-sm font-medium text-text">Pin the spot (optional)</p>
+              <p className="text-xs text-text-muted">
+                {loc ? `Pinned: ${loc.lat}, ${loc.lng}` : 'Drop your current location for a more precise map. Only a rough area is shown publicly.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {loc && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setLoc(null)}>
+                Clear
+              </Button>
+            )}
+            <Button type="button" variant="secondary" size="sm" isLoading={locState === 'locating'} onClick={useMyLocation}>
+              Use my location
+            </Button>
+          </div>
+        </div>
+        {locError && <p className="mt-2 text-xs text-danger">{locError}</p>}
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <Label htmlFor="budget_type">Budget</Label>
@@ -194,8 +279,10 @@ export function JobForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
         <div>
-          <Label htmlFor="date_needed">When do you need it done?</Label>
-          <Input id="date_needed" type="date" {...register('date_needed')} error={errors.date_needed?.message} />
+          <Label htmlFor="date_needed" hint={flexible ? 'Not needed' : undefined}>
+            When do you need it done?
+          </Label>
+          <Input id="date_needed" type="date" disabled={flexible} {...register('date_needed')} error={errors.date_needed?.message} />
           <FieldError message={errors.date_needed?.message} />
         </div>
         <Controller
@@ -208,6 +295,35 @@ export function JobForm({
             </label>
           )}
         />
+      </div>
+
+      {/* Recurring */}
+      <div className="rounded-lg border border-border bg-surface p-4">
+        <Controller
+          control={control}
+          name="is_recurring"
+          render={({ field }) => (
+            <label className="flex items-center gap-2 text-sm text-text">
+              <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)} className="h-4 w-4 rounded border-border accent-primary" />
+              <Repeat size={15} className="text-primary" />
+              This is a recurring job
+            </label>
+          )}
+        />
+        {recurring && (
+          <div className="mt-3">
+            <Label htmlFor="recurrence">How often?</Label>
+            <Select id="recurrence" {...register('recurrence')} className="sm:w-56" error={errors.recurrence?.message}>
+              <option value="">Choose…</option>
+              {RECURRENCE_OPTIONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </Select>
+            <FieldError message={errors.recurrence?.message} />
+          </div>
+        )}
       </div>
 
       <div>

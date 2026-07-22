@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { MapPin, CalendarDays, Lock } from 'lucide-react';
+import { MapPin, CalendarDays, Lock, Repeat } from 'lucide-react';
 import type { Job, Profile } from '../../types/models';
-import { JOB_CATEGORIES, JOB_STATUS_LABEL } from '../../lib/constants';
+import { JOB_CATEGORIES, JOB_STATUS_LABEL, recurrenceLabel } from '../../lib/constants';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { useAuth } from '../../context/AuthProvider';
 import { Badge } from '../ui/Badge';
@@ -49,8 +49,13 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
           )}
         </span>
         <span className="flex items-center gap-1">
-          <CalendarDays size={13} /> {job.is_flexible_date ? 'Flexible' : formatDate(job.date_needed)}
+          <CalendarDays size={13} /> {job.is_flexible_date || !job.date_needed ? 'Flexible' : formatDate(job.date_needed)}
         </span>
+        {job.is_recurring && recurrenceLabel(job.recurrence) && (
+          <span className="flex items-center gap-1 text-primary">
+            <Repeat size={13} /> {recurrenceLabel(job.recurrence)}
+          </span>
+        )}
       </div>
 
       <div className="mt-4 flex items-center justify-between border-t border-border pt-4">

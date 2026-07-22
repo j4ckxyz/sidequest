@@ -53,6 +53,18 @@ export const SKILL_OPTIONS = [
 export const BUDGET_TYPES = ['fixed', 'hourly', 'negotiable'] as const;
 export type BudgetType = (typeof BUDGET_TYPES)[number];
 
+export const RECURRENCE_OPTIONS = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'fortnightly', label: 'Fortnightly' },
+  { value: 'monthly', label: 'Monthly' },
+] as const;
+
+export function recurrenceLabel(value: string | null): string | null {
+  if (!value) return null;
+  return RECURRENCE_OPTIONS.find((r) => r.value === value)?.label ?? value;
+}
+
 export const JOB_STATUSES = ['open', 'assigned', 'in_progress', 'completed', 'cancelled'] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
 

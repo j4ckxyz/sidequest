@@ -27,7 +27,8 @@ export function BrowseJobs() {
   const sorted = useMemo(() => {
     if (!jobs) return [];
     const copy = [...jobs];
-    if (filters.sort === 'date_needed') copy.sort((a, b) => a.date_needed.localeCompare(b.date_needed));
+    // Flexible/undated jobs sort to the end.
+    if (filters.sort === 'date_needed') copy.sort((a, b) => (a.date_needed ?? '9999').localeCompare(b.date_needed ?? '9999'));
     if (filters.sort === 'budget_high') copy.sort((a, b) => (b.budget_amount ?? 0) - (a.budget_amount ?? 0));
     return copy;
   }, [jobs, filters.sort]);

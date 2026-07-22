@@ -33,8 +33,12 @@ export interface Job {
   budget_type: BudgetType;
   budget_amount: number | null;
   estimated_hours: number | null;
-  date_needed: string;
+  date_needed: string | null;
   is_flexible_date: boolean;
+  is_recurring: boolean;
+  recurrence: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
   status: JobStatus;
   assigned_quester_id: string | null;
   photos: string[];

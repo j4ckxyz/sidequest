@@ -148,7 +148,7 @@ function seed(): State {
     top_category: null,
   }));
 
-  const jobs: Job[] = [
+  const jobs: Job[] = ([
     {
       id: 'j-lawn',
       poster_id: 'p-alice',
@@ -313,7 +313,13 @@ function seed(): State {
       photos: [],
       created_at: daysFromNow(-9),
     },
-  ];
+  ] as Omit<Job, 'is_recurring' | 'recurrence' | 'location_lat' | 'location_lng'>[]).map((j) => ({
+    ...j,
+    is_recurring: false,
+    recurrence: null,
+    location_lat: null,
+    location_lng: null,
+  }));
 
   const applications: Application[] = [
     {

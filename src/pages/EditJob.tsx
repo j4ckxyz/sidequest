@@ -57,10 +57,13 @@ export function EditJob() {
             budget_type: job.budget_type,
             budget_amount: job.budget_amount != null ? String(job.budget_amount) : '',
             estimated_hours: job.estimated_hours != null ? String(job.estimated_hours) : '',
-            date_needed: job.date_needed.slice(0, 10),
+            date_needed: job.date_needed ? job.date_needed.slice(0, 10) : '',
             is_flexible_date: job.is_flexible_date,
+            is_recurring: job.is_recurring,
+            recurrence: job.recurrence ?? '',
           }}
           defaultPhotos={job.photos}
+          defaultLocation={job.location_lat != null && job.location_lng != null ? { lat: job.location_lat, lng: job.location_lng } : null}
           onSubmit={submit}
           isSubmitting={isPending}
           submitLabel="Save changes"
