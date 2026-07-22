@@ -1,5 +1,11 @@
 import type { ApplicationStatus, BudgetType, JobStatus, Parish } from '../lib/constants';
 
+export interface SavedPin {
+  lat: number;
+  lng: number;
+  label?: string;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -14,6 +20,12 @@ export interface Profile {
   skills: string[];
   is_verified: boolean;
   is_admin: boolean;
+  is_bot: boolean;
+  /** Free-text interests that nudge the recommender, beyond the fixed skill tags. */
+  interest_keywords: string[];
+  /** When true, the parish is hidden from others but still used by the recommender. */
+  hide_location: boolean;
+  saved_pins: SavedPin[];
   rating_avg: number;
   rating_count: number;
   jobs_posted_count: number;
@@ -34,6 +46,7 @@ export interface Job {
   budget_amount: number | null;
   estimated_hours: number | null;
   date_needed: string | null;
+  slots: number;
   is_flexible_date: boolean;
   is_recurring: boolean;
   recurrence: string | null;

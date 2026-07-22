@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, CalendarDays, Lock, Repeat } from 'lucide-react';
+import { MapPin, CalendarDays, Lock, Repeat, Bot } from 'lucide-react';
 import type { Job, Profile } from '../../types/models';
 import { JOB_CATEGORIES, JOB_STATUS_LABEL, recurrenceLabel } from '../../lib/constants';
 import { formatCurrency, formatDate } from '../../lib/utils';
@@ -63,7 +63,10 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
           <div className="flex items-center gap-2">
             <Avatar name={poster.full_name} src={poster.avatar_url} size="sm" />
             <div className="leading-tight">
-              <p className="text-sm text-text">{poster.full_name}</p>
+              <p className="flex items-center gap-1 text-sm text-text">
+                {poster.full_name}
+                {poster.is_bot && <Bot size={13} className="text-text-muted" />}
+              </p>
               {poster.rating_count > 0 ? (
                 <div className="flex items-center gap-1">
                   <StarRating value={poster.rating_avg} size={11} />

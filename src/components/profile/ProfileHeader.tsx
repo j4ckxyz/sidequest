@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BadgeCheck, MapPin, Pencil } from 'lucide-react';
+import { BadgeCheck, MapPin, Pencil, Bot } from 'lucide-react';
 import type { Profile } from '../../types/models';
 import { Avatar } from '../ui/Avatar';
 import { StarRating } from '../ui/StarRating';
@@ -11,6 +11,11 @@ export function ProfileHeader({ profile, isOwn }: { profile: Profile; isOwn: boo
       <div className="flex-1">
         <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center">
           <h1 className="text-2xl text-text">{profile.full_name}</h1>
+          {profile.is_bot && (
+            <span className="flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-text-muted">
+              <Bot size={13} /> Bot
+            </span>
+          )}
           {profile.is_verified && (
             <span className="flex items-center gap-1 text-xs font-medium text-sage">
               <BadgeCheck size={15} /> Verified
@@ -18,9 +23,12 @@ export function ProfileHeader({ profile, isOwn }: { profile: Profile; isOwn: boo
           )}
         </div>
         {profile.username && <p className="mt-0.5 text-sm text-text-muted">@{profile.username}</p>}
-        <p className="mt-1 flex items-center justify-center gap-1 text-sm text-text-muted sm:justify-start">
-          <MapPin size={14} /> {profile.parish}
-        </p>
+        {(isOwn || !profile.hide_location) && (
+          <p className="mt-1 flex items-center justify-center gap-1 text-sm text-text-muted sm:justify-start">
+            <MapPin size={14} /> {profile.parish}
+            {isOwn && profile.hide_location && <span className="text-xs">(hidden from others)</span>}
+          </p>
+        )}
         {profile.rating_count > 0 && (
           <div className="mt-2 flex items-center justify-center gap-1.5 sm:justify-start">
             <StarRating value={profile.rating_avg} />

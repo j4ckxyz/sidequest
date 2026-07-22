@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { MapPin, CalendarDays, Clock, BadgeCheck, Pencil, Ban, ArrowRight, Lock, Repeat } from 'lucide-react';
+import { MapPin, CalendarDays, Clock, BadgeCheck, Pencil, Ban, ArrowRight, Lock, Repeat, Users, Bot } from 'lucide-react';
 import { useJob, useCancelJob, useCompleteJob, useMarkJobInProgress } from '../hooks/useJobs';
 import { useProfile } from '../hooks/useProfile';
 import { useAuth } from '../context/AuthProvider';
@@ -80,6 +80,11 @@ export function JobDetail() {
             {category?.label}
           </Badge>
           <Badge tone={STATUS_TONE[job.status]}>{JOB_STATUS_LABEL[job.status]}</Badge>
+          {job.slots > 1 && (
+            <Badge tone="primary" icon={<Users size={13} />}>
+              Needs {job.slots} people
+            </Badge>
+          )}
         </div>
 
         <h1 className="mt-4 text-3xl leading-tight text-text">{job.title}</h1>
@@ -174,6 +179,7 @@ export function JobDetail() {
               <div>
                 <p className="flex items-center gap-1 text-base text-text">
                   {poster.full_name}
+                  {poster.is_bot && <Bot size={14} className="text-text-muted" />}
                   {poster.is_verified && <BadgeCheck size={14} className="text-sage" />}
                 </p>
                 {poster.rating_count > 0 ? (

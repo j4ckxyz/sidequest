@@ -141,11 +141,15 @@ function seed(): State {
       jobs_completed_count: 0,
       created_at: daysFromNow(-10),
     },
-  ] as Omit<Profile, 'onboarded' | 'username' | 'top_category'>[]).map((p) => ({
+  ] as Omit<Profile, 'onboarded' | 'username' | 'top_category' | 'is_bot' | 'interest_keywords' | 'hide_location' | 'saved_pins'>[]).map((p) => ({
     ...p,
     onboarded: true,
     username: p.full_name.toLowerCase().split(' ')[0],
     top_category: null,
+    is_bot: false,
+    interest_keywords: [],
+    hide_location: false,
+    saved_pins: [],
   }));
 
   const jobs: Job[] = ([
@@ -313,8 +317,9 @@ function seed(): State {
       photos: [],
       created_at: daysFromNow(-9),
     },
-  ] as Omit<Job, 'is_recurring' | 'recurrence' | 'location_lat' | 'location_lng'>[]).map((j) => ({
+  ] as Omit<Job, 'is_recurring' | 'recurrence' | 'location_lat' | 'location_lng' | 'slots'>[]).map((j) => ({
     ...j,
+    slots: 1,
     is_recurring: false,
     recurrence: null,
     location_lat: null,
@@ -717,12 +722,23 @@ export const db = {
       const job = state.jobs[app.job_id];
       if (!job) throw new Error('Job not found.');
 
-      Object.values(state.applications)
-        .filter((a) => a.job_id === app.job_id)
-        .forEach((a) => {
-          state.applications[a.id] = { ...a, status: a.id === id ? 'accepted' : a.status === 'pending' ? 'rejected' : a.status };
-        });
-      state.jobs[job.id] = { ...job, status: 'assigned', assigned_quester_id: app.quester_id };
+      state.applications[id] = { ...app, status: 'accepted' };
+      // First hire keeps assigned_quester_id (single-helper UI/messaging).
+      const firstHire = job.assigned_quester_id ?? app.quester_id;
+
+      const accepted = Object.values(state.applications).filter((a) => a.job_id === job.id && a.status === 'accepted').length;
+      if (accepted >= job.slots) {
+        // All spots filled → reject the rest and close the job.
+        Object.values(state.applications)
+          .filter((a) => a.job_id === job.id && a.status === 'pending')
+          .forEach((a) => {
+            state.applications[a.id] = { ...a, status: 'rejected' };
+          });
+        state.jobs[job.id] = { ...job, status: 'assigned', assigned_quester_id: firstHire };
+      } else {
+        // Still recruiting — keep it open for more applicants.
+        state.jobs[job.id] = { ...job, assigned_quester_id: firstHire };
+      }
       touch();
       notify();
       return delay(state.applications[id]);

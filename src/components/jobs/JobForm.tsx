@@ -26,6 +26,7 @@ const schema = z
     budget_amount: z.string().optional(),
     estimated_hours: z.string().optional(),
     date_needed: z.string().optional(),
+    slots: z.string().optional(),
     is_flexible_date: z.boolean(),
     is_recurring: z.boolean(),
     recurrence: z.string().optional(),
@@ -55,6 +56,7 @@ export interface JobFormSubmitValues {
   budget_amount: number | null;
   estimated_hours: number | null;
   date_needed: string | null;
+  slots: number;
   is_flexible_date: boolean;
   is_recurring: boolean;
   recurrence: string | null;
@@ -100,6 +102,7 @@ export function JobForm({
       budget_amount: '',
       estimated_hours: '',
       date_needed: '',
+      slots: '1',
       is_flexible_date: false,
       is_recurring: false,
       recurrence: '',
@@ -160,6 +163,7 @@ export function JobForm({
       budget_amount: values.budget_type === 'negotiable' ? null : Number(values.budget_amount),
       estimated_hours: values.estimated_hours ? Number(values.estimated_hours) : null,
       date_needed: values.is_flexible_date ? null : values.date_needed || null,
+      slots: values.slots ? Math.max(1, Math.min(20, Math.round(Number(values.slots)))) : 1,
       is_flexible_date: values.is_flexible_date,
       is_recurring: values.is_recurring,
       recurrence: values.is_recurring ? values.recurrence || null : null,
@@ -275,6 +279,14 @@ export function JobForm({
           </Label>
           <Input id="estimated_hours" type="number" min={0} step={0.5} {...register('estimated_hours')} />
         </div>
+      </div>
+
+      <div>
+        <Label htmlFor="slots" hint="Most jobs need 1">
+          How many people do you need?
+        </Label>
+        <Input id="slots" type="number" min={1} max={20} step={1} {...register('slots')} className="sm:w-40" />
+        <p className="mt-1.5 text-xs text-text-muted">Once this many people accept, the rest are turned down and the job closes.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
