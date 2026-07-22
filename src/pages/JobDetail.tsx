@@ -98,7 +98,7 @@ export function JobDetail() {
           )}
         </div>
 
-        <p className="mt-6 whitespace-pre-line text-[15px] leading-relaxed text-text">{job.description}</p>
+        <p className="mt-6 max-w-[65ch] whitespace-pre-line text-base leading-relaxed text-text">{job.description}</p>
 
         {job.photos.length > 0 && (
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

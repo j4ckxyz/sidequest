@@ -13,7 +13,7 @@ export function MessageBubble({ message, isOwn }: { message: Message; isOwn: boo
       >
         {message.body}
       </div>
-      <span className="mt-1 px-1 text-[11px] text-text-muted">{formatRelativeTime(message.created_at)}</span>
+      <span className="mt-1 px-1 text-xs text-text-muted">{formatRelativeTime(message.created_at)}</span>
     </div>
   );
 }

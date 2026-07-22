@@ -29,7 +29,7 @@ export function ThreadList({ rows }: { rows: ThreadRow[] }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
               <p className={cx('truncate text-sm', unread ? 'font-semibold text-text' : 'text-text')}>{counterpart?.full_name ?? 'Unknown'}</p>
-              <span className="shrink-0 text-[11px] text-text-muted">{formatRelativeTime(conversation.last_message_at)}</span>
+              <span className="shrink-0 text-xs text-text-muted">{formatRelativeTime(conversation.last_message_at)}</span>
             </div>
             {job && <p className="truncate text-xs text-text-muted">{job.title}</p>}
             {lastMessage && <p className={cx('truncate text-sm', unread ? 'text-text' : 'text-text-muted')}>{lastMessage.body}</p>}

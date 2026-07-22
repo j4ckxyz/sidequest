@@ -38,7 +38,7 @@ export function BottomNav() {
 
 function NavItem({ to, label, icon, active, badge }: { to: string; label: string; icon: React.ReactNode; active: boolean; badge?: boolean }) {
   return (
-    <Link to={to} className={cx('relative flex flex-col items-center gap-0.5 px-2 py-1 text-[11px] font-medium', active ? 'text-primary' : 'text-text-muted')}>
+    <Link to={to} className={cx('relative flex flex-col items-center gap-0.5 px-2 py-1 text-xs font-medium', active ? 'text-primary' : 'text-text-muted')}>
       {icon}
       {badge && <span className="absolute right-1.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />}
       {label}

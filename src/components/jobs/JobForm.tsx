@@ -229,7 +229,7 @@ export function JobForm({
           {photos.length < 4 && (
             <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border text-text-muted hover:border-primary/40 hover:text-primary">
               <ImagePlus size={18} />
-              <span className="text-[11px]">Add</span>
+              <span className="text-xs">Add</span>
               <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => addPhotos(e.target.files)} />
             </label>
           )}

@@ -12,7 +12,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(({ error, class
       <select
         ref={ref}
         className={cx(
-          'h-11 w-full appearance-none rounded-lg border bg-surface px-3.5 pr-9 text-[15px] text-text transition-colors',
+          'h-11 w-full appearance-none rounded-lg border bg-surface px-3.5 pr-9 text-base text-text transition-colors',
           'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary',
           error ? 'border-danger' : 'border-border',
           className,

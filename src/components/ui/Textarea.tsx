@@ -10,7 +10,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({ error,
     <textarea
       ref={ref}
       className={cx(
-        'w-full rounded-lg border bg-surface px-3.5 py-2.5 text-[15px] text-text placeholder:text-text-muted transition-colors',
+        'w-full rounded-lg border bg-surface px-3.5 py-2.5 text-base text-text placeholder:text-text-muted transition-colors',
         'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary',
         error ? 'border-danger' : 'border-border',
         className,
