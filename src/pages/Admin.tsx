@@ -11,7 +11,7 @@ import { PageSpinner } from '../components/ui/Spinner';
 import { useToast } from '../context/ToastProvider';
 import { formatDate } from '../lib/utils';
 
-const STATUS_TONE = { open: 'success', assigned: 'sea', in_progress: 'warning', completed: 'neutral', cancelled: 'danger' } as const;
+const STATUS_TONE = { open: 'success', assigned: 'primary', in_progress: 'warning', completed: 'neutral', cancelled: 'danger' } as const;
 
 export function Admin() {
   const { user } = useAuth();
@@ -23,7 +23,7 @@ export function Admin() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
       <div className="flex items-center gap-2">
-        <ShieldCheck size={20} className="text-sea" />
+        <ShieldCheck size={20} className="text-sage" />
         <h1 className="font-display text-2xl text-text">Admin</h1>
       </div>
       <p className="mt-1 text-sm text-text-muted">Moderate jobs and manage who else has admin access.</p>
@@ -108,7 +108,7 @@ function UsersTab({ callerId }: { callerId: string }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {profile.is_admin && <Badge tone="sea">Admin</Badge>}
+            {profile.is_admin && <Badge tone="sage">Admin</Badge>}
             <Button
               size="sm"
               variant="secondary"

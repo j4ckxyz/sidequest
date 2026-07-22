@@ -10,7 +10,7 @@ import { CategoryIcon } from './CategoryIcon';
 
 const STATUS_TONE = {
   open: 'success',
-  assigned: 'sea',
+  assigned: 'primary',
   in_progress: 'warning',
   completed: 'neutral',
   cancelled: 'danger',

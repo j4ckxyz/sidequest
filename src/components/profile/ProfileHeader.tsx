@@ -12,7 +12,7 @@ export function ProfileHeader({ profile, isOwn }: { profile: Profile; isOwn: boo
         <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center">
           <h1 className="font-display text-2xl text-text">{profile.full_name}</h1>
           {profile.is_verified && (
-            <span className="flex items-center gap-1 text-xs font-medium text-sea">
+            <span className="flex items-center gap-1 text-xs font-medium text-sage">
               <BadgeCheck size={15} /> Verified
             </span>
           )}

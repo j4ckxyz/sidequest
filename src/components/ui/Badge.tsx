@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { cx } from '../../lib/utils';
 
-type Tone = 'neutral' | 'sea' | 'success' | 'warning' | 'danger' | 'primary';
+type Tone = 'neutral' | 'sage' | 'success' | 'warning' | 'danger' | 'primary';
 
 const toneClasses: Record<Tone, string> = {
   neutral: 'bg-surface-2 text-text-muted',
-  sea: 'bg-sea-soft text-sea',
+  sage: 'bg-sage-soft text-sage',
   success: 'bg-success-soft text-success',
   warning: 'bg-warning-soft text-warning',
   danger: 'bg-danger-soft text-danger',

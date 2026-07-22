@@ -12,7 +12,7 @@ import { PageSpinner } from '../components/ui/Spinner';
 import { useToast } from '../context/ToastProvider';
 import type { Job } from '../types/models';
 
-const STATUS_TONE = { open: 'success', assigned: 'sea', in_progress: 'warning', completed: 'neutral', cancelled: 'danger' } as const;
+const STATUS_TONE = { open: 'success', assigned: 'primary', in_progress: 'warning', completed: 'neutral', cancelled: 'danger' } as const;
 
 export function DashboardPosted() {
   const { user } = useAuth();

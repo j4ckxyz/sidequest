@@ -21,7 +21,7 @@ import { Modal } from '../components/ui/Modal';
 import { ReviewForm } from '../components/reviews/ReviewForm';
 import { useToast } from '../context/ToastProvider';
 
-const STATUS_TONE = { open: 'success', assigned: 'sea', in_progress: 'warning', completed: 'neutral', cancelled: 'danger' } as const;
+const STATUS_TONE = { open: 'success', assigned: 'primary', in_progress: 'warning', completed: 'neutral', cancelled: 'danger' } as const;
 
 export function JobDetail() {
   const { id } = useParams();
@@ -138,7 +138,7 @@ export function JobDetail() {
               <div>
                 <p className="flex items-center gap-1 font-display text-base text-text">
                   {poster.full_name}
-                  {poster.is_verified && <BadgeCheck size={14} className="text-sea" />}
+                  {poster.is_verified && <BadgeCheck size={14} className="text-sage" />}
                 </p>
                 {poster.rating_count > 0 ? (
                   <div className="flex items-center gap-1">
@@ -190,7 +190,7 @@ export function JobDetail() {
 
             {isPoster && (job.status === 'assigned' || job.status === 'in_progress') && quester && (
               <>
-                <div className="flex items-center gap-2 rounded-xl bg-sea-soft px-3 py-2.5 text-sm text-text">
+                <div className="flex items-center gap-2 rounded-xl bg-sage-soft px-3 py-2.5 text-sm text-text">
                   <Avatar name={quester.full_name} src={quester.avatar_url} size="sm" />
                   Hired: {quester.full_name}
                 </div>

@@ -6,55 +6,65 @@
   --font-display: 'Petrona', ui-serif, Georgia, serif;
   --font-sans: 'Karla', ui-sans-serif, system-ui, sans-serif;
 
-  /* Light mode surfaces + text, warm neutral tinted toward the brand hue (45). */
-  --color-canvas: oklch(97.3% 0.011 60);
-  --color-surface: oklch(99.2% 0.006 60);
-  --color-surface-2: oklch(95% 0.014 60);
-  --color-border: oklch(87% 0.02 60);
-  --color-text: oklch(23% 0.018 60);
-  --color-text-muted: oklch(46% 0.02 60);
+  /*
+   * Jersey Marketplace brand palette (ParishPal / Jèrri Folk brand doc — see
+   * .github/copilot-instructions.md for the full rationale). Hex→OKLCH conversions
+   * are exact; "soft" tint variants are our own derivation (brand doc's own pale
+   * shades were tuned for opacity overlays, too washed-out as solid badge fills).
+   *
+   * Light mode: Island Sand canvas, Coastal Slate text.
+   */
+  --color-canvas: oklch(97.7% 0.007 80.7); /* Island Sand #FAF7F2 */
+  --color-surface: oklch(99.3% 0.004 80.7);
+  --color-surface-2: oklch(94.5% 0.016 82.8); /* sand-200 #F2ECE1 */
+  --color-border: oklch(90.6% 0.015 77.1); /* sand-border #E6DFD5 */
+  --color-text: oklch(25.7% 0.016 252.4); /* Coastal Slate #1E242B */
+  --color-text-muted: oklch(46% 0.02 252.4);
 
-  /* Terracotta primary — warm, local, not corporate blue. */
-  --color-primary: oklch(58% 0.15 45);
-  --color-primary-hover: oklch(52% 0.16 45);
-  --color-primary-soft: oklch(93% 0.04 45);
-  --color-on-primary: oklch(99% 0.008 45);
+  /* Jersey Granite primary — the island's own warm terracotta granite, not corporate blue. */
+  --color-primary: oklch(59.9% 0.151 39.7); /* #C85A32 */
+  --color-primary-hover: oklch(53.9% 0.142 39.9); /* granite-600 #B04B25 */
+  --color-primary-soft: oklch(93% 0.045 39.7);
+  --color-on-primary: oklch(99% 0.006 39.7);
 
-  /* Deep sea-blue secondary — trust, verification, links. */
-  --color-sea: oklch(42% 0.09 230);
-  --color-sea-soft: oklch(92% 0.035 230);
+  /* Parish Sage secondary — trust, verification, secondary actions. */
+  --color-sage: oklch(54.1% 0.077 152.7); /* #4A7C59 */
+  --color-sage-soft: oklch(93% 0.035 152.7);
 
-  /* Status colors — muted, not neon. */
-  --color-success: oklch(52% 0.11 150);
-  --color-success-soft: oklch(92% 0.05 150);
-  --color-warning: oklch(58% 0.13 75);
-  --color-warning-soft: oklch(92% 0.06 75);
-  --color-danger: oklch(52% 0.16 25);
-  --color-danger-soft: oklch(92% 0.05 25);
+  /* Status colors. "Open" reuses Parish Sage rather than a generic ad-hoc green. */
+  --color-success: oklch(54.1% 0.077 152.7);
+  --color-success-soft: oklch(93% 0.035 152.7);
+  --color-warning: oklch(74.9% 0.134 73.5); /* Warm Ochre #E09F3E — also used for star ratings */
+  --color-warning-soft: oklch(93% 0.055 73.5);
+  --color-danger: oklch(53% 0.17 27);
+  --color-danger-soft: oklch(93% 0.05 27);
 }
 
 :root[data-theme='dark'] {
-  --color-canvas: oklch(19% 0.014 60);
-  --color-surface: oklch(23.5% 0.016 60);
-  --color-surface-2: oklch(29% 0.018 60);
-  --color-border: oklch(36% 0.02 60);
-  --color-text: oklch(93% 0.01 60);
-  --color-text-muted: oklch(68% 0.016 60);
+  /* Coastal Slate canvas, lightened one step per surface for hierarchy. */
+  --color-canvas: oklch(25.7% 0.016 252.4); /* slate-900 #1E242B */
+  --color-surface: oklch(27.8% 0.018 251.9); /* slate-card #222931 */
+  --color-surface-2: oklch(30.6% 0.021 254.1); /* slate-surface #28303A */
+  --color-border: oklch(37.8% 0.029 252.5); /* slate-border #374351 */
+  --color-text: oklch(93% 0.01 252.4);
+  --color-text-muted: oklch(68% 0.018 252.4);
 
-  --color-primary: oklch(70% 0.15 45);
-  --color-primary-hover: oklch(76% 0.15 45);
-  --color-primary-soft: oklch(32% 0.06 45);
-  --color-on-primary: oklch(15% 0.02 45);
+  /* Same Jersey Granite hex as light mode — the brand doc uses one granite value
+     across both themes rather than a lighter dark-mode tint. */
+  --color-primary: oklch(59.9% 0.151 39.7); /* #C85A32 */
+  --color-primary-hover: oklch(65% 0.15 39.7);
+  --color-primary-soft: oklch(32% 0.06 39.7);
+  --color-on-primary: oklch(99% 0.006 39.7);
 
-  --color-sea: oklch(76% 0.09 230);
-  --color-sea-soft: oklch(30% 0.05 230);
+  --color-sage: oklch(66% 0.09 152.7);
+  --color-sage-soft: oklch(30% 0.05 152.7);
 
-  --color-success: oklch(72% 0.13 150);
-  --color-success-soft: oklch(28% 0.06 150);
-  --color-warning: oklch(78% 0.13 75);
-  --color-warning-soft: oklch(30% 0.07 75);
-  --color-danger: oklch(72% 0.15 25);
-  --color-danger-soft: oklch(30% 0.06 25);
+  --color-success: oklch(66% 0.09 152.7);
+  --color-success-soft: oklch(30% 0.05 152.7);
+  --color-warning: oklch(78% 0.13 73.5);
+  --color-warning-soft: oklch(30% 0.06 73.5);
+  --color-danger: oklch(70% 0.15 27);
+  --color-danger-soft: oklch(30% 0.06 27);
 }
 
 html {
