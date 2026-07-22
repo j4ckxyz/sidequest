@@ -164,7 +164,10 @@ function DashboardInner({
   const [form, setForm] = useState<Student>(student)
   const [saving, setSaving] = useState(false)
   const [skillDraft, setSkillDraft] = useState('')
-  const dirty = JSON.stringify(form) !== JSON.stringify(student)
+  // Compare only editable fields — projects and timestamps change independently.
+  const editable = ({ projects: _p, created_at: _c, updated_at: _u, ...rest }: Student) =>
+    JSON.stringify(rest)
+  const dirty = editable(form) !== editable(student)
 
   const set = <K extends keyof Student>(k: K, v: Student[K]) =>
     setForm((f) => ({ ...f, [k]: v }))
@@ -173,7 +176,8 @@ function DashboardInner({
     setSaving(true)
     try {
       await updateStudent(student.id, form)
-      setStudent(form)
+      // Preserve the latest projects list (managed separately in ShowcaseCard).
+      setStudent({ ...form, projects: student.projects })
       notify('Profile saved', 'Your changes are live to employers.')
     } catch (e) {
       notify('Could not save', (e as Error).message)
@@ -219,7 +223,10 @@ function DashboardInner({
     return (mine.length ? mine : opps).slice(0, 3)
   }, [opps, form.field])
 
-  const completion = useMemo(() => computeCompletion(form), [form])
+  const completion = useMemo(
+    () => computeCompletion({ ...form, projects: student.projects }),
+    [form, student.projects],
+  )
 
   async function onApply(target: { opportunity_id?: string; bursary_id?: string }, label: string) {
     if (target.opportunity_id) setAppliedOpps(new Set(appliedOpps).add(target.opportunity_id))
