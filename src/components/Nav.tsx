@@ -5,6 +5,7 @@ import {
   PlusCircle,
   ClipboardList,
   UserRound,
+  MessagesSquare,
   LogOut,
   ChevronDown,
   Sun,
@@ -15,7 +16,7 @@ import { useTheme } from '../context/ThemeContext'
 import Avatar from './Avatar'
 import { LogoMark, Wordmark } from './Logo'
 
-export type View = 'home' | 'board' | 'post' | 'mine' | 'profile'
+export type View = 'home' | 'board' | 'post' | 'mine' | 'chat' | 'profile'
 export type NavMode = 'guest' | 'user'
 export type AuthMode = 'signin' | 'signup'
 
@@ -23,6 +24,7 @@ const userTabs: { id: View; label: string; icon: typeof Compass }[] = [
   { id: 'board', label: 'Quest Board', icon: Compass },
   { id: 'post', label: 'Post a Quest', icon: PlusCircle },
   { id: 'mine', label: 'My Quests', icon: ClipboardList },
+  { id: 'chat', label: 'Chat', icon: MessagesSquare },
   { id: 'profile', label: 'Profile', icon: UserRound },
 ]
 

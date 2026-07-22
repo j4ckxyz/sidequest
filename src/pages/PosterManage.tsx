@@ -12,10 +12,10 @@ import {
   PartyPopper,
   Inbox,
   Repeat,
-  ArrowLeft,
   CalendarDays,
   History,
   ClipboardList,
+  Swords,
 } from 'lucide-react'
 import { gradientFor, initialsOf, iconForCategory } from '../lib/constants'
 import type { Application, Quest, WeekLog } from '../lib/types'
@@ -25,6 +25,7 @@ import {
   deleteQuest,
   getProfile,
   logWeek,
+  myApplications,
   myQuests,
   questApplications,
   questWeekLogs,
@@ -32,10 +33,12 @@ import {
   unlogWeek,
 } from '../lib/db'
 import { useToast } from '../components/Toast'
+import { useChatNav } from '../context/ChatContext'
 import Avatar from '../components/Avatar'
-import Chat from '../components/Chat'
+import QuestModal from '../components/QuestModal'
 
 type Tab = 'single' | 'weekly' | 'history'
+type Scope = 'posted' | 'doing'
 
 // ── Week helpers (Monday-based ISO date strings) ─────────────────────────────
 function mondayOf(d: Date): Date {
@@ -66,20 +69,24 @@ export default function PosterManage({ meId, meName }: { meId: string; meName: s
   const [posterName, setPosterName] = useState(meName)
   const [posterMeta, setPosterMeta] = useState('')
   const [quests, setQuests] = useState<Quest[]>([])
+  const [doingApps, setDoingApps] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
+  const [scope, setScope] = useState<Scope>('posted')
   const [tab, setTab] = useState<Tab>('single')
   const [selected, setSelected] = useState<Quest | null>(null)
+  const [selectedDoing, setSelectedDoing] = useState<Quest | null>(null)
 
   useEffect(() => {
     let alive = true
-    Promise.all([getProfile(meId), myQuests(meId)])
-      .then(([p, q]) => {
+    Promise.all([getProfile(meId), myQuests(meId), myApplications(meId)])
+      .then(([p, q, apps]) => {
         if (!alive) return
         if (p) {
           setPosterName(p.name || meName)
           setPosterMeta(p.parish ? `${p.parish} Guild` : '')
         }
         setQuests(q)
+        setDoingApps(apps)
       })
       .catch((e) => notify('Could not load your quests', e.message))
       .finally(() => alive && setLoading(false))
@@ -92,7 +99,13 @@ export default function PosterManage({ meId, meName }: { meId: string; meName: s
   const singleQuests = active.filter((q) => q.type === 'single')
   const weeklyQuests = active.filter((q) => q.type === 'weekly')
   const history = quests.filter((q) => q.status !== 'open')
-  const totalApplicants = active.reduce((s, q) => s + q.applicant_count, 0)
+
+  // Quests I've been accepted for (I'm a doer on someone else's quest).
+  const doing = useMemo(
+    () => doingApps.filter((a) => a.status === 'accepted' && a.quest).map((a) => a.quest as Quest),
+    [doingApps],
+  )
+  const pendingCount = doingApps.filter((a) => a.status === 'applied').length
 
   const shown = tab === 'single' ? singleQuests : tab === 'weekly' ? weeklyQuests : history
 
@@ -115,12 +128,68 @@ export default function PosterManage({ meId, meName }: { meId: string; meName: s
           </div>
         </div>
         <div className="relative mt-5 grid grid-cols-3 gap-3">
-          <Stat label="Active quests" value={active.length} tint="text-clay-600" />
-          <Stat label="Applicants" value={totalApplicants} tint="text-ink" />
+          <Stat label="Posted by me" value={active.length} tint="text-clay-600" />
+          <Stat label="I’m doing" value={doing.length} tint="text-ink" />
           <Stat label="Completed" value={history.length} tint="text-emerald-600" />
         </div>
       </div>
 
+      {/* Scope: posted by me / I'm doing */}
+      <div className="mt-6 inline-flex rounded-2xl border border-line/10 bg-surface p-1 shadow-soft">
+        {(
+          [
+            { s: 'posted' as Scope, label: 'Posted by me', count: quests.length },
+            { s: 'doing' as Scope, label: 'I’m doing', count: doing.length },
+          ]
+        ).map((o) => (
+          <button
+            key={o.s}
+            onClick={() => setScope(o.s)}
+            className={`relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-medium transition ${
+              scope === o.s ? 'text-ink' : 'text-ink-muted hover:text-ink-soft'
+            }`}
+          >
+            {scope === o.s && (
+              <motion.span
+                layoutId="scope-pill"
+                className="absolute inset-0 rounded-xl bg-granite-100"
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+              />
+            )}
+            <span className="relative z-10">{o.label}</span>
+            <span className="relative z-10 rounded-full bg-granite-200 px-1.5 text-[11px] text-ink-soft">
+              {o.count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {scope === 'doing' ? (
+        <div className="mt-5">
+          {loading ? (
+            <div className="card flex items-center justify-center gap-2 py-20 text-ink-muted">
+              <Loader2 className="h-5 w-5 animate-spin" /> Loading…
+            </div>
+          ) : doing.length === 0 ? (
+            <div className="card flex flex-col items-center gap-2 py-16 text-center">
+              <Swords className="h-9 w-9 text-ink-faint" />
+              <p className="text-[17px] font-semibold text-ink">No accepted quests yet</p>
+              <p className="mx-auto max-w-sm text-[14px] text-ink-muted">
+                {pendingCount > 0
+                  ? `You’ve applied to ${pendingCount} quest${pendingCount === 1 ? '' : 's'} — once a poster accepts you, it’ll show here.`
+                  : 'Apply to quests on the board. Once you’re accepted, they appear here.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {doing.map((q) => (
+                <QuestRow key={q.id} q={q} doing onClick={() => setSelectedDoing(q)} />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
       {/* Tabs */}
       <div className="mt-6 flex gap-1 rounded-2xl border border-line/10 bg-surface p-1 shadow-soft">
         {tabs.map((t) => (
@@ -173,12 +242,12 @@ export default function PosterManage({ meId, meName }: { meId: string; meName: s
           </div>
         )}
       </div>
+        </>
+      )}
 
       {selected && (
         <ManageModal
           quest={selected}
-          meId={meId}
-          meName={posterName}
           onClose={() => setSelected(null)}
           onChanged={(u) => {
             setQuests((prev) => prev.map((x) => (x.id === u.id ? u : x)))
@@ -190,11 +259,21 @@ export default function PosterManage({ meId, meName }: { meId: string; meName: s
           }}
         />
       )}
+
+      {selectedDoing && (
+        <QuestModal
+          quest={selectedDoing}
+          me={{ id: meId, name: posterName }}
+          applied
+          onApply={async () => {}}
+          onClose={() => setSelectedDoing(null)}
+        />
+      )}
     </div>
   )
 }
 
-function QuestRow({ q, onClick }: { q: Quest; onClick: () => void }) {
+function QuestRow({ q, onClick, doing }: { q: Quest; onClick: () => void; doing?: boolean }) {
   const CatIcon = iconForCategory(q.category)
   const completed = q.status !== 'open'
   return (
@@ -218,12 +297,19 @@ function QuestRow({ q, onClick }: { q: Quest; onClick: () => void }) {
         </div>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[12.5px] text-ink-muted">
           <span>{q.parish} Guild</span>
+          {doing && q.poster?.name && <span>by {q.poster.name}</span>}
           <span className="inline-flex items-center gap-1"><Coins className="h-3.5 w-3.5" /> £{q.reward}</span>
           <span className="inline-flex items-center gap-1"><Sparkles className="h-3.5 w-3.5" /> +{q.xp_reward} XP</span>
-          <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {q.accepted_count}/{q.party_size}</span>
+          {!doing && (
+            <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {q.accepted_count}/{q.party_size}</span>
+          )}
         </p>
       </div>
-      {!completed && (
+      {doing ? (
+        <span className="pill shrink-0 bg-emerald-100 text-emerald-700">
+          <Check className="h-3.5 w-3.5" /> Accepted
+        </span>
+      ) : !completed && (
         <span className="pill shrink-0 bg-granite-100 text-ink-muted">
           {q.applicant_count} {q.applicant_count === 1 ? 'applicant' : 'applicants'}
         </span>
@@ -235,24 +321,20 @@ function QuestRow({ q, onClick }: { q: Quest; onClick: () => void }) {
 // ── Management modal ─────────────────────────────────────────────────────────
 function ManageModal({
   quest,
-  meId,
-  meName,
   onClose,
   onChanged,
   onRemoved,
 }: {
   quest: Quest
-  meId: string
-  meName: string
   onClose: () => void
   onChanged: (q: Quest) => void
   onRemoved: () => void
 }) {
   const { notify } = useToast()
+  const { openChat } = useChatNav()
   const [apps, setApps] = useState<Application[] | null>(null)
   const [logs, setLogs] = useState<WeekLog[]>([])
   const [working, setWorking] = useState(false)
-  const [chatWith, setChatWith] = useState<{ id: string; name: string } | null>(null)
 
   const completed = quest.status !== 'open'
   const isWeekly = quest.type === 'weekly'
@@ -408,21 +490,8 @@ function ManageModal({
               <p className="text-[14.5px] leading-relaxed text-ink-muted">{quest.description}</p>
             )}
 
-            {/* Chat view or applicant list */}
-            {chatWith ? (
-              <div>
-                <button
-                  onClick={() => setChatWith(null)}
-                  className="mb-3 inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-clay-600 hover:text-clay-800"
-                >
-                  <ArrowLeft className="h-4 w-4" /> Back to applicants
-                </button>
-                <p className="mb-2 text-[13px] font-medium text-ink">
-                  Chat with {chatWith.name}
-                </p>
-                <Chat questId={quest.id} doerId={chatWith.id} meId={meId} meName={meName} />
-              </div>
-            ) : (
+            {/* Applicants, weekly log & actions */}
+            {(
               <>
                 <div>
                   <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
@@ -455,7 +524,14 @@ function ManageModal({
                             )}
                             <div className="mt-2 flex flex-wrap items-center gap-1.5">
                               <button
-                                onClick={() => setChatWith({ id: a.doer_id, name: a.doer?.name ?? 'Doer' })}
+                                onClick={() =>
+                                  openChat({
+                                    questId: quest.id,
+                                    doerId: a.doer_id,
+                                    questTitle: quest.title,
+                                    otherName: a.doer?.name ?? 'Adventurer',
+                                  })
+                                }
                                 className="inline-flex items-center gap-1 rounded-lg bg-granite-100 px-2.5 py-1 text-[12.5px] font-medium text-ink-soft transition hover:bg-granite-200"
                               >
                                 <MessageCircle className="h-3.5 w-3.5" /> Open chat

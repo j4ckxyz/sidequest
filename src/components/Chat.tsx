@@ -11,11 +11,13 @@ export default function Chat({
   doerId,
   meId,
   meName,
+  fill = false,
 }: {
   questId: string
   doerId: string
   meId: string
   meName: string
+  fill?: boolean
 }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState('')
@@ -78,7 +80,7 @@ export default function Chat({
       <div
         ref={scrollRef}
         className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-line/10 bg-granite-50/60 p-3"
-        style={{ minHeight: 200, maxHeight: 340 }}
+        style={fill ? { minHeight: 0 } : { minHeight: 200, maxHeight: 340 }}
       >
         {loading ? (
           <div className="flex h-full items-center justify-center gap-2 text-[13px] text-ink-muted">

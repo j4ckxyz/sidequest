@@ -118,6 +118,17 @@ export async function questApplications(questId: string): Promise<Application[]>
   return (data ?? []) as Application[]
 }
 
+// All applications to a set of quests (used to build the poster's chat threads).
+export async function applicationsForQuests(questIds: string[]): Promise<Application[]> {
+  if (questIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('applications')
+    .select('*, doer:profiles(*)')
+    .in('quest_id', questIds)
+  if (error) throw error
+  return (data ?? []) as Application[]
+}
+
 export async function setApplicationStatus(
   id: string,
   status: ApplicationStatus,
@@ -127,6 +138,17 @@ export async function setApplicationStatus(
 }
 
 // ── Messages (Safe-Chat) — one private thread per (quest, doer) ───────────────
+
+// Every message in a thread the current user belongs to (RLS-scoped),
+// newest first — used to compute conversation previews.
+export async function myMessages(): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as Message[]
+}
 
 export async function listMessages(questId: string, doerId: string): Promise<Message[]> {
   const { data, error } = await supabase

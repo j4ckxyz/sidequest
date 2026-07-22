@@ -13,8 +13,8 @@ import {
 } from 'lucide-react'
 import type { Quest } from '../lib/types'
 import { iconForCategory, gradientFor, initialsOf } from '../lib/constants'
+import { useChatNav } from '../context/ChatContext'
 import Avatar from './Avatar'
-import Chat from './Chat'
 
 interface Me {
   id: string
@@ -36,7 +36,7 @@ export default function QuestModal({
 }) {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
-  const [showChat, setShowChat] = useState(false)
+  const { openChat } = useChatNav()
 
   if (!quest) return null
 
@@ -183,20 +183,21 @@ export default function QuestModal({
               </div>
             )}
 
-            {/* Chat */}
+            {/* Chat → Messages tab */}
             {canChat && (
-              <div>
-                <button
-                  onClick={() => setShowChat((v) => !v)}
-                  className="mb-3 inline-flex items-center gap-1.5 text-[14px] font-semibold text-clay-600 hover:text-clay-800 dark:text-clay-400"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  {showChat ? 'Hide Safe-Chat' : 'Open Safe-Chat'}
-                </button>
-                {showChat && (
-                  <Chat questId={quest.id} doerId={me.id} meId={me.id} meName={me.name} />
-                )}
-              </div>
+              <button
+                onClick={() =>
+                  openChat({
+                    questId: quest.id,
+                    doerId: me.id,
+                    questTitle: quest.title,
+                    otherName: quest.poster?.name ?? 'Quest poster',
+                  })
+                }
+                className="inline-flex items-center gap-1.5 rounded-xl bg-granite-100 px-4 py-2.5 text-[14px] font-semibold text-ink-soft transition hover:bg-granite-200"
+              >
+                <MessageCircle className="h-4 w-4" /> Message {quest.poster?.name ?? 'the poster'} in Chat
+              </button>
             )}
           </div>
 

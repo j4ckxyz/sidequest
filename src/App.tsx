@@ -8,9 +8,11 @@ import QuestBoard from './pages/QuestBoard'
 import PostQuest from './pages/PostQuest'
 import MyQuests from './pages/PosterManage'
 import Profile from './pages/Profile'
+import Messages from './pages/Messages'
 import { ToastProvider } from './components/Toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
+import { ChatProvider, type ChatTarget } from './context/ChatContext'
 import { myApplications } from './lib/db'
 import { LogoMark, Wordmark } from './components/Logo'
 
@@ -43,6 +45,7 @@ function Shell() {
   const [authOpen, setAuthOpen] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>('signup')
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set())
+  const [pendingChat, setPendingChat] = useState<ChatTarget | null>(null)
 
   const displayName = profile?.name ?? ''
 
@@ -73,6 +76,11 @@ function Shell() {
 
   const onApplied = useCallback((id: string) => {
     setAppliedIds((prev) => new Set(prev).add(id))
+  }, [])
+
+  const openChat = useCallback((t: ChatTarget) => {
+    setPendingChat(t)
+    setView('chat')
   }, [])
 
   if (loading) {
@@ -122,36 +130,46 @@ function Shell() {
   const me = { id: session.user.id, name: displayName }
 
   return (
-    <div className="min-h-screen bg-paper">
-      <Nav
-        mode={mode}
-        view={view}
-        setView={setView}
-        userName={displayName}
-        userId={session.user.id}
-        onAuth={openAuth}
-        onSignOut={signOut}
-      />
-      <main>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={view}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {view === 'board' && (
-              <QuestBoard me={me} appliedIds={appliedIds} onApplied={onApplied} />
-            )}
-            {view === 'post' && <PostQuest meId={me.id} onPosted={() => setView('mine')} />}
-            {view === 'mine' && <MyQuests meId={me.id} meName={displayName} />}
-            {view === 'profile' && <Profile meId={me.id} meName={displayName} />}
-          </motion.div>
-        </AnimatePresence>
-      </main>
-      <Footer />
-    </div>
+    <ChatProvider openChat={openChat}>
+      <div className="min-h-screen bg-paper">
+        <Nav
+          mode={mode}
+          view={view}
+          setView={setView}
+          userName={displayName}
+          userId={session.user.id}
+          onAuth={openAuth}
+          onSignOut={signOut}
+        />
+        <main>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {view === 'board' && (
+                <QuestBoard me={me} appliedIds={appliedIds} onApplied={onApplied} />
+              )}
+              {view === 'post' && <PostQuest meId={me.id} onPosted={() => setView('mine')} />}
+              {view === 'mine' && <MyQuests meId={me.id} meName={displayName} />}
+              {view === 'chat' && (
+                <Messages
+                  meId={me.id}
+                  meName={displayName}
+                  initial={pendingChat}
+                  onConsumed={() => setPendingChat(null)}
+                />
+              )}
+              {view === 'profile' && <Profile meId={me.id} meName={displayName} />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+        <Footer />
+      </div>
+    </ChatProvider>
   )
 }
 
