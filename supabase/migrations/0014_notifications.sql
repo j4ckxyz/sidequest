@@ -17,6 +17,17 @@ create table if not exists notifications (
   read_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+-- Ensure columns exist if the table was created by a prior schema
+alter table notifications add column if not exists recipient_id uuid references profiles(id) on delete cascade;
+alter table notifications add column if not exists type text;
+alter table notifications add column if not exists title text;
+alter table notifications add column if not exists body text default '';
+alter table notifications add column if not exists link text default '';
+alter table notifications add column if not exists job_id uuid references jobs(id) on delete cascade;
+alter table notifications add column if not exists actor_id uuid references profiles(id) on delete set null;
+alter table notifications add column if not exists read_at timestamptz;
+
 create index if not exists notifications_recipient_created_idx
   on notifications (recipient_id, created_at desc);
 
