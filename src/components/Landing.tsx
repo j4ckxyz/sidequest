@@ -46,7 +46,7 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
           variants={fade}
           initial="hidden"
           animate="show"
-          className="mb-6 inline-flex items-center gap-2 rounded-full border border-jersey-200 bg-white/70 px-4 py-1.5 text-[13px] font-medium text-jersey-700 shadow-soft backdrop-blur"
+          className="mb-6 inline-flex items-center gap-2 rounded-full border border-jersey-200 bg-surface/70 px-4 py-1.5 text-[13px] font-medium text-jersey-700 shadow-soft backdrop-blur"
         >
           <MapPin className="h-3.5 w-3.5" />
           Made in Jersey · for the whole island
@@ -118,14 +118,14 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
         transition={{ delay: 0.5, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         className="mx-auto max-w-5xl px-5 pb-6"
       >
-        <div className="relative overflow-hidden rounded-4xl border border-white/70 bg-white/60 p-3 shadow-float backdrop-blur-xl sm:p-5">
-          <div className="rounded-[1.6rem] bg-gradient-to-b from-granite-50 to-white p-5 sm:p-8">
+        <div className="relative overflow-hidden rounded-4xl border border-line/10 bg-surface/60 p-3 shadow-float backdrop-blur-xl sm:p-5">
+          <div className="rounded-[1.6rem] bg-gradient-to-b from-granite-50 to-surface p-5 sm:p-8">
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <p className="section-label">The Quest Board</p>
                 <p className="mt-1 text-[15px] text-ink-muted">Local jobs, organised by parish Guild.</p>
               </div>
-              <div className="hidden items-center gap-2 rounded-full border border-granite-200 bg-white px-3.5 py-2 text-[14px] text-ink-muted sm:flex">
+              <div className="hidden items-center gap-2 rounded-full border border-granite-200 bg-surface px-3.5 py-2 text-[14px] text-ink-muted sm:flex">
                 <MapPin className="h-4 w-4 text-jersey-500" />
                 St Ouen Guild
               </div>
@@ -139,7 +139,7 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7 + i * 0.12 }}
-                    className="flex flex-col gap-3 rounded-2xl border border-black/[0.07] bg-white p-4 text-left shadow-soft"
+                    className="flex flex-col gap-3 rounded-2xl border border-black/[0.07] bg-surface p-4 text-left shadow-soft"
                   >
                     <span className="pill w-fit bg-granite-100 text-ink-soft">
                       <CatIcon className="h-3.5 w-3.5" /> {q.cat}
@@ -259,7 +259,7 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
       {/* Closing */}
       <section className="mx-auto max-w-6xl px-5 pb-20 pt-8">
         <div className="relative overflow-hidden rounded-4xl bg-jersey-600 px-8 py-14 text-center text-white shadow-float sm:px-16 sm:py-20">
-          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-white/15 blur-3xl" />
+          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-surface/15 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-jersey-900/40 blur-3xl" />
           <h2 className="display text-balance mx-auto max-w-2xl text-[34px] font-semibold sm:text-[46px]">
             Ready to conquer the Rock?
@@ -270,13 +270,13 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <button
               onClick={() => onStart('doer')}
-              className="btn bg-white px-6 py-3 text-[15px] font-medium text-jersey-700 hover:bg-granite-100"
+              className="btn bg-white px-6 py-3 text-[15px] font-medium text-jersey-700 hover:bg-white/90"
             >
               Become a Quest Doer
             </button>
             <button
               onClick={() => onStart('poster')}
-              className="btn border border-white/30 px-6 py-3 text-[15px] font-medium text-white hover:bg-white/10"
+              className="btn border border-white/30 px-6 py-3 text-[15px] font-medium text-white hover:bg-surface/10"
             >
               Post your first quest
             </button>

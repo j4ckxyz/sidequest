@@ -108,7 +108,7 @@ export default function PosterManage({ meId, meName }: { meId: string; meName: s
               }`}
             >
               <span
-                className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                className={`absolute top-1 h-5 w-5 rounded-full bg-surface shadow transition-all ${
                   poster?.community_verified ? 'left-6' : 'left-1'
                 }`}
               />
@@ -306,7 +306,7 @@ function QuestManageCard({
                     {apps.map((a) => (
                       <div
                         key={a.id}
-                        className="flex items-start gap-3 rounded-2xl border border-granite-200 bg-white p-3"
+                        className="flex items-start gap-3 rounded-2xl border border-granite-200 bg-surface p-3"
                       >
                         <Avatar
                           initials={initialsOf(a.doer?.name ?? '?')}

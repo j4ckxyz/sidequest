@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 
 // Terracotta / clay — the SideQuest + Claude-style accent (matches the logo).
+// Fixed across light/dark; it reads well on both.
 const clay = {
   50: '#f9f1ec',
   100: '#f1ddd0',
@@ -14,7 +15,12 @@ const clay = {
   900: '#5f301f',
 }
 
+// Semantic tokens driven by CSS variables (see index.css :root / .dark),
+// so the whole UI themes automatically.
+const v = (name) => `rgb(var(${name}) / <alpha-value>)`
+
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
@@ -30,29 +36,29 @@ export default {
         serif: ['"Source Serif 4"', 'Georgia', '"Times New Roman"', 'serif'],
       },
       colors: {
-        // Warm near-black ink, like Claude's text.
         ink: {
-          DEFAULT: '#1f1d1a',
-          soft: '#37342f',
-          muted: '#6f6a61',
-          faint: '#989286',
+          DEFAULT: v('--ink'),
+          soft: v('--ink-soft'),
+          muted: v('--ink-muted'),
+          faint: v('--ink-faint'),
         },
-        // Warm cream paper background.
         paper: {
-          DEFAULT: '#faf9f5',
-          soft: '#f5f3ec',
-          deep: '#efece1',
+          DEFAULT: v('--paper'),
+          soft: v('--paper-soft'),
+          deep: v('--paper-deep'),
         },
+        // Card / raised surface (white in light, warm charcoal in dark).
+        surface: v('--surface'),
+        // Hairline colour, always used with an alpha (e.g. border-line/10).
+        line: v('--line'),
         clay,
-        // Legacy aliases so existing utilities keep working in the new palette.
         jersey: clay,
         sea: clay,
-        // Warm neutral scale (taupe-grey) for borders, fills, muted chips.
         granite: {
-          50: '#f6f4ef',
-          100: '#ece8df',
-          200: '#ddd8cc',
-          300: '#c6bfb1',
+          50: v('--granite-50'),
+          100: v('--granite-100'),
+          200: v('--granite-200'),
+          300: v('--granite-300'),
         },
       },
       borderRadius: {
@@ -60,14 +66,12 @@ export default {
         '5xl': '2.5rem',
       },
       boxShadow: {
-        glass: '0 1px 0 0 rgba(255,255,255,0.6) inset, 0 10px 34px -14px rgba(80,60,45,0.14)',
-        float: '0 22px 55px -22px rgba(80,55,40,0.24)',
-        soft: '0 1px 2px 0 rgba(60,45,35,0.05), 0 10px 26px -18px rgba(60,45,35,0.18)',
+        glass: '0 1px 0 0 rgba(255,255,255,0.5) inset, 0 10px 34px -14px rgba(30,22,16,0.18)',
+        float: '0 22px 55px -22px rgba(25,18,12,0.34)',
+        soft: '0 1px 2px 0 rgba(30,22,16,0.06), 0 10px 26px -18px rgba(30,22,16,0.22)',
         redglow: '0 10px 26px -12px rgba(176,84,47,0.42)',
       },
-      backdropBlur: {
-        xl: '24px',
-      },
+      backdropBlur: { xl: '24px' },
       keyframes: {
         'fade-up': {
           '0%': { opacity: '0', transform: 'translateY(12px)' },

@@ -102,7 +102,7 @@ export default function Chat({
                     className={`inline-block rounded-2xl px-3.5 py-2 text-[14px] leading-snug ${
                       mine
                         ? 'rounded-tr-sm bg-jersey-600 text-white'
-                        : 'rounded-tl-sm border border-granite-200 bg-white text-ink-soft'
+                        : 'rounded-tl-sm border border-granite-200 bg-surface text-ink-soft'
                     }`}
                   >
                     {m.body}

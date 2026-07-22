@@ -73,21 +73,21 @@ export default function QuestModal({
           exit={{ opacity: 0, y: 30, scale: 0.98 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           onClick={(e) => e.stopPropagation()}
-          className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-4xl bg-white shadow-float sm:rounded-4xl"
+          className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-4xl bg-surface shadow-float sm:rounded-4xl"
         >
           {/* Header */}
           <div className="relative overflow-hidden px-7 pb-6 pt-8">
             <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-jersey-500 to-jersey-700 opacity-[0.1]" />
             <button
               onClick={onClose}
-              className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-ink-muted shadow-soft backdrop-blur transition hover:text-ink"
+              className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-surface/80 text-ink-muted shadow-soft backdrop-blur transition hover:text-ink"
               aria-label="Close"
             >
               <X className="h-4.5 w-4.5" />
             </button>
 
             <div className="flex items-center gap-2">
-              <span className="pill bg-white text-ink-soft shadow-soft">
+              <span className="pill bg-surface text-ink-soft shadow-soft">
                 <CatIcon className="h-3.5 w-3.5" /> {quest.category}
               </span>
               <span
@@ -204,7 +204,7 @@ export default function QuestModal({
 
           {/* Action bar */}
           {me.role === 'doer' && (
-            <div className="sticky bottom-0 flex items-center gap-3 border-t border-granite-200 bg-white/85 px-7 py-4 backdrop-blur-xl">
+            <div className="sticky bottom-0 flex items-center gap-3 border-t border-granite-200 bg-surface/85 px-7 py-4 backdrop-blur-xl">
               <div className="flex items-center gap-3">
                 <Avatar
                   initials={initialsOf(quest.poster?.name ?? '?')}
@@ -257,7 +257,7 @@ function Stat({
   sub?: string
 }) {
   return (
-    <div className="rounded-2xl border border-granite-200 bg-white p-3.5 text-center">
+    <div className="rounded-2xl border border-granite-200 bg-surface p-3.5 text-center">
       <Icon className={`mx-auto mb-1 h-5 w-5 ${tint}`} />
       <div className="text-[20px] font-bold tracking-tight text-ink">{value}</div>
       <div className="text-[11px] uppercase tracking-wide text-ink-faint">{label}</div>

@@ -11,8 +11,12 @@ import {
   Loader2,
   Compass,
   ShieldCheck,
+  Tag,
+  X,
+  ChevronDown,
+  type LucideIcon,
 } from 'lucide-react'
-import { parishes, iconForCategory, gradientFor, initialsOf } from '../lib/constants'
+import { parishes, questCategories, iconForCategory, gradientFor, initialsOf } from '../lib/constants'
 import type { Quest, QuestType } from '../lib/types'
 import { applyToQuest, listQuests, myApplications } from '../lib/db'
 import { useToast } from '../components/Toast'
@@ -42,8 +46,22 @@ export default function QuestBoard({
   const [query, setQuery] = useState('')
   const [type, setType] = useState<'All' | QuestType>('All')
   const [parish, setParish] = useState<'All' | string>('All')
+  const [category, setCategory] = useState<'All' | string>('All')
+  const [minPay, setMinPay] = useState(0)
   const [busOnly, setBusOnly] = useState(false)
   const [selected, setSelected] = useState<Quest | null>(null)
+
+  const filtersActive =
+    type !== 'All' || parish !== 'All' || category !== 'All' || minPay > 0 || busOnly || !!query
+
+  function resetFilters() {
+    setQuery('')
+    setType('All')
+    setParish('All')
+    setCategory('All')
+    setMinPay(0)
+    setBusOnly(false)
+  }
 
   useEffect(() => {
     let alive = true
@@ -68,17 +86,13 @@ export default function QuestBoard({
     }
   }, [me.id, me.role, notify])
 
-  const parishCounts = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const q of quests) m.set(q.parish, (m.get(q.parish) ?? 0) + 1)
-    return m
-  }, [quests])
-
   const results = useMemo(() => {
     const s = query.trim().toLowerCase()
     return quests.filter((q) => {
       const mType = type === 'All' || q.type === type
       const mParish = parish === 'All' || q.parish === parish
+      const mCategory = category === 'All' || q.category === category
+      const mPay = q.reward >= minPay
       const mBus = !busOnly || q.bus_friendly
       const mQ =
         !s ||
@@ -86,9 +100,9 @@ export default function QuestBoard({
           .join(' ')
           .toLowerCase()
           .includes(s)
-      return mType && mParish && mBus && mQ
+      return mType && mParish && mCategory && mPay && mBus && mQ
     })
-  }, [quests, query, type, parish, busOnly])
+  }, [quests, query, type, parish, category, minPay, busOnly])
 
   async function handleApply(quest: Quest, message: string) {
     if (me.role !== 'doer') return
@@ -127,61 +141,70 @@ export default function QuestBoard({
         </p>
       </div>
 
-      {/* Guild strip */}
-      <div className="mb-5 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-        <GuildChip
-          label="All Guilds"
-          count={quests.length}
-          active={parish === 'All'}
-          onClick={() => setParish('All')}
-        />
-        {parishes.map((p) => (
-          <GuildChip
-            key={p}
-            label={p}
-            count={parishCounts.get(p) ?? 0}
-            active={parish === p}
-            onClick={() => setParish(p)}
+      {/* Search + dropdown filters */}
+      <div className="sticky top-[76px] z-30 mb-6 rounded-2xl border border-line/10 bg-surface/80 p-3 shadow-glass backdrop-blur-xl">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-ink-faint" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search quests — “dog walking”, “tech help”, “moving”…"
+            className="field pl-11"
           />
-        ))}
-      </div>
+        </div>
 
-      {/* Search + filters */}
-      <div className="sticky top-[76px] z-30 mb-6 rounded-3xl border border-white/70 bg-white/75 p-3 shadow-glass backdrop-blur-xl">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-ink-faint" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search quests — “dog walking”, “tech help”, “moving”…"
-              className="field pl-11"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex rounded-full bg-granite-100 p-1">
-              {(['All', 'single', 'weekly'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setType(t)}
-                  className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium capitalize transition ${
-                    type === t ? 'bg-white text-ink shadow-soft' : 'text-ink-muted'
-                  }`}
-                >
-                  {t === 'All' ? 'All' : t === 'single' ? 'Single' : 'Weekly'}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setBusOnly((v) => !v)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition ${
-                busOnly
-                  ? 'bg-emerald-600 text-white shadow-soft'
-                  : 'bg-granite-100 text-ink-muted hover:bg-granite-200'
-              }`}
-            >
-              <Bus className="h-4 w-4" /> Bus friendly
-            </button>
+        <div className="mt-3 flex flex-wrap items-center gap-2.5">
+          <FilterSelect
+            icon={MapPin}
+            value={parish}
+            onChange={setParish}
+            options={['All', ...parishes]}
+            labels={{ All: 'All Guilds' }}
+          />
+          <FilterSelect
+            icon={Repeat}
+            value={type}
+            onChange={(v) => setType(v as 'All' | QuestType)}
+            options={['All', 'single', 'weekly']}
+            labels={{ All: 'Any type', single: 'Single-time', weekly: 'Weekly' }}
+          />
+          <FilterSelect
+            icon={Tag}
+            value={category}
+            onChange={setCategory}
+            options={['All', ...questCategories]}
+            labels={{ All: 'Any job type' }}
+          />
+          <FilterSelect
+            icon={Coins}
+            value={String(minPay)}
+            onChange={(v) => setMinPay(Number(v))}
+            options={['0', '5', '10', '20', '40']}
+            labels={{ '0': 'Any pay', '5': '£5+', '10': '£10+', '20': '£20+', '40': '£40+' }}
+          />
+          <button
+            onClick={() => setBusOnly((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[13.5px] font-medium transition ${
+              busOnly
+                ? 'bg-emerald-600 text-white shadow-soft'
+                : 'bg-granite-100 text-ink-muted hover:bg-granite-200'
+            }`}
+          >
+            <Bus className="h-4 w-4" /> Bus friendly
+          </button>
+
+          <div className="ml-auto flex items-center gap-3">
+            <span className="hidden text-[13px] text-ink-faint sm:block">
+              {results.length} {results.length === 1 ? 'quest' : 'quests'}
+            </span>
+            {filtersActive && (
+              <button
+                onClick={resetFilters}
+                className="inline-flex items-center gap-1 text-[13px] font-medium text-clay-600 hover:text-clay-800"
+              >
+                <X className="h-3.5 w-3.5" /> Clear
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -244,35 +267,42 @@ export default function QuestBoard({
   )
 }
 
-function GuildChip({
-  label,
-  count,
-  active,
-  onClick,
+function FilterSelect({
+  icon: Icon,
+  value,
+  onChange,
+  options,
+  labels = {},
 }: {
-  label: string
-  count: number
-  active: boolean
-  onClick: () => void
+  icon: LucideIcon
+  value: string
+  onChange: (v: string) => void
+  options: readonly string[]
+  labels?: Record<string, string>
 }) {
+  const active = value !== 'All' && value !== '0'
   return (
-    <button
-      onClick={onClick}
-      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition ${
+    <div
+      className={`relative inline-flex items-center rounded-xl border transition ${
         active
-          ? 'bg-jersey-600 text-white shadow-redglow'
-          : 'bg-white text-ink-muted ring-1 ring-granite-200 hover:ring-jersey-200'
+          ? 'border-clay-300 bg-clay-500/10 text-clay-700 dark:text-clay-300'
+          : 'border-line/10 bg-granite-100 text-ink-soft'
       }`}
     >
-      {label}
-      <span
-        className={`rounded-full px-1.5 text-[11px] ${
-          active ? 'bg-white/25' : 'bg-granite-100 text-ink-faint'
-        }`}
+      <Icon className="pointer-events-none absolute left-3 h-4 w-4 opacity-70" />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="cursor-pointer appearance-none bg-transparent py-2 pl-9 pr-8 text-[13.5px] font-medium outline-none"
       >
-        {count}
-      </span>
-    </button>
+        {options.map((o) => (
+          <option key={o} value={o} className="bg-surface text-ink">
+            {labels[o] ?? o}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2.5 h-4 w-4 opacity-60" />
+    </div>
   )
 }
 
@@ -295,7 +325,7 @@ function QuestCard({
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       onClick={onClick}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-black/[0.07] bg-white p-5 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:border-clay-200 hover:shadow-float"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-black/[0.07] bg-surface p-5 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:border-clay-200 hover:shadow-float"
     >
       <div className="flex items-start justify-between gap-2">
         <span className="pill bg-granite-100 text-ink-soft">

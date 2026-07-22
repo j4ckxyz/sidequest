@@ -5,6 +5,38 @@
 @layer base {
   :root {
     color-scheme: light;
+    /* Warm light theme */
+    --paper: 250 249 245;
+    --paper-soft: 245 243 236;
+    --paper-deep: 239 236 225;
+    --surface: 255 255 255;
+    --ink: 31 29 26;
+    --ink-soft: 55 52 47;
+    --ink-muted: 111 106 97;
+    --ink-faint: 152 146 134;
+    --line: 40 32 26;
+    --granite-50: 246 244 239;
+    --granite-100: 236 232 223;
+    --granite-200: 221 216 204;
+    --granite-300: 198 191 177;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+    /* Warm charcoal dark theme (Claude-style) */
+    --paper: 32 31 29;
+    --paper-soft: 38 37 34;
+    --paper-deep: 45 43 40;
+    --surface: 44 42 39;
+    --ink: 240 238 232;
+    --ink-soft: 214 210 201;
+    --ink-muted: 165 160 150;
+    --ink-faint: 130 125 116;
+    --line: 245 240 232;
+    --granite-50: 52 49 45;
+    --granite-100: 60 57 52;
+    --granite-200: 74 70 63;
+    --granite-300: 96 91 82;
   }
 
   html {
@@ -20,17 +52,17 @@
   }
 
   ::selection {
-    background: rgba(176, 84, 47, 0.16);
+    background: rgba(176, 84, 47, 0.22);
   }
 }
 
 @layer components {
   .glass {
-    @apply bg-paper/70 backdrop-blur-xl border border-black/[0.06];
+    @apply bg-surface/70 backdrop-blur-xl border border-line/10;
   }
 
   .card {
-    @apply rounded-2xl bg-white border border-black/[0.07] shadow-soft;
+    @apply rounded-2xl bg-surface border border-line/[0.08] shadow-soft;
   }
 
   .pill {
@@ -42,7 +74,7 @@
   }
 
   .btn-primary {
-    @apply btn bg-ink text-paper px-5 py-2.5 hover:bg-black shadow-soft;
+    @apply btn bg-ink text-paper px-5 py-2.5 hover:opacity-90 shadow-soft;
   }
 
   .btn-accent {
@@ -54,11 +86,11 @@
   }
 
   .field {
-    @apply w-full rounded-xl border border-black/[0.09] bg-paper-soft px-4 py-3 text-[15px] text-ink-soft placeholder:text-ink-faint outline-none transition focus:border-clay-400 focus:bg-white focus:ring-4 focus:ring-clay-500/10;
+    @apply w-full rounded-xl border border-line/[0.12] bg-paper-soft px-4 py-3 text-[15px] text-ink-soft placeholder:text-ink-faint outline-none transition focus:border-clay-400 focus:bg-surface focus:ring-4 focus:ring-clay-500/10;
   }
 
   .section-label {
-    @apply text-[12.5px] font-semibold uppercase tracking-[0.16em] text-clay-600;
+    @apply text-[12.5px] font-semibold uppercase tracking-[0.16em] text-clay-600 dark:text-clay-400;
   }
 
   .display {
@@ -70,26 +102,25 @@
 /* Elegant thin scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #cfc8bb transparent;
+  scrollbar-color: rgb(var(--granite-300)) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #d8d1c4;
+  background: rgb(var(--granite-300));
   border-radius: 999px;
   border: 3px solid transparent;
-  background-clip: content-box;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background: #c6bfb1;
   background-clip: content-box;
 }
 
 .grain {
   background-image: radial-gradient(rgba(90, 60, 40, 0.045) 1px, transparent 1px);
   background-size: 4px 4px;
+}
+:root.dark .grain {
+  background-image: radial-gradient(rgba(255, 240, 225, 0.04) 1px, transparent 1px);
 }
 
 .text-balance {

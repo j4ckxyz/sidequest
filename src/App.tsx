@@ -10,13 +10,14 @@ import PostQuest from './pages/PostQuest'
 import PosterManage from './pages/PosterManage'
 import { ToastProvider } from './components/Toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'
 import { getMyDoer, getMyPoster, myApplications } from './lib/db'
 import { LogoMark, Wordmark } from './components/Logo'
 import type { Role } from './lib/types'
 
 function Footer() {
   return (
-    <footer className="mt-8 border-t border-granite-200 bg-white">
+    <footer className="mt-8 border-t border-granite-200 bg-surface">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 sm:flex-row">
         <div className="flex items-center gap-2.5">
           <LogoMark className="h-7 w-7" />
@@ -32,7 +33,7 @@ function Footer() {
 
 function Splash({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-white text-ink-muted">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-surface text-ink-muted">
       {children}
     </div>
   )
@@ -130,7 +131,7 @@ function Shell() {
       return <AuthScreen initialRole={authRole} onBack={() => setAuthOpen(false)} />
     }
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-surface">
         <Nav
           mode="guest"
           view={view}
@@ -149,7 +150,7 @@ function Shell() {
   const me = { id: session.user.id, name: displayName, role: mode }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-surface">
       <Nav
         mode={mode}
         view={view}
@@ -194,10 +195,12 @@ function Shell() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <Shell />
-      </ToastProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <Shell />
+        </ToastProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }

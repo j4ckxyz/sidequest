@@ -116,7 +116,7 @@ export default function AuthScreen({
                     className={`flex flex-col items-start gap-1 rounded-2xl border p-3.5 text-left transition-all ${
                       active
                         ? 'border-jersey-400 bg-jersey-50 ring-4 ring-jersey-500/10'
-                        : 'border-granite-200 bg-white hover:border-granite-300'
+                        : 'border-granite-200 bg-surface hover:border-granite-300'
                     }`}
                   >
                     <o.icon className={`h-5 w-5 ${active ? 'text-jersey-600' : 'text-ink-faint'}`} />
@@ -240,7 +240,7 @@ export default function AuthScreen({
 
 function Shell({ children, onBack }: { children: ReactNode; onBack: () => void }) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white">
+    <div className="relative min-h-screen overflow-hidden bg-surface">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-br from-jersey-200/70 via-jersey-100/40 to-transparent blur-3xl" />
         <div className="absolute inset-0 grain opacity-60" />
@@ -259,7 +259,7 @@ function Shell({ children, onBack }: { children: ReactNode; onBack: () => void }
           <Wordmark className="text-[18px]" />
         </div>
 
-        <div className="rounded-4xl border border-granite-200/70 bg-white/80 p-7 shadow-float backdrop-blur-xl">
+        <div className="rounded-4xl border border-granite-200/70 bg-surface/80 p-7 shadow-float backdrop-blur-xl">
           {children}
         </div>
       </div>

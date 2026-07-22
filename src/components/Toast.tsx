@@ -49,7 +49,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -16, scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-white/70 bg-white/80 px-4 py-3 shadow-float backdrop-blur-xl"
+              className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-line/10 bg-surface/80 px-4 py-3 shadow-float backdrop-blur-xl"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
                 <Check className="h-5 w-5" strokeWidth={3} />

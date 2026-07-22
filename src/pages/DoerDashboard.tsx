@@ -315,7 +315,7 @@ function AdventureList({
               <button
                 key={a.id}
                 onClick={() => onOpen(q)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-granite-200 bg-white p-3 text-left transition hover:border-jersey-200 hover:shadow-soft"
+                className="flex w-full items-center gap-3 rounded-2xl border border-granite-200 bg-surface p-3 text-left transition hover:border-jersey-200 hover:shadow-soft"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-jersey-500 to-jersey-700 text-white">
                   <Coins className="h-5 w-5" />

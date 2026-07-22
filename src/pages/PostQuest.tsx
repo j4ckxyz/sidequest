@@ -117,7 +117,7 @@ export default function PostQuest({
                 className={`rounded-2xl border p-3.5 text-left transition ${
                   type === o.t
                     ? 'border-jersey-400 bg-jersey-50 ring-4 ring-jersey-500/10'
-                    : 'border-granite-200 bg-white hover:border-granite-300'
+                    : 'border-granite-200 bg-surface hover:border-granite-300'
                 }`}
               >
                 <span className="text-[14px] font-semibold text-ink">{o.label}</span>
@@ -177,7 +177,7 @@ export default function PostQuest({
                 }`}
               >
                 <span
-                  className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                  className={`absolute top-1 h-5 w-5 rounded-full bg-surface shadow transition-all ${
                     busFriendly ? 'left-6' : 'left-1'
                   }`}
                 />
@@ -206,10 +206,10 @@ export default function PostQuest({
             <Coins className="h-3.5 w-3.5" /> £{reward}
             {partySize > 1 ? ` · £${Math.round(reward / partySize)} each` : ''}
           </span>
-          <span className="pill bg-white text-ink-soft shadow-soft">
+          <span className="pill bg-surface text-ink-soft shadow-soft">
             <Sparkles className="h-3.5 w-3.5" /> +{xp} XP
           </span>
-          <span className="pill bg-white text-ink-muted shadow-soft">
+          <span className="pill bg-surface text-ink-muted shadow-soft">
             <PreviewCatIcon className="h-3.5 w-3.5" /> {category}
           </span>
         </div>

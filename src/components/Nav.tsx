@@ -1,9 +1,32 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Compass, PlusCircle, ClipboardList, Swords, LogOut, ChevronDown } from 'lucide-react'
+import {
+  Compass,
+  PlusCircle,
+  ClipboardList,
+  Swords,
+  LogOut,
+  ChevronDown,
+  Sun,
+  Moon,
+} from 'lucide-react'
 import { initialsOf, gradientFor } from '../lib/constants'
+import { useTheme } from '../context/ThemeContext'
 import Avatar from './Avatar'
 import { LogoMark, Wordmark } from './Logo'
+
+function ThemeToggle() {
+  const { theme, toggle } = useTheme()
+  return (
+    <button
+      onClick={toggle}
+      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition hover:bg-granite-100 hover:text-ink"
+    >
+      {theme === 'dark' ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+    </button>
+  )
+}
 
 export type View = 'home' | 'board' | 'me' | 'post' | 'manage'
 export type NavMode = 'guest' | 'doer' | 'poster'
@@ -41,7 +64,7 @@ export default function Nav({
 
   return (
     <header className="sticky top-0 z-50 flex justify-center px-4 pt-4">
-      <nav className="flex w-full max-w-6xl items-center justify-between gap-4 rounded-full border border-white/60 bg-white/70 py-2 pl-4 pr-2 shadow-glass backdrop-blur-xl">
+      <nav className="flex w-full max-w-6xl items-center justify-between gap-4 rounded-full border border-line/10 bg-surface/70 py-2 pl-4 pr-2 shadow-glass backdrop-blur-xl">
         <button
           onClick={() => setView(mode === 'guest' ? 'home' : tabs[0].id)}
           className="group flex items-center gap-2.5"
@@ -66,7 +89,7 @@ export default function Nav({
                   {active && (
                     <motion.span
                       layoutId="nav-pill"
-                      className="absolute inset-0 rounded-full bg-white shadow-soft"
+                      className="absolute inset-0 rounded-full bg-surface shadow-soft"
                       transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                     />
                   )}
@@ -79,7 +102,8 @@ export default function Nav({
         )}
 
         {mode === 'guest' ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
             <button
               onClick={onSignIn}
               className="hidden rounded-full px-4 py-2 text-[14px] font-medium text-ink-soft transition hover:text-ink sm:block"
@@ -91,7 +115,9 @@ export default function Nav({
             </button>
           </div>
         ) : (
-          <div className="relative">
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <div className="relative">
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 transition hover:bg-granite-100"
@@ -109,7 +135,7 @@ export default function Nav({
                 <motion.div
                   initial={{ opacity: 0, y: -6, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-granite-200 bg-white p-1.5 shadow-float"
+                  className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-granite-200 bg-surface p-1.5 shadow-float"
                 >
                   <div className="px-3 py-2">
                     <p className="truncate text-[14px] font-semibold text-ink">{userName}</p>
@@ -130,6 +156,7 @@ export default function Nav({
                 </motion.div>
               </>
             )}
+            </div>
           </div>
         )}
       </nav>
