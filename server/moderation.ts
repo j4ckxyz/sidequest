@@ -2,6 +2,7 @@ import { admin } from './supabaseAdmin';
 import { moderationDecision } from './gemini';
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const inFlightReports = new Set<string>();
 
 async function addModEvent(reportId: string, kind: string, message: string) {
   try {
@@ -21,13 +22,19 @@ async function addModEvent(reportId: string, kind: string, message: string) {
  * and enforce decisions via service-role Supabase client.
  */
 export async function processReport(reportId: string): Promise<void> {
-  const { data: report, error } = await admin
-    .from('reports')
-    .select('*')
-    .eq('id', reportId)
-    .maybeSingle();
+  if (inFlightReports.has(reportId)) return;
+  inFlightReports.add(reportId);
 
-  if (error || !report || report.status !== 'pending') {
+  try {
+    const { data: report, error } = await admin
+      .from('reports')
+      .select('*')
+      .eq('id', reportId)
+      .maybeSingle();
+
+    if (error || !report || report.status !== 'pending') {
+      return;
+    }
     return;
   }
 
@@ -148,6 +155,9 @@ export async function processReport(reportId: string): Promise<void> {
   // 6. Mark report resolved
   await admin.from('reports').update({ status: 'resolved' }).eq('id', report.id);
   await addModEvent(report.id, 'done', 'Review complete.');
+  } finally {
+    inFlightReports.delete(reportId);
+  }
 }
 
 /** Check database for any pending reports and process them sequentially. */
