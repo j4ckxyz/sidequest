@@ -7,6 +7,7 @@ import { cors } from 'hono/cors';
 import { admin, isAdmin, userIdFromToken } from './supabaseAdmin';
 import { embedOne } from './gemini';
 import { refresh, pendingNewJobCount, type RefreshResult } from './pipeline';
+import { summonBots, removeBots } from './bots';
 
 const PORT = Number(process.env.PORT ?? '8787');
 // Bind to localhost by default — Nginx (public :443) reverse-proxies to this. Set HOST=0.0.0.0
@@ -75,6 +76,29 @@ app.post('/refresh', rateLimit(6, 60_000), async (c) => {
   }
 });
 
+/** Admin-only: conjure demo bot accounts + jobs. */
+app.post('/bots', rateLimit(4, 60_000), async (c) => {
+  if (!(await requireAdmin(c.req.header('Authorization')))) return c.json({ error: 'Admins only' }, 403);
+  const body = (await c.req.json().catch(() => ({}))) as { count?: number };
+  try {
+    const result = await summonBots(Number(body.count) || 5);
+    return c.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('[bots] summon failed:', err);
+    return c.json({ error: err instanceof Error ? err.message : 'Summon failed' }, 500);
+  }
+});
+
+/** Admin-only: remove every bot account (and their jobs). */
+app.post('/bots/remove', rateLimit(4, 60_000), async (c) => {
+  if (!(await requireAdmin(c.req.header('Authorization')))) return c.json({ error: 'Admins only' }, 403);
+  try {
+    return c.json({ ok: true, ...(await removeBots()) });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : 'Remove failed' }, 500);
+  }
+});
+
 /** Semantic job search (scaffolded; not yet wired into the UI). */
 app.post('/search', rateLimit(30, 60_000), async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { query?: string; userId?: string };
@@ -93,6 +117,13 @@ app.post('/search', rateLimit(30, 60_000), async (c) => {
     return c.json({ error: err instanceof Error ? err.message : 'Search failed' }, 500);
   }
 });
+
+async function requireAdmin(authHeader: string | undefined): Promise<boolean> {
+  const token = authHeader?.replace(/^Bearer\s+/i, '');
+  if (!token) return false;
+  const userId = await userIdFromToken(token);
+  return !!userId && (await isAdmin(userId));
+}
 
 async function authorizeRefresh(
   cronSecret: string | undefined,

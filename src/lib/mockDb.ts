@@ -1,4 +1,5 @@
 import type { Application, Conversation, Job, JobRecommendation, Message, Profile, Review } from '../types/models';
+import { PARISHES, JOB_CATEGORIES, SKILL_OPTIONS } from './constants';
 
 /**
  * Local, browser-only stand-in for the Supabase backend described in TODO.md.
@@ -907,6 +908,100 @@ export const db = {
     },
     async refresh(): Promise<{ ok: boolean }> {
       return delay({ ok: true });
+    },
+  },
+
+  // ---- bots (admin demo data) — local generator so dev shows the feature -------
+  bots: {
+    async summon(count: number): Promise<{ profilesCreated: number; jobsCreated: number }> {
+      const n = Math.max(1, Math.min(25, Math.floor(count)));
+      const firsts = ['Ella', 'Sam', 'Georgie', 'Riya', 'Tom', 'Nina', 'Callum', 'Priya', 'Louis', 'Maya', 'Fred', 'Anya', 'Ollie', 'Bea'];
+      const lasts = ['Renouf', 'Le Brun', 'De Gruchy', 'Falle', 'Vibert', 'Ahier', 'Le Sueur', 'Gallichan', 'Romeril', 'Bisson'];
+      const pickOne = <T>(arr: readonly T[]) => arr[Math.floor(Math.random() * arr.length)];
+      let profilesCreated = 0;
+      let jobsCreated = 0;
+
+      for (let i = 0; i < n; i++) {
+        const id = genId();
+        const fullName = `${pickOne(firsts)} ${pickOne(lasts)}`;
+        let username = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (Object.values(state.profiles).some((p) => p.username === username)) username = `${username}${Math.floor(Math.random() * 9000 + 1000)}`;
+        const parish = pickOne(PARISHES);
+        const skills = SKILL_OPTIONS.filter(() => Math.random() < 0.35).slice(0, 4);
+        const bot: Profile = {
+          id,
+          email: `${username}@bots.sidequest.local`,
+          username,
+          full_name: fullName,
+          avatar_url: null,
+          bio: 'Friendly local, happy to lend a hand.',
+          top_category: null,
+          parish,
+          phone: null,
+          skills: [...skills],
+          is_verified: false,
+          is_admin: false,
+          is_bot: true,
+          interest_keywords: [],
+          hide_location: false,
+          saved_pins: [],
+          rating_avg: 0,
+          rating_count: 0,
+          jobs_posted_count: 0,
+          jobs_completed_count: 0,
+          onboarded: true,
+          created_at: new Date().toISOString(),
+        };
+        state.profiles[id] = bot;
+        profilesCreated++;
+
+        const jobCount = 1 + Math.floor(Math.random() * 2);
+        for (let j = 0; j < jobCount; j++) {
+          const cat = pickOne(JOB_CATEGORIES);
+          const jid = genId();
+          state.jobs[jid] = {
+            id: jid,
+            poster_id: id,
+            title: `${cat.label} help needed in ${parish}`,
+            description: `Looking for a hand with some ${cat.label.toLowerCase()} around ${parish}.`,
+            category: cat.slug,
+            parish,
+            location_detail: null,
+            budget_type: 'fixed',
+            budget_amount: 10 + Math.floor(Math.random() * 9) * 5,
+            estimated_hours: 1 + Math.floor(Math.random() * 3),
+            date_needed: null,
+            slots: 1,
+            is_flexible_date: true,
+            is_recurring: false,
+            recurrence: null,
+            location_lat: null,
+            location_lng: null,
+            status: 'open',
+            assigned_quester_id: null,
+            photos: [],
+            created_at: new Date().toISOString(),
+          };
+          jobsCreated++;
+        }
+      }
+      touch();
+      notify();
+      return delay({ profilesCreated, jobsCreated });
+    },
+    async remove(): Promise<{ removed: number }> {
+      const botIds = Object.values(state.profiles)
+        .filter((p) => p.is_bot)
+        .map((p) => p.id);
+      for (const id of botIds) {
+        Object.values(state.jobs)
+          .filter((j) => j.poster_id === id)
+          .forEach((j) => delete state.jobs[j.id]);
+        delete state.profiles[id];
+      }
+      touch();
+      notify();
+      return delay({ removed: botIds.length });
     },
   },
 };

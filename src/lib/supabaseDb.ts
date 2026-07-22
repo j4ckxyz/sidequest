@@ -3,6 +3,22 @@ import type { Application, Conversation, Job, JobRecommendation, Message, Profil
 
 const RECS_API_URL = import.meta.env.VITE_RECS_API_URL as string | undefined;
 
+async function recsPost<T>(path: string, body: unknown): Promise<T> {
+  if (!RECS_API_URL) throw new Error('The recommendations service URL is not configured (VITE_RECS_API_URL).');
+  const { data } = await client().auth.getSession();
+  const token = data.session?.access_token;
+  const res = await fetch(`${RECS_API_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const b = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(b.error ?? `Request failed (${res.status})`);
+  }
+  return res.json() as Promise<T>;
+}
+
 /**
  * Real Supabase-backed implementation of the same interface as src/lib/mockDb.ts's `db`.
  * Selected automatically by src/lib/db.ts once VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
@@ -328,19 +344,23 @@ export const db = {
         .map((r) => ({ job: r.job as Job, reason: r.reason, score: r.score }));
     },
     async refresh(): Promise<{ ok: boolean }> {
-      if (!RECS_API_URL) throw new Error('Recommendations service URL is not configured (VITE_RECS_API_URL).');
-      const { data } = await client().auth.getSession();
-      const accessToken = data.session?.access_token;
-      const res = await fetch(`${RECS_API_URL}/refresh`, {
-        method: 'POST',
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error ?? `Refresh failed (${res.status})`);
-      }
+      await recsPost('/refresh', {});
       notify();
       return { ok: true };
+    },
+  },
+
+  // ---- bots (admin demo data) -----------------------------------------
+  bots: {
+    async summon(count: number): Promise<{ profilesCreated: number; jobsCreated: number }> {
+      const result = await recsPost<{ profilesCreated: number; jobsCreated: number }>('/bots', { count });
+      notify();
+      return result;
+    },
+    async remove(): Promise<{ removed: number }> {
+      const result = await recsPost<{ removed: number }>('/bots/remove', {});
+      notify();
+      return result;
     },
   },
 };

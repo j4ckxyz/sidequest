@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { ShieldCheck, Trash2, Sparkles } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ShieldCheck, Trash2, Sparkles, Bot } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import { useAllJobsAdmin, useAllProfiles, useAdminDeleteJob, useSetAdmin } from '../hooks/useAdmin';
 import { useRefreshRecommendations } from '../hooks/useRecommendations';
+import { db } from '../lib/db';
+import { Input } from '../components/ui/Input';
 import { JOB_CATEGORIES, JOB_STATUS_LABEL } from '../lib/constants';
 import { Badge } from '../components/ui/Badge';
 import { Avatar } from '../components/ui/Avatar';
@@ -30,6 +33,7 @@ export function Admin() {
       <p className="mt-1 text-sm text-text-muted">Moderate jobs and manage who else has admin access.</p>
 
       <RecommendationsPanel />
+      <BotsPanel />
 
       <div className="mt-6 flex gap-1 border-b border-border">
         <button
@@ -79,6 +83,66 @@ function RecommendationsPanel() {
       >
         <Sparkles size={14} /> Refresh now
       </Button>
+    </div>
+  );
+}
+
+function BotsPanel() {
+  const { showToast } = useToast();
+  const qc = useQueryClient();
+  const [count, setCount] = useState(8);
+  const summon = useMutation({
+    mutationFn: (n: number) => db.bots.summon(n),
+    onSuccess: (r) => {
+      qc.invalidateQueries();
+      showToast(`Summoned ${r.profilesCreated} bots and ${r.jobsCreated} jobs.`);
+    },
+    onError: (e) => showToast(e instanceof Error ? e.message : 'Could not summon bots.', 'error'),
+  });
+  const remove = useMutation({
+    mutationFn: () => db.bots.remove(),
+    onSuccess: (r) => {
+      qc.invalidateQueries();
+      showToast(`Removed ${r.removed} bot${r.removed === 1 ? '' : 's'}.`);
+    },
+    onError: (e) => showToast(e instanceof Error ? e.message : 'Could not remove bots.', 'error'),
+  });
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
+      <div className="flex items-start gap-2.5">
+        <Bot size={18} className="mt-0.5 shrink-0 text-primary" />
+        <div>
+          <p className="text-sm font-medium text-text">Demo bots</p>
+          <p className="text-xs text-text-muted">
+            Populate the island with AI-generated fake residents + jobs (flagged as bots). Great for demos and testing recommendations — remove them anytime.
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          min={1}
+          max={25}
+          value={count}
+          onChange={(e) => setCount(Math.max(1, Math.min(25, Number(e.target.value) || 1)))}
+          className="w-20"
+          aria-label="How many bots"
+        />
+        <Button size="md" variant="secondary" isLoading={summon.isPending} onClick={() => summon.mutate(count)}>
+          <Bot size={14} /> Summon
+        </Button>
+        <Button
+          size="md"
+          variant="secondary"
+          isLoading={remove.isPending}
+          onClick={() => {
+            if (confirm('Remove all bot accounts and their jobs?')) remove.mutate();
+          }}
+        >
+          <Trash2 size={14} /> Remove all
+        </Button>
+      </div>
     </div>
   );
 }

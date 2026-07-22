@@ -104,6 +104,21 @@ export async function reasons(historySummary: string, candidates: string[]): Pro
   return [];
 }
 
+/** One flash-lite call that returns parsed JSON (forced via responseMimeType). Throws on bad JSON. */
+export async function generateJson(prompt: string): Promise<unknown> {
+  const json = (await post(
+    CHAT_MODEL,
+    'generateContent',
+    {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.95 },
+    },
+    2,
+  )) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  const raw = json.candidates?.[0]?.content?.parts?.[0]?.text ?? 'null';
+  return JSON.parse(raw);
+}
+
 function normalize(v: number[]): number[] {
   let sum = 0;
   for (const x of v) sum += x * x;
