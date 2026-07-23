@@ -88,11 +88,17 @@ export async function processReport(reportId: string): Promise<void> {
     // 4. Ask Gemini agent for moderation decision
     const verdict = await moderationDecision({
       targetType: report.target_type as 'job' | 'user',
+      targetName: (targetProfile?.full_name as string) || 'the user',
+      targetUsername: (targetProfile?.username as string) || '',
       reason: report.reason,
       content: content || '(empty content)',
       priorActions: priorActions.length,
       historyLines,
     });
+
+    // Third-person line for the admin log (names the user); falls back to the
+    // user-facing reason if the model omitted it.
+    const logLine = verdict.rationale || verdict.reason;
 
     await addModEvent(
       report.id,
@@ -115,7 +121,7 @@ export async function processReport(reportId: string): Promise<void> {
           action: 'remove_post',
           target_user_id: targetUserId,
           job_id: report.target_id,
-          reason: `Took down “${title}”: ${verdict.reason}`,
+          reason: `Took down “${title}”: ${logLine}`,
         });
         await admin.from('jobs').delete().eq('id', report.target_id);
       } else if (verdict.decision === 'ban_user') {
@@ -128,7 +134,7 @@ export async function processReport(reportId: string): Promise<void> {
           action: 'ban_user',
           target_user_id: targetUserId,
           ban_until: banUntil,
-          reason: verdict.reason,
+          reason: logLine,
         });
       } else if (verdict.decision === 'suspend_user') {
         await admin.from('profiles').update({ suspended: true, ban_reason: verdict.reason }).eq('id', targetUserId);
@@ -137,7 +143,7 @@ export async function processReport(reportId: string): Promise<void> {
           decided_by: 'gemini',
           action: 'suspend_user',
           target_user_id: targetUserId,
-          reason: verdict.reason,
+          reason: logLine,
         });
       } else {
         await admin.from('moderation_actions').insert({
@@ -145,11 +151,11 @@ export async function processReport(reportId: string): Promise<void> {
           decided_by: 'gemini',
           action: 'dismiss',
           target_user_id: targetUserId,
-          reason: verdict.reason,
+          reason: logLine,
         });
       }
 
-      await addModEvent(report.id, 'applied', verdict.reason);
+      await addModEvent(report.id, 'applied', logLine);
       await wait(550);
     } catch (err) {
       console.error('[moderation] Error applying enforcement action:', err);

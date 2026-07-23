@@ -1646,7 +1646,8 @@ export const db = {
 
   // ---- bots (admin demo data) — local generator so dev shows the feature -------
   bots: {
-    async summon(count: number): Promise<{ profilesCreated: number; jobsCreated: number }> {
+    // theme is honoured by the live backend's LLM; the mock generator ignores it.
+    async summon(count: number, _theme?: string): Promise<{ profilesCreated: number; jobsCreated: number }> {
       const n = Math.max(1, Math.min(25, Math.floor(count)));
       const firsts = ['Ella', 'Sam', 'Georgie', 'Riya', 'Tom', 'Nina', 'Callum', 'Priya', 'Louis', 'Maya', 'Fred', 'Anya', 'Ollie', 'Bea'];
       const lasts = ['Renouf', 'Le Brun', 'De Gruchy', 'Falle', 'Vibert', 'Ahier', 'Le Sueur', 'Gallichan', 'Romeril', 'Bisson'];

@@ -116,9 +116,9 @@ app.post('/refresh', rateLimit(6, 60_000), async (c) => {
 /** Admin-only: conjure demo bot accounts + jobs. */
 app.post('/bots', rateLimit(4, 60_000), async (c) => {
   if (!(await requireAdmin(c.req.header('Authorization')))) return c.json({ error: 'Admins only' }, 403);
-  const body = (await c.req.json().catch(() => ({}))) as { count?: number };
+  const body = (await c.req.json().catch(() => ({}))) as { count?: number; theme?: string };
   try {
-    const result = await summonBots(Number(body.count) || 5);
+    const result = await summonBots(Number(body.count) || 5, typeof body.theme === 'string' ? body.theme : undefined);
     return c.json({ ok: true, ...result });
   } catch (err) {
     console.error('[bots] summon failed:', err);

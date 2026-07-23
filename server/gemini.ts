@@ -240,8 +240,8 @@ export async function preferenceChat(
 export interface ModerationVerdict {
   decision: 'dismiss' | 'remove_post' | 'ban_user' | 'suspend_user';
   ban_days: number | null;
-  reason: string; // shown to the reported user
-  rationale: string; // one line for the moderation log
+  reason: string; // second person, shown to the reported user (their ban/notification message)
+  rationale: string; // third person, for the admin moderation log — names the user
 }
 
 const MOD_RULES = [
@@ -256,11 +256,14 @@ const MOD_RULES = [
  */
 export async function moderationDecision(input: {
   targetType: 'job' | 'user';
+  targetName: string;
+  targetUsername: string;
   reason: string;
   content: string;
   priorActions: number;
   historyLines: string[];
 }): Promise<ModerationVerdict> {
+  const who = input.targetUsername ? `${input.targetName} (@${input.targetUsername})` : input.targetName || 'the user';
   const prompt = [
     "You are SideQuest's autonomous moderation agent for a neighbourly local-jobs marketplace in Jersey.",
     'Pick the single best enforcement action for the reported content using the rules and the user history.',
@@ -276,13 +279,16 @@ export async function moderationDecision(input: {
     '',
     'ESCALATION: first-time spam on a post → remove_post. If the user already has prior enforcement actions → ban_user. Serious violation again after a prior action → suspend_user. Clearly fine → dismiss. Be fair and proportionate; do not punish honest posts.',
     '',
-    `REPORTED ${input.targetType.toUpperCase()} (reporter said: "${input.reason || 'no reason given'}"):`,
+    `REPORTED ${input.targetType.toUpperCase()} — posted by ${who} (reporter said: "${input.reason || 'no reason given'}"):`,
     input.content.slice(0, 4000),
     '',
-    `PRIOR ENFORCEMENT ACTIONS AGAINST THIS USER: ${input.priorActions}`,
+    `PRIOR ENFORCEMENT ACTIONS AGAINST ${who}: ${input.priorActions}`,
     input.historyLines.length ? `HISTORY:\n${input.historyLines.join('\n')}` : 'No prior history.',
     '',
-    'Return JSON: {"decision":"dismiss|remove_post|ban_user|suspend_user","ban_days":number|null,"reason":"one sentence shown to the reported user, plain and factual","rationale":"one short sentence for the moderation log"}',
+    'Return JSON with these exact keys:',
+    '{"decision":"dismiss|remove_post|ban_user|suspend_user","ban_days":number|null,',
+    ` "reason":"one sentence addressed directly to ${who} in the second person (\\"Your post…\\", \\"You were…\\"), plain and factual — this is the message THEY see",`,
+    ` "rationale":"one sentence for the admin moderation log, written in the third person and naming the user as ${who} (e.g. \\"${who}'s post was removed…\\", \\"${who} was suspended…\\") — never use \\"you\\" or \\"your\\" here"}`,
   ].join('\n');
 
   const json = (await post(

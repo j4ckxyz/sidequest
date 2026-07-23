@@ -554,8 +554,8 @@ export const db = {
 
   // ---- bots (admin demo data) -----------------------------------------
   bots: {
-    async summon(count: number): Promise<{ profilesCreated: number; jobsCreated: number }> {
-      const result = await recsPost<{ profilesCreated: number; jobsCreated: number }>('/bots', { count });
+    async summon(count: number, theme?: string): Promise<{ profilesCreated: number; jobsCreated: number }> {
+      const result = await recsPost<{ profilesCreated: number; jobsCreated: number }>('/bots', { count, theme });
       notify();
       return result;
     },

@@ -1,5 +1,6 @@
 import { Ban, CheckCircle2, FileSearch, Gavel, Inbox, Loader2, ScanSearch, ShieldAlert, ShieldCheck, XCircle, type LucideIcon } from 'lucide-react';
 import { useModerationActions, useModerationEvents, useReports } from '../../hooks/useModeration';
+import { useProfiles } from '../../hooks/useProfile';
 import { formatRelativeTime, cx } from '../../lib/utils';
 import type { ModerationEvent } from '../../types/models';
 
@@ -25,6 +26,10 @@ export function ModerationPanel({ callerId }: { callerId: string }) {
   const { data: events } = useModerationEvents(callerId);
   const { data: actions } = useModerationActions(callerId);
   const { data: reports } = useReports(callerId);
+
+  const actionList = actions ?? [];
+  const { data: actionProfiles } = useProfiles(actionList.map((a) => a.target_user_id));
+  const nameById = new Map((actionProfiles ?? []).map((p) => [p.id, p.full_name]));
 
   const items = events ?? [];
   const working = items.length > 0 && items[0].kind !== 'done' && items[0].kind !== 'error';
@@ -81,19 +86,22 @@ export function ModerationPanel({ callerId }: { callerId: string }) {
         {/* Enforcement log */}
         <div className="max-h-80 overflow-y-auto p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Recent actions</p>
-          {(actions ?? []).length === 0 ? (
+          {actionList.length === 0 ? (
             <p className="py-6 text-center text-sm text-text-muted">No enforcement actions yet.</p>
           ) : (
             <ul className="space-y-2.5">
-              {(actions ?? []).map((a) => {
+              {actionList.map((a) => {
                 const meta = ACTION_META[a.action] ?? ACTION_META.dismiss;
                 const Icon = meta.icon;
+                const name = nameById.get(a.target_user_id);
                 return (
                   <li key={a.id} className="flex items-start gap-2.5">
                     <Icon size={15} className={cx('mt-0.5 shrink-0', meta.tone)} />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-text">
-                        {meta.label} <span className="font-normal text-text-muted">· by {a.decided_by === 'gemini' ? 'Gemini' : 'admin'}</span>
+                        {meta.label}
+                        {name && <span className="text-text"> · {name}</span>}
+                        <span className="font-normal text-text-muted"> · by {a.decided_by === 'gemini' ? 'Gemini' : 'admin'}</span>
                       </p>
                       <p className="text-xs text-text-muted">{a.reason}</p>
                     </div>

@@ -199,12 +199,20 @@ function RecommendationsPanel() {
   );
 }
 
+const BOT_THEMES: { label: string; value: string }[] = [
+  { label: 'Normal posts', value: '' },
+  { label: 'Off-topic (test reporting)', value: 'Posts that are off-topic and unrelated to local odd-jobs — random rants, selling unrelated items, chit-chat — so the auto-reporting/moderation can flag them.' },
+  { label: 'Rule-breaking', value: 'Posts that break the marketplace rules — scams, get-rich-quick schemes, asking to pay off-platform via gift cards or crypto, spam with external links — to test the moderation agent.' },
+  { label: 'Extreme', value: 'Egregiously rule-breaking and abusive posts — obvious scams, harassment, clearly prohibited solicitations — to stress-test moderation escalation (bans/suspensions).' },
+];
+
 function BotsPanel() {
   const { showToast } = useToast();
   const qc = useQueryClient();
   const [count, setCount] = useState(8);
+  const [theme, setTheme] = useState('');
   const summon = useMutation({
-    mutationFn: (n: number) => db.bots.summon(n),
+    mutationFn: ({ n, theme }: { n: number; theme: string }) => db.bots.summon(n, theme),
     onSuccess: (r) => {
       qc.invalidateQueries();
       showToast(`Summoned ${r.profilesCreated} bots and ${r.jobsCreated} jobs.`);
@@ -220,15 +228,44 @@ function BotsPanel() {
     onError: (e) => showToast(e instanceof Error ? e.message : 'Could not remove bots.', 'error'),
   });
 
+  // Match the free text back to a preset so its chip highlights; empty text = "Normal".
+  const activePreset = BOT_THEMES.find((t) => t.value === theme.trim());
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
       <div className="flex items-start gap-2.5">
         <Bot size={18} className="mt-0.5 shrink-0 text-primary" />
         <div>
           <p className="text-sm font-medium text-text">Demo bots</p>
-          <p className="text-xs text-text-muted">AI-generated residents + jobs for demos. Remove anytime.</p>
+          <p className="text-xs text-text-muted">AI-generated residents + jobs for demos. Steer what they post, then summon. Remove anytime.</p>
         </div>
       </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {BOT_THEMES.map((t) => (
+          <button
+            key={t.label}
+            type="button"
+            onClick={() => setTheme(t.value)}
+            className={cx(
+              'rounded-full border px-3 py-1 text-xs font-medium transition',
+              activePreset?.label === t.label
+                ? 'border-primary bg-primary-soft text-primary'
+                : 'border-border text-text-muted hover:text-text',
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <Input
+        value={theme}
+        onChange={(e) => setTheme(e.target.value)}
+        placeholder="Or describe what the bots should post about…"
+        aria-label="Bot post direction"
+      />
+
       <div className="flex items-center gap-2">
         <Input
           type="number"
@@ -239,7 +276,7 @@ function BotsPanel() {
           className="w-20"
           aria-label="How many bots"
         />
-        <Button size="md" variant="secondary" isLoading={summon.isPending} onClick={() => summon.mutate(count)}>
+        <Button size="md" variant="secondary" isLoading={summon.isPending} onClick={() => summon.mutate({ n: count, theme })}>
           <Bot size={14} /> Summon
         </Button>
         <Button

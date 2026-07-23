@@ -53,20 +53,37 @@ export interface SummonResult {
   jobsCreated: number;
 }
 
-export async function summonBots(count: number): Promise<SummonResult> {
+export async function summonBots(count: number, theme?: string): Promise<SummonResult> {
   const n = Math.max(1, Math.min(25, Math.floor(count)));
-  const prompt = [
+  // Optional admin steer for the KIND of posts to generate — e.g. "normal neighbourly tasks",
+  // "off-topic posts unrelated to local jobs (to demo auto-reporting)", "rule-breaking scam/spam
+  // posts to test moderation". Keep the personas realistic; only the jobs' subject changes.
+  const steer = (theme ?? '').trim().slice(0, 300);
+  const promptLines = [
     `Invent ${n} fictional Jersey (Channel Islands) residents for a neighbourly odd-jobs app.`,
     'Make them diverse in age, background, and interests so a recommendation engine has variety.',
     `Each has 1–3 short jobs they want doing. Use only these parishes: ${PARISHES.join(', ')}.`,
     `Use only these job categories (slug): ${CATEGORIES.join(', ')}.`,
+  ];
+  if (steer) {
+    promptLines.push(
+      '',
+      `POST DIRECTION — the jobs/posts these residents create should follow this theme: ${steer}`,
+      'This is seed data for a MODERATION DEMO on a private test app, so if the theme asks for off-topic,',
+      'spammy, scammy, or otherwise rule-breaking posts, generate them so the auto-moderation can be tested.',
+      'Still pick a fitting category slug and keep each post to 1-2 sentences.',
+      '',
+    );
+  }
+  promptLines.push(
     'Reply as a JSON array; each item:',
     '{ "full_name": string, "username": string (lowercase, no spaces), "parish": string,',
     '  "bio": string (one sentence), "skills": string[] (2-4), "keywords": string[] (2-5 interests),',
     '  "jobs": [ { "title": string, "category": slug, "description": string (1-2 sentences),',
     '    "parish": string, "budget_type": "fixed"|"hourly"|"negotiable", "budget_amount": number } ] }',
     'No markdown, JSON only.',
-  ].join('\n');
+  );
+  const prompt = promptLines.join('\n');
 
   const parsed = await generateJson(prompt);
   const personas: BotPersona[] = Array.isArray(parsed) ? (parsed as BotPersona[]).slice(0, n) : [];
