@@ -10,6 +10,7 @@ import { refresh, pendingNewJobCount, pendingPreferenceChangeCount, type Refresh
 import { summonBots, removeBots } from './bots';
 import { startNotificationPushWatcher } from './push';
 import { processReport, processPendingReports } from './moderation';
+import { sweepAutomod } from './automod';
 import { resetAccount, deleteAccount } from './reset';
 
 const PORT = Number(process.env.PORT ?? '8787');
@@ -20,6 +21,7 @@ const CRON_SECRET = process.env.CRON_SECRET;
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS ?? String(60 * 60 * 1000)); // hourly full refresh
 const WATCH_INTERVAL_MS = Number(process.env.WATCH_INTERVAL_MS ?? String(2 * 60 * 1000)); // check for new jobs every 2m
 const NEW_JOBS_THRESHOLD = Number(process.env.NEW_JOBS_THRESHOLD ?? '5'); // fire early once this many new jobs pile up
+const AUTOMOD_INTERVAL_MS = Number(process.env.AUTOMOD_INTERVAL_MS ?? String(3 * 60 * 1000)); // proactive post scan every 3m
 const PREFERENCE_CHAT_DAILY_LIMIT = boundedEnvInt('PREFERENCE_CHAT_DAILY_LIMIT', 20, 1, 200);
 const PREFERENCE_CHAT_BURST_LIMIT = boundedEnvInt('PREFERENCE_CHAT_BURST_LIMIT', 4, 1, 60);
 const PREFERENCE_CHAT_GLOBAL_DAILY_LIMIT = boundedEnvInt('PREFERENCE_CHAT_GLOBAL_DAILY_LIMIT', 100, 1, 10_000);
@@ -258,6 +260,20 @@ app.post('/admin/delete-account', rateLimit(10, 60_000), async (c) => {
   } catch (err) {
     console.error('[delete-account] failed:', err);
     return c.json({ error: err instanceof Error ? err.message : 'Delete failed' }, 500);
+  }
+});
+
+/** Admin-only: run the proactive automod sweep right now (the same job runs on a timer). */
+app.post('/admin/automod-sweep', rateLimit(6, 60_000), async (c) => {
+  const userId = await authenticatedUserId(c.req.header('Authorization'));
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+  if (!(await isAdmin(userId))) return c.json({ error: 'Admins only' }, 403);
+  try {
+    const result = await sweepAutomod();
+    return c.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('[automod] manual sweep failed:', err);
+    return c.json({ error: err instanceof Error ? err.message : 'Sweep failed' }, 500);
   }
 });
 
@@ -518,6 +534,24 @@ setInterval(async () => {
     console.error('[moderation] watcher failed:', err);
   }
 }, 5_000);
+
+// Automod sweep: proactively scan posts (new + backlog) for harmful content every few minutes,
+// no report required. Serialized so overlapping sweeps can't double-act on the same post.
+let automodInFlight = false;
+setInterval(async () => {
+  if (automodInFlight) return;
+  automodInFlight = true;
+  try {
+    const r = await sweepAutomod();
+    if (r.enforced > 0 || r.flaggedReviewed > 0) {
+      console.log(`[automod] scanned ${r.scanned}, reviewed ${r.flaggedReviewed}, enforced ${r.enforced}`);
+    }
+  } catch (err) {
+    console.error('[automod] sweep failed:', err);
+  } finally {
+    automodInFlight = false;
+  }
+}, AUTOMOD_INTERVAL_MS);
 
 console.log(
   `SideQuest recs service on :${PORT} — hourly refresh, watch every ${Math.round(WATCH_INTERVAL_MS / 60000)}m (threshold ${NEW_JOBS_THRESHOLD} new jobs)`,

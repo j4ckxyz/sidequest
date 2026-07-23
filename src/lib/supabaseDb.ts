@@ -504,6 +504,11 @@ export const db = {
       await client().from('moderation_actions').insert({ decided_by: callerId, action: 'unban', target_user_id: targetId, reason: 'Lifted by admin.' });
       notify();
     },
+    async runAutomod(): Promise<{ scanned: number; flaggedReviewed: number; enforced: number }> {
+      const result = await recsPost<{ scanned: number; flaggedReviewed: number; enforced: number }>('/admin/automod-sweep', {});
+      notify();
+      return result;
+    },
   },
 
   // ---- recommendations -------------------------------------------------

@@ -116,7 +116,7 @@ function ModerationActionsPanel({ callerId }: { callerId: string }) {
                   {action.action === 'ban_user' && action.ban_until && (
                     <span className="text-text-muted"> · until {formatDate(action.ban_until, { day: 'numeric', month: 'short' })}</span>
                   )}
-                  <span className="text-text-muted"> · {action.decided_by === 'gemini' ? 'AI agent' : 'admin'}</span>
+                  <span className="text-text-muted"> · {action.decided_by === 'gemini' ? 'AI agent' : action.decided_by === 'automod' ? 'Auto-mod' : 'admin'}</span>
                 </p>
                 {action.reason && <p className="mt-0.5 text-xs leading-5 text-text-muted">{action.reason}</p>}
               </div>

@@ -1458,6 +1458,10 @@ export const db = {
       notify();
       return delay(undefined);
     },
+    // Automod runs on the live backend (Gemini); the mock has no model, so this is a no-op.
+    async runAutomod(): Promise<{ scanned: number; flaggedReviewed: number; enforced: number }> {
+      return delay({ scanned: 0, flaggedReviewed: 0, enforced: 0 });
+    },
   },
 
   // ---- recommendations -------------------------------------------------

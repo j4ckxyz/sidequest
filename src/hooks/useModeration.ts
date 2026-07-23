@@ -73,3 +73,12 @@ export function useAdminUnban() {
     onSuccess: () => queryClient.invalidateQueries(),
   });
 }
+
+// Trigger the proactive automod sweep on demand (it also runs on a timer server-side).
+export function useRunAutomod() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => db.moderation.runAutomod(),
+    onSuccess: () => queryClient.invalidateQueries(),
+  });
+}

@@ -1,8 +1,17 @@
-import { Ban, CheckCircle2, FileSearch, Gavel, Inbox, Loader2, ScanSearch, ShieldAlert, ShieldCheck, XCircle, type LucideIcon } from 'lucide-react';
-import { useModerationActions, useModerationEvents, useReports } from '../../hooks/useModeration';
+import { Ban, CheckCircle2, FileSearch, Gavel, Inbox, Loader2, RadarIcon, ScanSearch, ShieldAlert, ShieldCheck, XCircle, type LucideIcon } from 'lucide-react';
+import { useModerationActions, useModerationEvents, useReports, useRunAutomod } from '../../hooks/useModeration';
 import { useProfiles } from '../../hooks/useProfile';
+import { useToast } from '../../context/ToastProvider';
 import { formatRelativeTime, cx } from '../../lib/utils';
 import type { ModerationEvent } from '../../types/models';
+
+// Enforcement rows record their actor in `decided_by`: 'gemini' (report agent),
+// 'automod' (proactive sweep), or an admin user id.
+function actorLabel(decidedBy: string): string {
+  if (decidedBy === 'gemini') return 'Gemini';
+  if (decidedBy === 'automod') return 'Auto-mod';
+  return 'admin';
+}
 
 const KIND: Record<ModerationEvent['kind'], { icon: LucideIcon; tone: string; pulse?: boolean }> = {
   received: { icon: Inbox, tone: 'text-text-muted' },
@@ -35,6 +44,9 @@ export function ModerationPanel({ callerId }: { callerId: string }) {
   const working = items.length > 0 && items[0].kind !== 'done' && items[0].kind !== 'error';
   const pendingReports = (reports ?? []).filter((r) => r.status !== 'resolved').length;
 
+  const automod = useRunAutomod();
+  const { showToast } = useToast();
+
   return (
     <div className="mt-5 overflow-hidden rounded-xl border border-border bg-surface">
       <div className="flex items-center justify-between gap-3 border-b border-border bg-[linear-gradient(135deg,var(--color-primary-soft),var(--color-surface)_60%)] px-5 py-4">
@@ -42,19 +54,42 @@ export function ModerationPanel({ callerId }: { callerId: string }) {
           <ShieldCheck size={18} className="text-primary" />
           <div>
             <p className="text-sm font-semibold text-text">AI moderation — live</p>
-            <p className="text-xs text-text-muted">Gemini reviews every report against the rules and acts autonomously. You can override below.</p>
+            <p className="text-xs text-text-muted">
+              Gemini reviews every report and also sweeps all posts on its own every few minutes, acting autonomously. You can override below.
+            </p>
           </div>
         </div>
-        <span
-          className={cx(
-            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-            working ? 'bg-warning-soft text-warning' : 'bg-sage-soft text-sage',
-          )}
-        >
-          {working ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
-          {working ? 'Reviewing…' : 'Idle'}
-          {pendingReports > 0 && <span className="ml-1 opacity-80">· {pendingReports} open</span>}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={automod.isPending}
+            onClick={() =>
+              automod.mutate(undefined, {
+                onSuccess: (r) =>
+                  showToast(
+                    r.enforced > 0
+                      ? `Automod scanned ${r.scanned} posts and took action on ${r.enforced}.`
+                      : `Automod scanned ${r.scanned} posts — nothing to action.`,
+                  ),
+                onError: (e) => showToast(e instanceof Error ? e.message : 'Automod sweep failed.', 'error'),
+              })
+            }
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-text-muted hover:text-text disabled:opacity-50"
+          >
+            {automod.isPending ? <Loader2 size={12} className="animate-spin" /> : <RadarIcon size={12} />}
+            Scan now
+          </button>
+          <span
+            className={cx(
+              'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+              working ? 'bg-warning-soft text-warning' : 'bg-sage-soft text-sage',
+            )}
+          >
+            {working ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+            {working ? 'Reviewing…' : 'Idle'}
+            {pendingReports > 0 && <span className="ml-1 opacity-80">· {pendingReports} open</span>}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-0 lg:grid-cols-[1.4fr_1fr]">
@@ -101,7 +136,7 @@ export function ModerationPanel({ callerId }: { callerId: string }) {
                       <p className="text-sm font-medium text-text">
                         {meta.label}
                         {name && <span className="text-text"> · {name}</span>}
-                        <span className="font-normal text-text-muted"> · by {a.decided_by === 'gemini' ? 'Gemini' : 'admin'}</span>
+                        <span className="font-normal text-text-muted"> · by {actorLabel(a.decided_by)}</span>
                       </p>
                       <p className="text-xs text-text-muted">{a.reason}</p>
                     </div>
