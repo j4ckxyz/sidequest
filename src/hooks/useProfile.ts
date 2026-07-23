@@ -10,6 +10,17 @@ export function useProfile(id: string | undefined) {
   });
 }
 
+/** Batch-fetch many profiles in one request (avoids an N+1 of per-card queries). */
+export function useProfiles(ids: string[]) {
+  const key = [...new Set(ids)].filter(Boolean).sort();
+  return useQuery({
+    queryKey: ['profiles', 'many', key],
+    queryFn: () => db.profiles.getMany(key),
+    enabled: key.length > 0,
+    staleTime: 60_000,
+  });
+}
+
 export function useProfileByUsername(username: string | undefined) {
   return useQuery({
     queryKey: ['profile', 'byUsername', username],

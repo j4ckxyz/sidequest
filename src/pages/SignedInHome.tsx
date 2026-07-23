@@ -3,19 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Search, Plus, ArrowRight, LayoutDashboard, Sparkles, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import { useJobsList } from '../hooks/useJobs';
-import { useProfile } from '../hooks/useProfile';
+import { useProfiles } from '../hooks/useProfile';
 import { useRecommendations } from '../hooks/useRecommendations';
 import { JobCard } from '../components/jobs/JobCard';
 import { JobCardSkeleton } from '../components/ui/Skeleton';
 import { Input } from '../components/ui/Input';
 import { CategoryIcon } from '../components/jobs/CategoryIcon';
 import { JOB_CATEGORIES } from '../lib/constants';
-import type { Job, JobRecommendation, Profile } from '../types/models';
-
-function PosterFor({ posterId, children }: { posterId: string; children: (p: Profile | null) => React.ReactNode }) {
-  const { data } = useProfile(posterId);
-  return <>{children(data ?? null)}</>;
-}
+import type { Job, JobRecommendation } from '../types/models';
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -169,6 +164,8 @@ function RecommendedSection({ recs }: { recs: JobRecommendation[] }) {
   // Wrap around the stored pool so "Show others" always fills a full row.
   const page = Array.from({ length: Math.min(RECS_PAGE, recs.length) }, (_, i) => recs[(offset + i) % recs.length]);
   const hasMore = recs.length > RECS_PAGE;
+  const { data: posters } = useProfiles(page.map((p) => p.job.poster_id));
+  const posterById = new Map((posters ?? []).map((p) => [p.id, p]));
 
   return (
     <section className="mt-8">
@@ -194,7 +191,7 @@ function RecommendedSection({ recs }: { recs: JobRecommendation[] }) {
               <Sparkles size={12} className="shrink-0 text-primary/70" />
               <span className="line-clamp-1">{reason}</span>
             </p>
-            <PosterFor posterId={job.poster_id}>{(poster) => <JobCard job={job} poster={poster} />}</PosterFor>
+            <JobCard job={job} poster={posterById.get(job.poster_id) ?? null} />
           </div>
         ))}
       </div>
@@ -203,6 +200,9 @@ function RecommendedSection({ recs }: { recs: JobRecommendation[] }) {
 }
 
 function JobSection({ title, jobs, seeAllTo = '/jobs' }: { title: string; jobs: Job[]; seeAllTo?: string }) {
+  const shown = jobs.slice(0, 6);
+  const { data: posters } = useProfiles(shown.map((j) => j.poster_id));
+  const posterById = new Map((posters ?? []).map((p) => [p.id, p]));
   return (
     <section className="mt-10">
       <div className="mb-4 flex items-center justify-between">
@@ -212,10 +212,8 @@ function JobSection({ title, jobs, seeAllTo = '/jobs' }: { title: string; jobs: 
         </Link>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {jobs.slice(0, 6).map((job) => (
-          <PosterFor key={job.id} posterId={job.poster_id}>
-            {(poster) => <JobCard job={job} poster={poster} />}
-          </PosterFor>
+        {shown.map((job) => (
+          <JobCard key={job.id} job={job} poster={posterById.get(job.poster_id) ?? null} />
         ))}
       </div>
     </section>

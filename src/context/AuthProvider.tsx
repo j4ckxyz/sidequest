@@ -13,20 +13,47 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Cache the resolved profile so a page refresh shows the logged-in UI instantly
+// instead of blocking on a getSession + profile round-trip behind a spinner.
+// The session is still revalidated in the background and this is corrected.
+const CACHE_KEY = 'sidequest-user';
+
+function readCachedUser(): Profile | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? (JSON.parse(raw) as Profile) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUser(profile: Profile | null) {
+  try {
+    if (profile) localStorage.setItem(CACHE_KEY, JSON.stringify(profile));
+    else localStorage.removeItem(CACHE_KEY);
+  } catch {
+    // ignore (private mode / storage full) — cache is a best-effort optimisation
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Profile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const cached = readCachedUser();
+  const [user, setUser] = useState<Profile | null>(cached);
+  // If we already have a cached identity, don't gate the app on the network —
+  // render optimistically and revalidate. Only truly-unknown state shows loading.
+  const [isLoading, setIsLoading] = useState(cached === null);
 
   useEffect(() => {
     let active = true;
-    db.auth.getSession().then((profile) => {
-      if (active) {
-        setUser(profile);
-        setIsLoading(false);
-      }
-    });
+    const apply = (profile: Profile | null) => {
+      if (!active) return;
+      setUser(profile);
+      setIsLoading(false);
+      writeCachedUser(profile);
+    };
+    db.auth.getSession().then(apply);
     const unsubscribe = db.subscribe(() => {
-      db.auth.getSession().then((profile) => active && setUser(profile));
+      db.auth.getSession().then((profile) => active && apply(profile));
     });
     return () => {
       active = false;

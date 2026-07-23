@@ -831,6 +831,10 @@ export const db = {
     async get(id: string): Promise<Profile | null> {
       return delay(state.profiles[id] ?? null);
     },
+    async getMany(ids: string[]): Promise<Profile[]> {
+      const set = new Set(ids);
+      return delay(Object.values(state.profiles).filter((p) => set.has(p.id)));
+    },
     async getByUsername(username: string): Promise<Profile | null> {
       const u = username.toLowerCase();
       const current = Object.values(state.profiles).find((p) => p.username?.toLowerCase() === u);

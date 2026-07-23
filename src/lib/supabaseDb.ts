@@ -113,6 +113,12 @@ export const db = {
       const { data } = await client().from('public_profiles').select('*').eq('id', id).maybeSingle();
       return (data as Profile | null) ?? null;
     },
+    async getMany(ids: string[]): Promise<Profile[]> {
+      const unique = [...new Set(ids)].filter(Boolean);
+      if (unique.length === 0) return [];
+      const { data } = await client().from('public_profiles').select('*').in('id', unique);
+      return (data as Profile[]) ?? [];
+    },
     async getByUsername(username: string): Promise<Profile | null> {
       const { data } = await client().from('public_profiles').select('*').ilike('username', username).maybeSingle();
       if (data) return data as Profile;

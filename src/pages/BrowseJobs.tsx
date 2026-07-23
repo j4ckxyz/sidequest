@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import { useJobsList, useSemanticJobSearch } from '../hooks/useJobs';
-import { useProfile } from '../hooks/useProfile';
+import { useProfiles } from '../hooks/useProfile';
 import { JobCard } from '../components/jobs/JobCard';
 import { JobCardSkeleton } from '../components/ui/Skeleton';
 import { JobFilters, type JobFilterState } from '../components/jobs/JobFilters';
@@ -10,12 +10,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Kbd } from '../components/ui/Kbd';
 import { JOB_CATEGORIES } from '../lib/constants';
 import { fuzzyScore } from '../lib/fuzzy';
-import type { Job, Profile } from '../types/models';
-
-function PosterFor({ posterId, children }: { posterId: string; children: (p: Profile | null) => React.ReactNode }) {
-  const { data } = useProfile(posterId);
-  return <>{children(data ?? null)}</>;
-}
+import type { Job } from '../types/models';
 
 export function BrowseJobs() {
   const [searchParams] = useSearchParams();
@@ -32,6 +27,11 @@ export function BrowseJobs() {
   // instantly. The semantic ids stream in from the recs server a beat later.
   const { data: jobs, isLoading } = useJobsList({ category: filters.category, parish: filters.parish, status: 'open' });
   const { data: semanticIds } = useSemanticJobSearch(query, { parish: filters.parish, category: filters.category });
+
+  // One batched fetch for every poster on the page, instead of a query per card.
+  const posterIds = useMemo(() => (jobs ? jobs.map((j) => j.poster_id) : []), [jobs]);
+  const { data: posters } = useProfiles(posterIds);
+  const posterById = useMemo(() => new Map((posters ?? []).map((p) => [p.id, p])), [posters]);
 
   // Press "/" anywhere to jump into the floating search bar; Esc to leave it.
   useEffect(() => {
@@ -104,11 +104,7 @@ export function BrowseJobs() {
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading && Array.from({ length: 6 }).map((_, i) => <JobCardSkeleton key={i} />)}
         {!isLoading &&
-          sorted.map((job) => (
-            <PosterFor key={job.id} posterId={job.poster_id}>
-              {(poster) => <JobCard job={job} poster={poster} />}
-            </PosterFor>
-          ))}
+          sorted.map((job) => <JobCard key={job.id} job={job} poster={posterById.get(job.poster_id) ?? null} />)}
       </div>
 
       {!isLoading && sorted.length === 0 && (
