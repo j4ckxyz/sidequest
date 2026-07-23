@@ -238,23 +238,27 @@ app.post('/preferences/chat', async (c) => {
   if (preferenceChatsInFlight.has(userId)) {
     return c.json({ error: 'Your previous message is still being considered.' }, 409);
   }
-  const retryAfter = claimBurst(
-    `preferences-chat:${userId}`,
-    PREFERENCE_CHAT_BURST_LIMIT,
-    PREFERENCE_CHAT_BURST_WINDOW_MS,
-  );
-  if (retryAfter) {
-    c.header('Retry-After', String(retryAfter));
-    return c.json({ error: `A few messages arrived too quickly. Try again in ${retryAfter} seconds.` }, 429);
-  }
-  const globalRetryAfter = claimBurst(
-    'preferences-chat:global',
-    PREFERENCE_CHAT_GLOBAL_BURST_LIMIT,
-    PREFERENCE_CHAT_BURST_WINDOW_MS,
-  );
-  if (globalRetryAfter) {
-    c.header('Retry-After', String(globalRetryAfter));
-    return c.json({ error: 'The job compass is busy. Try again in a minute.' }, 429);
+  const isAdminUser = await isAdmin(userId);
+
+  if (!isAdminUser) {
+    const retryAfter = claimBurst(
+      `preferences-chat:${userId}`,
+      PREFERENCE_CHAT_BURST_LIMIT,
+      PREFERENCE_CHAT_BURST_WINDOW_MS,
+    );
+    if (retryAfter) {
+      c.header('Retry-After', String(retryAfter));
+      return c.json({ error: `A few messages arrived too quickly. Try again in ${retryAfter} seconds.` }, 429);
+    }
+    const globalRetryAfter = claimBurst(
+      'preferences-chat:global',
+      PREFERENCE_CHAT_GLOBAL_BURST_LIMIT,
+      PREFERENCE_CHAT_BURST_WINDOW_MS,
+    );
+    if (globalRetryAfter) {
+      c.header('Retry-After', String(globalRetryAfter));
+      return c.json({ error: 'The job compass is busy. Try again in a minute.' }, 429);
+    }
   }
 
   preferenceChatsInFlight.add(userId);
@@ -381,6 +385,7 @@ async function preferenceState(userId: string) {
   if (messagesResult.error) throw new Error(messagesResult.error.message);
   if (usageResult.error) throw new Error(usageResult.error.message);
   if (globalUsageResult.error) throw new Error(globalUsageResult.error.message);
+  const userIsAdmin = await isAdmin(userId);
   const preference = preferenceResult.data;
   const used = Number(usageResult.data?.preference_chat_calls ?? 0);
   const globalUsed = Number(globalUsageResult.data?.preference_chat_calls ?? 0);
@@ -390,14 +395,16 @@ async function preferenceState(userId: string) {
     keywords: (preference?.keywords as string[] | undefined) ?? [],
     updated_at: (preference?.updated_at as string | undefined) ?? null,
     messages: (messagesResult.data ?? []).reverse(),
-    remaining_today: Math.max(
-      0,
-      Math.min(
-        PREFERENCE_CHAT_DAILY_LIMIT - used,
-        PREFERENCE_CHAT_GLOBAL_DAILY_LIMIT - globalUsed,
-      ),
-    ),
-    daily_limit: PREFERENCE_CHAT_DAILY_LIMIT,
+    remaining_today: userIsAdmin
+      ? 999
+      : Math.max(
+          0,
+          Math.min(
+            PREFERENCE_CHAT_DAILY_LIMIT - used,
+            PREFERENCE_CHAT_GLOBAL_DAILY_LIMIT - globalUsed,
+          ),
+        ),
+    daily_limit: userIsAdmin ? 999 : PREFERENCE_CHAT_DAILY_LIMIT,
   };
 }
 

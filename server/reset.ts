@@ -13,6 +13,11 @@ async function tryDelete(label: string, run: () => Promise<{ error: unknown }>):
 }
 
 export async function resetAccount(userId: string): Promise<void> {
+  const { data: prof } = await admin.from('profiles').select('is_admin').eq('id', userId).maybeSingle();
+  if (!prof?.is_admin) {
+    throw new Error('Account reset is only available for Admin accounts.');
+  }
+
   const orSelf = `poster_id.eq.${userId},quester_id.eq.${userId}`;
 
   // Jobs the user posted (cascades their applications, conversations, notifications,
@@ -40,6 +45,7 @@ export async function resetAccount(userId: string): Promise<void> {
     .update({
       onboarded: false,
       username: null,
+      username_changed_at: null,
       full_name: '',
       bio: '',
       skills: [],

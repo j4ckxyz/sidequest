@@ -539,9 +539,25 @@ function seed(): State {
   };
 }
 
+function safeGetItem(key: string): string | null {
+  try {
+    return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
+  } catch {
+    // ignore in non-browser environments
+  }
+}
+
 function load(): State {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeGetItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as State;
       const profiles = Object.values(parsed.profiles);
@@ -590,7 +606,7 @@ function load(): State {
     // fall through to reseed
   }
   const fresh = seed();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+  safeSetItem(STORAGE_KEY, JSON.stringify(fresh));
   return fresh;
 }
 
@@ -598,7 +614,7 @@ let state: State = load();
 
 function persist(next: State) {
   state = next;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  safeSetItem(STORAGE_KEY, JSON.stringify(next));
 }
 
 function touch() {
@@ -856,13 +872,14 @@ export const db = {
         throw new Error('Username must be 3–20 characters: lowercase letters, numbers, or underscores.');
       }
       const me = state.profiles[uid];
-      const old = me.username;
+      const old = me?.username;
+      const isAdmin = me?.is_admin ?? false;
       if ((old ?? '').toLowerCase() === lower) return;
       if (Object.values(state.profiles).some((p) => p.username?.toLowerCase() === lower && p.id !== uid)) {
         throw new Error('That username is taken.');
       }
       const history = (state.usernameHistory ??= {});
-      if (history[lower] && history[lower] !== uid) throw new Error('That username is reserved.');
+      if (history[lower] && history[lower] !== uid && !isAdmin) throw new Error('That username is reserved.');
       if (old) history[old.toLowerCase()] = uid;
       state.profiles[uid] = { ...me, username: lower };
       touch();
@@ -1498,14 +1515,15 @@ export const db = {
       const userId = state.currentUserId;
       if (!userId) throw new Error('You must be signed in.');
       const saved = state.jobPreferences[userId];
+      const isUserAdmin = state.profiles[userId]?.is_admin ?? false;
       return delay({
         preferred_categories: saved?.preferred_categories ?? [],
         summary: saved?.summary ?? '',
         keywords: saved?.keywords ?? [],
         updated_at: saved?.updated_at ?? null,
-        messages: state.jobPreferenceMessages[userId] ?? [],
-        remaining_today: 20,
-        daily_limit: 20,
+        messages: userId ? (state.jobPreferenceMessages[userId] ?? []) : [],
+        remaining_today: isUserAdmin ? 999 : 20,
+        daily_limit: isUserAdmin ? 999 : 20,
       });
     },
     async update(input: { preferredCategories: string[]; hideLocation: boolean }): Promise<JobPreferenceState> {
@@ -1562,14 +1580,25 @@ export const db = {
   adminReset: {
     async resetOwnAccount(): Promise<void> {
       const userId = state.currentUserId;
-      if (!userId) return;
+      if (!userId) throw new Error('You must be signed in.');
+      const profile = state.profiles[userId];
+      if (!profile?.is_admin) {
+        throw new Error('Account reset is only available for Admin accounts.');
+      }
       // Local best-effort wipe so the dev/mock flow mirrors production.
       for (const [id, job] of Object.entries(state.jobs)) if (job.poster_id === userId) delete state.jobs[id];
       for (const [id, a] of Object.entries(state.applications)) if (a.quester_id === userId) delete state.applications[id];
       for (const [id, c] of Object.entries(state.conversations)) if (c.poster_id === userId || c.quester_id === userId) delete state.conversations[id];
       state.jobPreferenceMessages[userId] = [];
       delete state.jobPreferences[userId];
-      const profile = state.profiles[userId];
+
+      // Free up username from history
+      if (state.usernameHistory) {
+        for (const [uname, uid] of Object.entries(state.usernameHistory)) {
+          if (uid === userId) delete state.usernameHistory[uname];
+        }
+      }
+
       if (profile) {
         state.profiles[userId] = {
           ...profile,
@@ -1690,6 +1719,10 @@ export const db = {
 
 export function currentUserId(): string | null {
   return state.currentUserId;
+}
+
+export function setMockUserId(id: string | null): void {
+  state.currentUserId = id;
 }
 
 export type Repo = typeof db;
