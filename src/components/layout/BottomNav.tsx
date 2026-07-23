@@ -3,6 +3,7 @@ import { Home, Search, Plus, MessageCircle, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthProvider';
 import { useUnreadCount } from '../../hooks/useMessages';
 import { cx } from '../../lib/utils';
+import { haptic } from '../../lib/haptics';
 
 export function BottomNav() {
   const { user } = useAuth();
@@ -24,6 +25,7 @@ export function BottomNav() {
         <Link
           to={postPath}
           aria-label="Post a job"
+          onClick={() => haptic('select')}
           className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-on-primary shadow-lg shadow-primary/30 transition-transform active:scale-95"
         >
           <Plus size={24} />
@@ -38,7 +40,7 @@ export function BottomNav() {
 
 function NavItem({ to, label, icon, active, badge }: { to: string; label: string; icon: React.ReactNode; active: boolean; badge?: boolean }) {
   return (
-    <Link to={to} className={cx('relative flex flex-col items-center gap-0.5 px-2 py-1 text-xs font-medium', active ? 'text-primary' : 'text-text-muted')}>
+    <Link onClick={() => haptic('tap')} to={to} className={cx('relative flex flex-col items-center gap-0.5 px-2 py-1 text-xs font-medium', active ? 'text-primary' : 'text-text-muted')}>
       {icon}
       {badge && <span className="absolute right-1.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />}
       {label}

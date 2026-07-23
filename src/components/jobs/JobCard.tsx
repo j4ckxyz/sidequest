@@ -4,6 +4,7 @@ import { MapPin, CalendarDays, Lock, Repeat, Bot } from 'lucide-react';
 import type { Job, Profile } from '../../types/models';
 import { JOB_CATEGORIES, JOB_STATUS_LABEL, recurrenceLabel } from '../../lib/constants';
 import { formatCurrency, formatDate, jobPath, viewName } from '../../lib/utils';
+import { haptic } from '../../lib/haptics';
 import { queryClient } from '../../lib/queryClient';
 import { useAuth } from '../../context/AuthProvider';
 import { Badge } from '../ui/Badge';
@@ -35,6 +36,7 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
   // through to the plain <Link>.
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    haptic('tap');
     const startViewTransition = document.startViewTransition?.bind(document);
     if (!startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 

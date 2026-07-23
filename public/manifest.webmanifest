@@ -1,0 +1,16 @@
+{
+  "name": "SideQuest — short jobs, Jersey locals",
+  "short_name": "SideQuest",
+  "description": "Find and post short local jobs across Jersey — done by your neighbours.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1E242B",
+  "theme_color": "#1E242B",
+  "icons": [
+    { "src": "/icon-granite-256.png", "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-granite-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-granite-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

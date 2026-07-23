@@ -10,9 +10,10 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'SideQuest';
   const options = {
     body: payload.body || '',
-    icon: '/favicon.svg',
-    badge: '/favicon.svg',
+    icon: '/icon-granite-512.png',
+    badge: '/icon-granite-256.png',
     tag: payload.tag || undefined,
+    vibrate: [12, 40, 12],
     data: { link: payload.link || '/notifications' },
   };
   event.waitUntil(self.registration.showNotification(title, options));
