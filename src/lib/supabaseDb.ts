@@ -160,6 +160,10 @@ export const db = {
       notify();
       return unwrap<Profile>(result);
     },
+    async deleteAccount(_callerId: string, targetId: string): Promise<void> {
+      await recsPost<{ ok: boolean }>('/admin/delete-account', { targetUserId: targetId });
+      notify();
+    },
   },
 
   // ---- jobs -----------------------------------------------------------

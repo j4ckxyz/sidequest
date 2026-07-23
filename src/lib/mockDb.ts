@@ -918,6 +918,33 @@ export const db = {
       notify();
       return delay(next);
     },
+    async deleteAccount(callerId: string, targetId: string): Promise<void> {
+      assertAdmin(callerId);
+      if (callerId === targetId) throw new Error('Use “Reset my account” to wipe your own account.');
+      const target = state.profiles[targetId];
+      if (!target) throw new Error('That account no longer exists.');
+      if (target.is_owner) throw new Error('The owner account cannot be deleted.');
+      if (target.is_admin && !state.profiles[callerId]?.is_owner) {
+        throw new Error('Only the owner can delete an admin account.');
+      }
+      // Best-effort local wipe mirroring the server.
+      for (const [id, job] of Object.entries(state.jobs)) if (job.poster_id === targetId) delete state.jobs[id];
+      for (const [id, a] of Object.entries(state.applications)) if (a.quester_id === targetId) delete state.applications[id];
+      for (const [id, c] of Object.entries(state.conversations)) {
+        if (c.poster_id === targetId || c.quester_id === targetId) delete state.conversations[id];
+      }
+      state.jobPreferenceMessages[targetId] = [];
+      delete state.jobPreferences[targetId];
+      if (state.usernameHistory) {
+        for (const [uname, uid] of Object.entries(state.usernameHistory)) {
+          if (uid === targetId) delete state.usernameHistory[uname];
+        }
+      }
+      delete state.profiles[targetId];
+      touch();
+      notify();
+      return delay(undefined);
+    },
   },
 
   // ---- jobs -----------------------------------------------------------

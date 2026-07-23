@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, Trash2, Sparkles, Bot, Crown, Ban, Search, Gavel, ShieldOff, ShieldPlus, RotateCcw } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
-import { useAllJobsAdmin, useAllProfiles, useAdminDeleteJob, useResetAccount, useSetAdmin } from '../hooks/useAdmin';
+import { useAllJobsAdmin, useAllProfiles, useAdminDeleteJob, useDeleteAccount, useResetAccount, useSetAdmin } from '../hooks/useAdmin';
 import { useRefreshRecommendations } from '../hooks/useRecommendations';
 import { useAdminBan, useAdminSuspend, useAdminUnban, useModerationActions } from '../hooks/useModeration';
 import { useProfiles } from '../hooks/useProfile';
@@ -364,9 +364,12 @@ function UserRow({ profile, callerId, canManageAdmins, strikes }: { profile: Pro
   const suspend = useAdminSuspend();
   const unban = useAdminUnban();
   const setAdmin = useSetAdmin();
+  const del = useDeleteAccount();
   const { showToast } = useToast();
   const block = userBlock(profile);
   const isSelf = profile.id === callerId;
+  // Any admin can delete a regular user; only the owner can delete another admin.
+  const canDelete = !profile.is_admin || canManageAdmins;
 
   return (
     <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -470,6 +473,25 @@ function UserRow({ profile, callerId, canManageAdmins, strikes }: { profile: Pro
               }
             >
               {profile.is_admin ? 'Remove admin' : 'Make admin'}
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              size="sm"
+              variant="danger"
+              disabled={del.isPending}
+              onClick={() => {
+                if (!confirm(`Permanently delete ${profile.full_name}'s account and all their data? This cannot be undone.`)) return;
+                del.mutate(
+                  { callerId, targetId: profile.id },
+                  {
+                    onSuccess: () => showToast(`${profile.full_name}'s account was deleted.`),
+                    onError: (error) => showToast(error instanceof Error ? error.message : 'Could not delete account.', 'error'),
+                  },
+                );
+              }}
+            >
+              <Trash2 size={14} /> Delete
             </Button>
           )}
         </div>

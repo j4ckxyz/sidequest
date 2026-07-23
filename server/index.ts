@@ -10,7 +10,7 @@ import { refresh, pendingNewJobCount, pendingPreferenceChangeCount, type Refresh
 import { summonBots, removeBots } from './bots';
 import { startNotificationPushWatcher } from './push';
 import { processReport, processPendingReports } from './moderation';
-import { resetAccount } from './reset';
+import { resetAccount, deleteAccount } from './reset';
 
 const PORT = Number(process.env.PORT ?? '8787');
 // Bind to localhost by default — Nginx (public :443) reverse-proxies to this. Set HOST=0.0.0.0
@@ -221,6 +221,43 @@ app.post('/admin/reset-account', rateLimit(4, 60_000), async (c) => {
   } catch (err) {
     console.error('[reset] failed:', err);
     return c.json({ error: err instanceof Error ? err.message : 'Reset failed' }, 500);
+  }
+});
+
+/** Admin tool: permanently delete another account (all content + profile + auth user).
+ * Any admin can delete a regular user; only the owner can delete an admin; the owner and
+ * your own account can never be deleted here. */
+app.post('/admin/delete-account', rateLimit(10, 60_000), async (c) => {
+  const callerId = await authenticatedUserId(c.req.header('Authorization'));
+  if (!callerId) return c.json({ error: 'Unauthorized' }, 401);
+  if (!(await isAdmin(callerId))) return c.json({ error: 'Admins only' }, 403);
+
+  const body = (await c.req.json().catch(() => ({}))) as { targetUserId?: unknown };
+  const targetUserId = typeof body.targetUserId === 'string' ? body.targetUserId : '';
+  if (!targetUserId) return c.json({ error: 'Missing targetUserId' }, 400);
+  if (targetUserId === callerId) {
+    return c.json({ error: 'Use “Reset my account” to wipe your own account.' }, 400);
+  }
+
+  const { data: target } = await admin
+    .from('profiles')
+    .select('is_admin, is_owner')
+    .eq('id', targetUserId)
+    .maybeSingle();
+  if (!target) return c.json({ error: 'That account no longer exists.' }, 404);
+  if (target.is_owner) return c.json({ error: 'The owner account cannot be deleted.' }, 403);
+
+  if (target.is_admin) {
+    const { data: caller } = await admin.from('profiles').select('is_owner').eq('id', callerId).maybeSingle();
+    if (!caller?.is_owner) return c.json({ error: 'Only the owner can delete an admin account.' }, 403);
+  }
+
+  try {
+    await deleteAccount(targetUserId);
+    return c.json({ ok: true });
+  } catch (err) {
+    console.error('[delete-account] failed:', err);
+    return c.json({ error: err instanceof Error ? err.message : 'Delete failed' }, 500);
   }
 });
 

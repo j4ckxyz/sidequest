@@ -34,6 +34,19 @@ export function useSetAdmin() {
   });
 }
 
+// Permanently delete another account (all content + profile + auth user). Owner-guarded server-side.
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ callerId, targetId }: { callerId: string; targetId: string }) =>
+      db.profiles.deleteAccount(callerId, targetId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'jobs'] });
+    },
+  });
+}
+
 export function useAdminDeleteJob() {
   const queryClient = useQueryClient();
   return useMutation({

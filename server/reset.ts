@@ -12,12 +12,9 @@ async function tryDelete(label: string, run: () => Promise<{ error: unknown }>):
   }
 }
 
-export async function resetAccount(userId: string): Promise<void> {
-  const { data: prof } = await admin.from('profiles').select('is_admin').eq('id', userId).maybeSingle();
-  if (!prof?.is_admin) {
-    throw new Error('Account reset is only available for Admin accounts.');
-  }
-
+/** Delete every row keyed on a user across the app's tables. Shared by reset (keeps the
+ * profile + auth user) and full deletion (drops those too). Best-effort per table. */
+async function wipeUserContent(userId: string): Promise<void> {
   const orSelf = `poster_id.eq.${userId},quester_id.eq.${userId}`;
 
   // Jobs the user posted (cascades their applications, conversations, notifications,
@@ -37,6 +34,15 @@ export async function resetAccount(userId: string): Promise<void> {
   await tryDelete('recommendations', () => admin.from('recommendations').delete().eq('user_id', userId));
   await tryDelete('push_subscriptions', () => admin.from('push_subscriptions').delete().eq('user_id', userId));
   await tryDelete('username_history', () => admin.from('username_history').delete().eq('user_id', userId));
+}
+
+export async function resetAccount(userId: string): Promise<void> {
+  const { data: prof } = await admin.from('profiles').select('is_admin').eq('id', userId).maybeSingle();
+  if (!prof?.is_admin) {
+    throw new Error('Account reset is only available for Admin accounts.');
+  }
+
+  await wipeUserContent(userId);
 
   // Free the username via a security-definer RPC that bypasses the 7-day cooldown
   // trigger (protect_username_change) inside a single transaction. Doing this here —
@@ -67,4 +73,24 @@ export async function resetAccount(userId: string): Promise<void> {
     })
     .eq('id', userId);
   if (error) throw new Error(`reset profile: ${error.message}`);
+}
+
+/** Permanently delete a user: all their content, their profile row, and their auth user.
+ * Caller authorization (admin, and never the owner) is enforced at the endpoint. */
+export async function deleteAccount(targetUserId: string): Promise<void> {
+  const { data: prof } = await admin
+    .from('profiles')
+    .select('is_owner')
+    .eq('id', targetUserId)
+    .maybeSingle();
+  if (prof?.is_owner) throw new Error('The owner account cannot be deleted.');
+
+  await wipeUserContent(targetUserId);
+
+  // Drop the profile row, then the auth user. Auth deletion last so a failed content
+  // wipe can't orphan an unauthenticatable profile.
+  await tryDelete('profile', () => admin.from('profiles').delete().eq('id', targetUserId));
+
+  const { error: authErr } = await admin.auth.admin.deleteUser(targetUserId);
+  if (authErr) throw new Error(`delete auth user: ${authErr.message}`);
 }
