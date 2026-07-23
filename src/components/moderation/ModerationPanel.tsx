@@ -55,7 +55,7 @@ export function ModerationPanel({ callerId }: { callerId: string }) {
           <div>
             <p className="text-sm font-semibold text-text">AI moderation — live</p>
             <p className="text-xs text-text-muted">
-              Gemini reviews every report and also sweeps all posts on its own every few minutes, acting autonomously. You can override below.
+              Gemini reviews every report and also sweeps all posts on its own — as new posts arrive and at least hourly — acting autonomously. You can override below.
             </p>
           </div>
         </div>

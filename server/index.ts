@@ -10,7 +10,7 @@ import { refresh, pendingNewJobCount, pendingPreferenceChangeCount, type Refresh
 import { summonBots, removeBots } from './bots';
 import { startNotificationPushWatcher } from './push';
 import { processReport, processPendingReports } from './moderation';
-import { sweepAutomod } from './automod';
+import { sweepAutomod, pendingAutomodCount } from './automod';
 import { resetAccount, deleteAccount } from './reset';
 
 const PORT = Number(process.env.PORT ?? '8787');
@@ -21,7 +21,9 @@ const CRON_SECRET = process.env.CRON_SECRET;
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS ?? String(60 * 60 * 1000)); // hourly full refresh
 const WATCH_INTERVAL_MS = Number(process.env.WATCH_INTERVAL_MS ?? String(2 * 60 * 1000)); // check for new jobs every 2m
 const NEW_JOBS_THRESHOLD = Number(process.env.NEW_JOBS_THRESHOLD ?? '5'); // fire early once this many new jobs pile up
-const AUTOMOD_INTERVAL_MS = Number(process.env.AUTOMOD_INTERVAL_MS ?? String(3 * 60 * 1000)); // proactive post scan every 3m
+const AUTOMOD_CHECK_INTERVAL_MS = Number(process.env.AUTOMOD_CHECK_INTERVAL_MS ?? String(5 * 60 * 1000)); // how often to consider sweeping
+const AUTOMOD_MAX_INTERVAL_MS = Number(process.env.AUTOMOD_MAX_INTERVAL_MS ?? String(60 * 60 * 1000)); // guarantee a sweep at least hourly
+const AUTOMOD_NEW_POSTS_THRESHOLD = Number(process.env.AUTOMOD_NEW_POSTS_THRESHOLD ?? '10'); // sweep early once this many posts await review
 const PREFERENCE_CHAT_DAILY_LIMIT = boundedEnvInt('PREFERENCE_CHAT_DAILY_LIMIT', 20, 1, 200);
 const PREFERENCE_CHAT_BURST_LIMIT = boundedEnvInt('PREFERENCE_CHAT_BURST_LIMIT', 4, 1, 60);
 const PREFERENCE_CHAT_GLOBAL_DAILY_LIMIT = boundedEnvInt('PREFERENCE_CHAT_GLOBAL_DAILY_LIMIT', 100, 1, 10_000);
@@ -269,8 +271,19 @@ app.post('/admin/automod-sweep', rateLimit(6, 60_000), async (c) => {
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
   if (!(await isAdmin(userId))) return c.json({ error: 'Admins only' }, 403);
   try {
-    const result = await sweepAutomod();
-    return c.json({ ok: true, ...result });
+    // Drain the backlog across a few batched passes so a manual trigger clears everything.
+    let total = { scanned: 0, reviewed: 0, enforced: 0, requests: 0 };
+    for (let i = 0; i < 6; i++) {
+      const r = await sweepAutomod();
+      total = {
+        scanned: total.scanned + r.scanned,
+        reviewed: total.reviewed + r.reviewed,
+        enforced: total.enforced + r.enforced,
+        requests: total.requests + r.requests,
+      };
+      if (r.scanned === 0) break;
+    }
+    return c.json({ ok: true, ...total });
   } catch (err) {
     console.error('[automod] manual sweep failed:', err);
     return c.json({ error: err instanceof Error ? err.message : 'Sweep failed' }, 500);
@@ -535,23 +548,42 @@ setInterval(async () => {
   }
 }, 5_000);
 
-// Automod sweep: proactively scan posts (new + backlog) for harmful content every few minutes,
-// no report required. Serialized so overlapping sweeps can't double-act on the same post.
+// Automod: Gemini reviews every post in batches (one request per chunk). We sweep when enough new
+// posts have piled up OR at least hourly, so review is timely without wasting model requests.
+// Serialized so overlapping sweeps can't double-act on the same post.
 let automodInFlight = false;
-setInterval(async () => {
+let lastAutomodSweepAt = 0;
+async function maybeSweepAutomod(force = false): Promise<void> {
   if (automodInFlight) return;
   automodInFlight = true;
   try {
-    const r = await sweepAutomod();
-    if (r.enforced > 0 || r.flaggedReviewed > 0) {
-      console.log(`[automod] scanned ${r.scanned}, reviewed ${r.flaggedReviewed}, enforced ${r.enforced}`);
+    const pending = await pendingAutomodCount();
+    const elapsed = Date.now() - lastAutomodSweepAt;
+    const due = force || (pending > 0 && (pending >= AUTOMOD_NEW_POSTS_THRESHOLD || elapsed >= AUTOMOD_MAX_INTERVAL_MS));
+    if (!due) return;
+    lastAutomodSweepAt = Date.now();
+    // Drain the backlog across chunks in this pass (bounded per sweep inside sweepAutomod).
+    let total = { scanned: 0, reviewed: 0, enforced: 0, requests: 0 };
+    for (let i = 0; i < 5; i++) {
+      const r = await sweepAutomod();
+      total = {
+        scanned: total.scanned + r.scanned,
+        reviewed: total.reviewed + r.reviewed,
+        enforced: total.enforced + r.enforced,
+        requests: total.requests + r.requests,
+      };
+      if (r.scanned === 0) break;
+    }
+    if (total.reviewed > 0 || total.enforced > 0) {
+      console.log(`[automod] reviewed ${total.reviewed} in ${total.requests} request(s), enforced ${total.enforced}`);
     }
   } catch (err) {
     console.error('[automod] sweep failed:', err);
   } finally {
     automodInFlight = false;
   }
-}, AUTOMOD_INTERVAL_MS);
+}
+setInterval(() => void maybeSweepAutomod(), AUTOMOD_CHECK_INTERVAL_MS);
 
 console.log(
   `SideQuest recs service on :${PORT} — hourly refresh, watch every ${Math.round(WATCH_INTERVAL_MS / 60000)}m (threshold ${NEW_JOBS_THRESHOLD} new jobs)`,

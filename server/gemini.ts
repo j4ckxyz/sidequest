@@ -312,6 +312,110 @@ export async function moderationDecision(input: {
   };
 }
 
+export interface BatchPost {
+  id: string;
+  title: string;
+  description: string;
+  posterName: string;
+  posterUsername: string;
+  priorActions: number;
+}
+
+export interface BatchVerdict {
+  id: string;
+  decision: ModerationVerdict['decision'];
+  ban_days: number | null;
+  reason: string; // second person, shown to the reported user
+  rationale: string; // third person, admin log — names the user
+}
+
+/**
+ * Moderate a batch of posts in ONE model request. On the free tier we're billed per request,
+ * not per token, so batching many posts into a single call is far cheaper than one call each —
+ * and there's no keyword prefilter, so keyword-free harms (fraud, staged accidents, dangerous or
+ * illegal requests) are caught by the model's judgement, not a word list.
+ */
+export async function moderateBatch(posts: BatchPost[]): Promise<BatchVerdict[]> {
+  if (posts.length === 0) return [];
+
+  const items = posts.map((p, i) => {
+    const who = p.posterUsername ? `${p.posterName} (@${p.posterUsername})` : p.posterName || 'the user';
+    return [
+      `POST ${i + 1} — id: ${p.id} — posted by ${who} — prior enforcement actions against them: ${p.priorActions}`,
+      `Title: ${p.title}`,
+      `Description: ${p.description}`.slice(0, 1200),
+    ].join('\n');
+  });
+
+  const prompt = [
+    "You are SideQuest's autonomous moderation agent for a neighbourly local-jobs marketplace in Jersey.",
+    'Review EVERY post below and choose the single best enforcement action for each, using the rules',
+    'and that poster\'s history. Judge intent and meaning — do NOT rely on specific keywords. Catch',
+    'scams and fraud (including insurance fraud / staged accidents), requests to do something dangerous,',
+    'illegal, or harmful, off-platform/gift-card/crypto payment bait, spam and advertising, and',
+    'harassment or abuse — even when phrased innocently or without obvious trigger words.',
+    '',
+    'RULES:',
+    MOD_RULES,
+    '',
+    'TOOLS (choose exactly one per post):',
+    '- dismiss: within the rules; take no action.',
+    '- remove_post: this post breaks the rules; take it down.',
+    '- ban_user: temporary ban (set ban_days 7–30); repeat offender or a serious first violation.',
+    '- suspend_user: indefinite; repeat serious violations after a prior action, or egregious abuse.',
+    '',
+    'ESCALATION: first-time violation on a post → remove_post. If the poster already has prior actions',
+    '→ ban_user. Serious violation again after a prior action → suspend_user. Clearly fine → dismiss.',
+    'Be fair and proportionate; never punish honest neighbourly posts.',
+    '',
+    'POSTS:',
+    items.join('\n\n'),
+    '',
+    'Return a JSON array with one object per post, in the same order, each:',
+    '{"id":"<the post id>","decision":"dismiss|remove_post|ban_user|suspend_user","ban_days":number|null,',
+    ' "reason":"one sentence addressed to the poster in the second person (their notification)",',
+    ' "rationale":"one sentence for the admin log in the third person, naming the poster"}',
+    'Every post must appear exactly once. JSON only, no markdown.',
+  ].join('\n');
+
+  const json = (await post(
+    CHAT_MODEL,
+    'generateContent',
+    {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.15, maxOutputTokens: 4096 },
+    },
+    2,
+  )) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+
+  const raw = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '[]';
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = [];
+  }
+  const arr = Array.isArray(parsed) ? parsed : [];
+  const allowed = ['dismiss', 'remove_post', 'ban_user', 'suspend_user'];
+  const byId = new Map<string, BatchVerdict>();
+  for (const item of arr) {
+    const p = item as Partial<BatchVerdict>;
+    if (typeof p.id !== 'string') continue;
+    const decision = (allowed.includes(p.decision as string) ? p.decision : 'dismiss') as ModerationVerdict['decision'];
+    byId.set(p.id, {
+      id: p.id,
+      decision,
+      ban_days: typeof p.ban_days === 'number' ? Math.max(1, Math.min(365, Math.round(p.ban_days))) : null,
+      reason: (typeof p.reason === 'string' ? p.reason : 'Reviewed by moderation.').slice(0, 300),
+      rationale: (typeof p.rationale === 'string' ? p.rationale : '').slice(0, 300),
+    });
+  }
+  // Preserve input order; default any post the model skipped to a safe dismiss.
+  return posts.map(
+    (p) => byId.get(p.id) ?? { id: p.id, decision: 'dismiss', ban_days: null, reason: 'Reviewed by moderation.', rationale: '' },
+  );
+}
+
 function normalize(v: number[]): number[] {
   let sum = 0;
   for (const x of v) sum += x * x;
