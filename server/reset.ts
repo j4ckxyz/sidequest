@@ -17,6 +17,14 @@ async function tryDelete(label: string, run: () => Promise<{ error: unknown }>):
 async function wipeUserContent(userId: string): Promise<void> {
   const orSelf = `poster_id.eq.${userId},quester_id.eq.${userId}`;
 
+  // Jobs where this user is the assigned quester on SOMEONE ELSE's post: that FK
+  // (jobs.assigned_quester_id → profiles) has no ON DELETE action, so it would block
+  // the profiles/auth-user cascade. Reopen those jobs and clear the assignment first.
+  await tryDelete('reopen assigned jobs', () =>
+    admin.from('jobs').update({ status: 'open' }).eq('assigned_quester_id', userId).in('status', ['assigned', 'in_progress']),
+  );
+  await tryDelete('unassign jobs', () => admin.from('jobs').update({ assigned_quester_id: null }).eq('assigned_quester_id', userId));
+
   // Jobs the user posted (cascades their applications, conversations, notifications,
   // embeddings, recommendations). Then everything else keyed on the user.
   await tryDelete('jobs', () => admin.from('jobs').delete().eq('poster_id', userId));
@@ -87,10 +95,19 @@ export async function deleteAccount(targetUserId: string): Promise<void> {
 
   await wipeUserContent(targetUserId);
 
-  // Drop the profile row, then the auth user. Auth deletion last so a failed content
-  // wipe can't orphan an unauthenticatable profile.
-  await tryDelete('profile', () => admin.from('profiles').delete().eq('id', targetUserId));
+  // Drop the profile row, then the auth user. Surface a failed profile delete rather
+  // than swallowing it — otherwise the auth delete below fails with an opaque cascade error.
+  const { error: profErr } = await admin.from('profiles').delete().eq('id', targetUserId);
+  if (profErr) throw new Error(`delete profile: ${profErr.message}`);
 
   const { error: authErr } = await admin.auth.admin.deleteUser(targetUserId);
-  if (authErr) throw new Error(`delete auth user: ${authErr.message}`);
+  if (authErr) {
+    // GoTrue often serializes DB cascade errors as an empty object; pull whatever detail exists.
+    const detail =
+      authErr.message ||
+      (authErr as { name?: string }).name ||
+      `status ${(authErr as { status?: number }).status ?? '?'}` ||
+      JSON.stringify(authErr, Object.getOwnPropertyNames(authErr));
+    throw new Error(`delete auth user: ${detail}`);
+  }
 }
