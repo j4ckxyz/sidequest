@@ -6,6 +6,7 @@ import Landing from './components/Landing'
 import AuthScreen from './components/AuthScreen'
 import QuestBoard from './pages/QuestBoard'
 import PostQuest from './pages/PostQuest'
+import FacebookImport from './pages/FacebookImport'
 import MyQuests from './pages/PosterManage'
 import Profile from './pages/Profile'
 import Messages from './pages/Messages'
@@ -154,6 +155,9 @@ function Shell() {
                 <QuestBoard me={me} appliedIds={appliedIds} onApplied={onApplied} />
               )}
               {view === 'post' && <PostQuest meId={me.id} onPosted={() => setView('mine')} />}
+              {view === 'import' && (
+                <FacebookImport meId={me.id} onGoToBoard={() => setView('board')} />
+              )}
               {view === 'mine' && <MyQuests meId={me.id} meName={displayName} />}
               {view === 'chat' && (
                 <Messages
