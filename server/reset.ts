@@ -38,14 +38,19 @@ export async function resetAccount(userId: string): Promise<void> {
   await tryDelete('push_subscriptions', () => admin.from('push_subscriptions').delete().eq('user_id', userId));
   await tryDelete('username_history', () => admin.from('username_history').delete().eq('user_id', userId));
 
+  // Free the username via a security-definer RPC that bypasses the 7-day cooldown
+  // trigger (protect_username_change) inside a single transaction. Doing this here —
+  // rather than setting username in the profile update below — means the column-scoped
+  // BEFORE UPDATE trigger never fires on the main reset update.
+  const { error: freeErr } = await admin.rpc('admin_free_username', { p_user_id: userId });
+  if (freeErr) throw new Error(`free username: ${freeErr.message}`);
+
   // Reset the profile to a fresh, un-onboarded state (preserve id/email/avatar and
   // is_admin/is_owner so they can still administer after re-onboarding).
   const { error } = await admin
     .from('profiles')
     .update({
       onboarded: false,
-      username: null,
-      username_changed_at: null,
       full_name: '',
       bio: '',
       skills: [],
