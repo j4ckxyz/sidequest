@@ -3,8 +3,8 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @theme {
-  --font-display: 'Petrona', ui-serif, Georgia, serif;
-  --font-sans: 'Karla', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Source Serif 4', ui-serif, Georgia, serif;
+  --font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
 
   /*
    * Jersey Marketplace brand palette (ParishPal / Jèrri Folk brand doc — see
