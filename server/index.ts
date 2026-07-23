@@ -391,6 +391,11 @@ app.post('/preferences/chat', async (c) => {
  * the common case as someone types/refines — return instantly with no Gemini call.
  */
 const SEARCH_CACHE_TTL_MS = Number(process.env.SEARCH_CACHE_TTL_MS ?? String(5 * 60 * 1000));
+// Cosine-distance cutoff for semantic search. Vector search returns the k nearest jobs even when
+// none are actually related, so a query like "wifi" pulls in noise. Only keep genuinely-close
+// matches (smaller distance = more similar). Lexical/fuzzy ranking is the primary signal; semantic
+// only supplements it, so this can be fairly strict.
+const SEARCH_MAX_DISTANCE = Number(process.env.SEARCH_MAX_DISTANCE ?? '0.5');
 const searchCache = new Map<string, { results: { job_id: string; distance: number }[]; expires: number }>();
 
 app.post('/search', rateLimit(60, 60_000), async (c) => {
@@ -413,7 +418,10 @@ app.post('/search', rateLimit(60, 60_000), async (c) => {
       p_category: category,
     });
     if (error) throw new Error(error.message);
-    const results = (data ?? []) as { job_id: string; distance: number }[];
+    // Drop far-away (unrelated) neighbours so semantic search can't inject noise.
+    const results = ((data ?? []) as { job_id: string; distance: number }[]).filter(
+      (r) => r.distance <= SEARCH_MAX_DISTANCE,
+    );
     searchCache.set(cacheKey, { results, expires: Date.now() + SEARCH_CACHE_TTL_MS });
     return c.json({ results });
   } catch (err) {

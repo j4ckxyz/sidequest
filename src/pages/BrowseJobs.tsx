@@ -9,7 +9,7 @@ import { JobFilters, type JobFilterState } from '../components/jobs/JobFilters';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Kbd } from '../components/ui/Kbd';
 import { JOB_CATEGORIES } from '../lib/constants';
-import { fuzzyScore } from '../lib/fuzzy';
+import { jobRelevance, RELEVANCE_THRESHOLD } from '../lib/fuzzy';
 import type { Job } from '../types/models';
 
 export function BrowseJobs() {
@@ -62,34 +62,29 @@ export function BrowseJobs() {
       return copy;
     }
 
-    // Query → relevance order. Semantic matches (meaning: "laptop" → Computer
-    // jobs) lead, in their server rank. The rest are scored with a fuzzy matcher
-    // so loose queries ("dogs", "gardner") still surface — and the closest
-    // matches rank highest — then appended by descending score.
-    const q = query.toLowerCase();
+    // Query → relevance order. Lexical fuzzy matching over title/category/description is the
+    // primary signal (so "wifi", "dogs", "gardner" rank the right jobs and typos still hit).
+    // Semantic matches from the recs server are distance-gated on the server, so they're only
+    // used to boost meaning-matches ("laptop" → tech help) and are appended after lexical hits —
+    // never leading with noise.
     const labelFor = (slug: string) =>
       (JOB_CATEGORIES.find((c) => c.slug === slug)?.label ?? slug) + ' ' + slug.replace(/-/g, ' ');
-    const jobText = (j: Job) => `${j.title} ${j.description} ${labelFor(j.category)}`;
 
-    const byId = new Map(jobs.map((j) => [j.id, j]));
-    const ordered: Job[] = [];
-    const seen = new Set<string>();
-    for (const id of semanticIds ?? []) {
-      const job = byId.get(id);
-      if (job && !seen.has(id)) {
-        ordered.push(job);
-        seen.add(id);
-      }
-    }
+    // Rank of each gated semantic id (0 = closest) → a small, decaying boost.
+    const semRank = new Map<string, number>();
+    (semanticIds ?? []).forEach((id, i) => semRank.set(id, i));
+    const semBoost = (id: string) => (semRank.has(id) ? 0.3 * (1 - (semRank.get(id) as number) / Math.max(4, semRank.size)) : 0);
 
-    const fuzzy = jobs
-      .filter((job) => !seen.has(job.id))
-      .map((job) => ({ job, score: fuzzyScore(q, jobText(job)) }))
-      .filter((entry) => entry.score >= 0.5)
+    const scored = jobs
+      .map((job) => {
+        const lexical = jobRelevance(query, { title: job.title, category: labelFor(job.category), description: job.description });
+        return { job, lexical, score: lexical + semBoost(job.id) };
+      })
+      // Keep lexical matches, plus semantic-only matches (concept hits with no keyword overlap).
+      .filter((e) => e.lexical >= RELEVANCE_THRESHOLD || semRank.has(e.job.id))
       .sort((a, b) => b.score - a.score);
-    for (const { job } of fuzzy) ordered.push(job);
 
-    return ordered;
+    return scored.map((e) => e.job);
   }, [jobs, query, semanticIds, filters.sort]);
 
   return (

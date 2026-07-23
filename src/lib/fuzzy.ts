@@ -43,7 +43,9 @@ function tokenSim(q: string, t: string): number {
   const ts = stem(t);
   if (qs === ts) return 0.95;
   if (q.length >= 3 && (t.startsWith(q) || q.startsWith(t))) return 0.9;
-  if (t.includes(q) || q.includes(t)) return 0.82;
+  // Substring containment only when the shorter token is long enough to be meaningful —
+  // otherwise stopwords like "to" match inside "laptop" and pollute results.
+  if (Math.min(q.length, t.length) >= 4 && (t.includes(q) || q.includes(t))) return 0.82;
   const max = q.length <= 4 ? 1 : 2;
   const dist = levenshtein(q, t, max);
   if (dist <= max) return 0.72 * (1 - dist / (Math.max(q.length, t.length) || 1));
@@ -80,3 +82,25 @@ export function fuzzyScore(query: string, text: string): number {
   }
   return total / qTokens.length;
 }
+
+/**
+ * Relevance of a job to a query across its fields, weighted so a title hit outranks a
+ * description hit. Returns ~0..1.1. A match in more than one field gets a small bonus so
+ * "garden gate" (title) beats an incidental "garden" mention in an unrelated description.
+ */
+export function jobRelevance(
+  query: string,
+  fields: { title: string; category: string; description: string },
+): number {
+  const t = fuzzyScore(query, fields.title);
+  const c = fuzzyScore(query, fields.category);
+  const d = fuzzyScore(query, fields.description);
+  // Title dominates, category close behind, description supports.
+  const base = Math.max(t, c * 0.9, d * 0.72);
+  const fieldsHit = (t >= 0.5 ? 1 : 0) + (c >= 0.5 ? 1 : 0) + (d >= 0.5 ? 1 : 0);
+  const bonus = fieldsHit >= 2 ? 0.08 : 0;
+  return Math.min(1.1, base + bonus);
+}
+
+/** Minimum jobRelevance for a job to count as a lexical match. */
+export const RELEVANCE_THRESHOLD = 0.5;
