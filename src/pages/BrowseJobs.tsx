@@ -10,7 +10,6 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Kbd } from '../components/ui/Kbd';
 import { JOB_CATEGORIES } from '../lib/constants';
 import { jobRelevance, RELEVANCE_THRESHOLD } from '../lib/fuzzy';
-import type { Job } from '../types/models';
 
 export function BrowseJobs() {
   const [searchParams] = useSearchParams();
