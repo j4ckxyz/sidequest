@@ -5,6 +5,10 @@ const API_KEY = requireEnv('GEMINI_API_KEY');
 const EMBED_MODEL = process.env.GEMINI_EMBED_MODEL ?? 'gemini-embedding-001';
 const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL ?? 'gemini-flash-lite-latest';
 export const EMBED_DIMS = Number(process.env.EMBED_DIMS ?? '768');
+// Semantic search runs on its own model/space (gemini-embedding-2), separate from
+// the recs pipeline above so the two never have to share a vector space.
+const SEARCH_EMBED_MODEL = process.env.GEMINI_SEARCH_EMBED_MODEL ?? 'gemini-embedding-2';
+export const SEARCH_EMBED_DIMS = Number(process.env.SEARCH_EMBED_DIMS ?? '768');
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const EMBED_BATCH_LIMIT = 100;
@@ -66,6 +70,43 @@ export async function embedBatch(texts: string[], taskType: EmbedTask): Promise<
 /** Embed a single text (query path). */
 export async function embedOne(text: string, taskType: EmbedTask): Promise<number[]> {
   const [v] = await embedBatch([text], taskType);
+  return v;
+}
+
+// ── Semantic search embeddings (gemini-embedding-2) ───────────────────────────
+// embedding-2 has no taskType param; the task is expressed as a text prefix
+// instead (asymmetric retrieval format from the API docs). One request per text
+// so batchEmbedContents returns one embedding per input.
+async function embedSearchBatch(texts: string[]): Promise<number[][]> {
+  const out: number[][] = [];
+  for (let i = 0; i < texts.length; i += EMBED_BATCH_LIMIT) {
+    const chunk = texts.slice(i, i + EMBED_BATCH_LIMIT);
+    const body = {
+      requests: chunk.map((text) => ({
+        model: `models/${SEARCH_EMBED_MODEL}`,
+        content: { parts: [{ text: text.slice(0, 8000) }] },
+        outputDimensionality: SEARCH_EMBED_DIMS,
+      })),
+    };
+    const json = (await post(SEARCH_EMBED_MODEL, 'batchEmbedContents', body, 3)) as {
+      embeddings?: { values: number[] }[];
+    };
+    for (const e of json.embeddings ?? []) out.push(normalize(e.values));
+  }
+  if (out.length !== texts.length) {
+    throw new Error(`Search embedding count mismatch: got ${out.length}, expected ${texts.length}`);
+  }
+  return out;
+}
+
+/** Embed job documents for the search index (asymmetric "document" side). */
+export async function embedSearchDocuments(docs: { title: string; text: string }[]): Promise<number[][]> {
+  return embedSearchBatch(docs.map((d) => `title: ${d.title || 'none'} | text: ${d.text}`));
+}
+
+/** Embed a search query (asymmetric "query" side). */
+export async function embedSearchQuery(query: string): Promise<number[]> {
+  const [v] = await embedSearchBatch([`task: search result | query: ${query}`]);
   return v;
 }
 

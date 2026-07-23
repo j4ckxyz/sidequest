@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
-import { useJobsList } from '../hooks/useJobs';
+import { useJobsList, useSemanticJobSearch } from '../hooks/useJobs';
 import { useProfile } from '../hooks/useProfile';
 import { JobCard } from '../components/jobs/JobCard';
 import { JobCardSkeleton } from '../components/ui/Skeleton';
 import { JobFilters, type JobFilterState } from '../components/jobs/JobFilters';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Kbd } from '../components/ui/Kbd';
-import type { Profile } from '../types/models';
+import { JOB_CATEGORIES } from '../lib/constants';
+import type { Job, Profile } from '../types/models';
 
 function PosterFor({ posterId, children }: { posterId: string; children: (p: Profile | null) => React.ReactNode }) {
   const { data } = useProfile(posterId);
@@ -24,7 +25,12 @@ export function BrowseJobs() {
     sort: 'newest',
   });
   const searchRef = useRef<HTMLInputElement>(null);
-  const { data: jobs, isLoading } = useJobsList({ search: filters.search, category: filters.category, parish: filters.parish, status: 'open' });
+  const query = filters.search.trim();
+  // Fetch the full open set for the current category/parish (no server-side text
+  // filter) so semantic + keyword results can be merged client-side and shown
+  // instantly. The semantic ids stream in from the recs server a beat later.
+  const { data: jobs, isLoading } = useJobsList({ category: filters.category, parish: filters.parish, status: 'open' });
+  const { data: semanticIds } = useSemanticJobSearch(query, { parish: filters.parish, category: filters.category });
 
   // Press "/" anywhere to jump into the floating search bar; Esc to leave it.
   useEffect(() => {
@@ -45,12 +51,46 @@ export function BrowseJobs() {
 
   const sorted = useMemo(() => {
     if (!jobs) return [];
-    const copy = [...jobs];
-    // Flexible/undated jobs sort to the end.
-    if (filters.sort === 'date_needed') copy.sort((a, b) => (a.date_needed ?? '9999').localeCompare(b.date_needed ?? '9999'));
-    if (filters.sort === 'budget_high') copy.sort((a, b) => (b.budget_amount ?? 0) - (a.budget_amount ?? 0));
-    return copy;
-  }, [jobs, filters.sort]);
+
+    // No query → the full open set, respecting the chosen sort.
+    if (!query) {
+      const copy = [...jobs];
+      // Flexible/undated jobs sort to the end.
+      if (filters.sort === 'date_needed') copy.sort((a, b) => (a.date_needed ?? '9999').localeCompare(b.date_needed ?? '9999'));
+      if (filters.sort === 'budget_high') copy.sort((a, b) => (b.budget_amount ?? 0) - (a.budget_amount ?? 0));
+      return copy;
+    }
+
+    // Query → relevance order: semantic matches first (e.g. "laptop" → Computer
+    // jobs), then literal keyword/category matches not already surfaced.
+    const q = query.toLowerCase();
+    const catSlugs = JOB_CATEGORIES.filter(
+      (c) => c.label.toLowerCase().includes(q) || c.slug.replace(/-/g, ' ').includes(q),
+    ).map((c) => c.slug);
+    const keywordMatch = (j: Job) =>
+      j.title.toLowerCase().includes(q) ||
+      j.description.toLowerCase().includes(q) ||
+      catSlugs.includes(j.category) ||
+      j.category.replace(/-/g, ' ').includes(q);
+
+    const byId = new Map(jobs.map((j) => [j.id, j]));
+    const ordered: Job[] = [];
+    const seen = new Set<string>();
+    for (const id of semanticIds ?? []) {
+      const job = byId.get(id);
+      if (job && !seen.has(id)) {
+        ordered.push(job);
+        seen.add(id);
+      }
+    }
+    for (const job of jobs) {
+      if (!seen.has(job.id) && keywordMatch(job)) {
+        ordered.push(job);
+        seen.add(job.id);
+      }
+    }
+    return ordered;
+  }, [jobs, query, semanticIds, filters.sort]);
 
   return (
     <div className="mx-auto max-w-6xl px-6 pt-10 pb-44 sm:pb-32">

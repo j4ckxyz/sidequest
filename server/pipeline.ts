@@ -10,7 +10,7 @@
 
 import { createHash } from 'node:crypto';
 import { admin } from './supabaseAdmin';
-import { embedBatch, reasons, EMBED_DIMS } from './gemini';
+import { embedBatch, embedSearchDocuments, reasons, EMBED_DIMS } from './gemini';
 
 // Store a deep pool per user so the client can page through "other opportunities"
 // without another server/LLM round-trip.
@@ -120,10 +120,51 @@ function toVectorLiteral(v: number[]): string {
 
 export interface RefreshResult {
   jobsEmbedded: number;
+  jobsSearchEmbedded: number;
   usersProcessed: number;
   recommendationsWritten: number;
   reasonLlmCalls: number;
   reasonsReused: number;
+}
+
+// Search-index document text (human words only — the query side is user prose,
+// not slugs). Kept separate from the recs sourceText() so the two indexes evolve
+// independently.
+function searchDoc(j: JobRow): { title: string; text: string } {
+  return { title: j.title, text: `${j.description}\nCategory: ${j.category.replace(/-/g, ' ')}` };
+}
+function searchDocHash(j: JobRow): string {
+  const d = searchDoc(j);
+  return hash(`${d.title}\n${d.text}`);
+}
+
+/**
+ * Refresh the gemini-embedding-2 search index for open jobs whose text changed.
+ * Best-effort and fully isolated: a failure here (e.g. migration 0018 not yet
+ * applied, or the embedding model hiccuping) is logged and swallowed so it never
+ * breaks the recommendations refresh.
+ */
+async function refreshSearchEmbeddings(openJobs: JobRow[]): Promise<number> {
+  try {
+    const { data: rows, error } = await admin.from('job_search_embeddings').select('job_id, source_hash');
+    if (error) throw new Error(error.message);
+    const existing = new Map((rows ?? []).map((r) => [r.job_id as string, r.source_hash as string]));
+    const stale = openJobs.filter((j) => existing.get(j.id) !== searchDocHash(j));
+    if (stale.length === 0) return 0;
+    const vectors = await embedSearchDocuments(stale.map(searchDoc));
+    const upsert = stale.map((j, i) => ({
+      job_id: j.id,
+      embedding: toVectorLiteral(vectors[i]),
+      source_hash: searchDocHash(j),
+      updated_at: new Date().toISOString(),
+    }));
+    const { error: upErr } = await admin.from('job_search_embeddings').upsert(upsert);
+    if (upErr) throw new Error(upErr.message);
+    return stale.length;
+  } catch (err) {
+    console.error('[search-embeddings] skipped:', err instanceof Error ? err.message : err);
+    return 0;
+  }
 }
 
 /** How many open jobs still have no embedding — i.e. newly posted since the last refresh.
@@ -240,6 +281,9 @@ export async function refresh(): Promise<RefreshResult> {
     const { error } = await admin.from('profile_embeddings').upsert(rows);
     if (error) throw new Error(`upsert profile_embeddings: ${error.message}`);
   }
+
+  // Refresh the semantic search index (gemini-embedding-2, isolated + best-effort).
+  const jobsSearchEmbedded = await refreshSearchEmbeddings(jobs.filter((j) => j.status === 'open'));
 
   // Embedding map (existing + freshly written) for taste building.
   const [allJobEmbResult, allProfileEmbResult] = await Promise.all([
@@ -425,7 +469,7 @@ export async function refresh(): Promise<RefreshResult> {
     recommendationsWritten += rows.length;
   }
 
-  return { jobsEmbedded: stale.length, usersProcessed, recommendationsWritten, reasonLlmCalls, reasonsReused };
+  return { jobsEmbedded: stale.length, jobsSearchEmbedded, usersProcessed, recommendationsWritten, reasonLlmCalls, reasonsReused };
 }
 
 function weightedMean(weights: Map<string, number>, embById: Map<string, number[]>): number[] | null {

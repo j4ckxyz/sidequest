@@ -16,6 +16,23 @@ export function useJobsList(filters: JobFilters) {
   });
 }
 
+/**
+ * Semantic search over the recs server's gemini-embedding-2 index. Returns
+ * ranked open-job ids. Enabled only for real queries; failures (server down,
+ * index not built) resolve to [] so the caller falls back to keyword matching.
+ */
+export function useSemanticJobSearch(query: string, opts?: { parish?: string; category?: string }) {
+  const q = query.trim();
+  return useQuery({
+    queryKey: ['jobs', 'semantic', q, opts?.parish ?? '', opts?.category ?? ''],
+    queryFn: () => db.jobs.searchSemantic(q, opts).catch(() => [] as string[]),
+    enabled: q.length >= 2,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    placeholderData: (prev) => prev,
+  });
+}
+
 export function useJob(id: string | undefined) {
   return useQuery({
     queryKey: ['jobs', 'detail', id],

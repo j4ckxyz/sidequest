@@ -909,9 +909,34 @@ export const db = {
       if (filters?.parish) jobs = jobs.filter((j) => j.parish === filters.parish);
       if (filters?.search) {
         const q = filters.search.toLowerCase();
-        jobs = jobs.filter((j) => j.title.toLowerCase().includes(q) || j.description.toLowerCase().includes(q));
+        jobs = jobs.filter(
+          (j) =>
+            j.title.toLowerCase().includes(q) ||
+            j.description.toLowerCase().includes(q) ||
+            j.category.replace(/-/g, ' ').includes(q),
+        );
       }
       return delay(jobs.sort((a, b) => b.created_at.localeCompare(a.created_at)));
+    },
+    // Mock semantic search: no embedding model, so approximate with a keyword +
+    // category match over open jobs. Real semantics arrive via the recs server
+    // in production (supabaseDb.searchSemantic).
+    async searchSemantic(query: string, opts?: { parish?: string; category?: string }): Promise<string[]> {
+      const q = query.trim().toLowerCase();
+      if (!q) return delay([]);
+      let jobs = Object.values(state.jobs).filter((j) => j.status === 'open');
+      if (opts?.parish) jobs = jobs.filter((j) => j.parish === opts.parish);
+      if (opts?.category) jobs = jobs.filter((j) => j.category === opts.category);
+      return delay(
+        jobs
+          .filter(
+            (j) =>
+              j.title.toLowerCase().includes(q) ||
+              j.description.toLowerCase().includes(q) ||
+              j.category.replace(/-/g, ' ').includes(q),
+          )
+          .map((j) => j.id),
+      );
     },
     async get(id: string): Promise<Job | null> {
       return delay(state.jobs[id] ?? null);

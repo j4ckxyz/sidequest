@@ -5,7 +5,7 @@
 import { Hono, type Context, type Next } from 'hono';
 import { cors } from 'hono/cors';
 import { admin, isAdmin, userIdFromToken } from './supabaseAdmin';
-import { embedOne, preferenceChat, type PreferenceChatTurn } from './gemini';
+import { embedSearchQuery, preferenceChat, type PreferenceChatTurn } from './gemini';
 import { refresh, pendingNewJobCount, pendingPreferenceChangeCount, type RefreshResult } from './pipeline';
 import { summonBots, removeBots } from './bots';
 import { startNotificationPushWatcher } from './push';
@@ -89,6 +89,7 @@ function rateLimit(max: number, windowMs: number) {
 setInterval(() => {
   const now = Date.now();
   for (const [k, v] of buckets) if (now > v.reset) buckets.delete(k);
+  for (const [k, v] of searchCache) if (now > v.expires) searchCache.delete(k);
 }, 5 * 60 * 1000);
 
 app.get('/health', (c) => c.json({ ok: true }));
@@ -286,20 +287,37 @@ app.post('/preferences/chat', async (c) => {
   }
 });
 
-/** Semantic job search (scaffolded; not yet wired into the UI). */
-app.post('/search', rateLimit(30, 60_000), async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { query?: string; userId?: string };
-  const query = body.query?.trim();
+/**
+ * Semantic job search over the gemini-embedding-2 index. Public (rate-limited).
+ * Results are cached in-memory per (query, parish, category) so repeat searches —
+ * the common case as someone types/refines — return instantly with no Gemini call.
+ */
+const SEARCH_CACHE_TTL_MS = Number(process.env.SEARCH_CACHE_TTL_MS ?? String(5 * 60 * 1000));
+const searchCache = new Map<string, { results: { job_id: string; distance: number }[]; expires: number }>();
+
+app.post('/search', rateLimit(60, 60_000), async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { query?: string; parish?: string; category?: string };
+  const query = body.query?.trim().slice(0, 200);
   if (!query) return c.json({ error: 'query required' }, 400);
+  const parish = typeof body.parish === 'string' && body.parish ? body.parish : null;
+  const category = typeof body.category === 'string' && JOB_CATEGORY_SLUGS.has(body.category) ? body.category : null;
+  const cacheKey = `${query.toLowerCase()}|${parish ?? ''}|${category ?? ''}`;
+
+  const cached = searchCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) return c.json({ results: cached.results, cached: true });
+
   try {
-    const vector = await embedOne(query, 'RETRIEVAL_QUERY');
-    const { data, error } = await admin.rpc('match_open_jobs', {
+    const vector = await embedSearchQuery(query);
+    const { data, error } = await admin.rpc('match_jobs_search', {
       p_embedding: `[${vector.join(',')}]`,
-      p_exclude_user: body.userId ?? '00000000-0000-0000-0000-000000000000',
-      p_k: 20,
+      p_k: 40,
+      p_parish: parish,
+      p_category: category,
     });
     if (error) throw new Error(error.message);
-    return c.json({ results: data ?? [] });
+    const results = (data ?? []) as { job_id: string; distance: number }[];
+    searchCache.set(cacheKey, { results, expires: Date.now() + SEARCH_CACHE_TTL_MS });
+    return c.json({ results });
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : 'Search failed' }, 500);
   }

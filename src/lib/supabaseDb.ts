@@ -166,11 +166,22 @@ export const db = {
       if (filters?.parish) query = query.eq('parish', filters.parish);
       if (filters?.search) {
         const q = filters.search.replace(/[%,]/g, '');
-        query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
+        // Match the category slug too, so "tech" surfaces tech-help jobs, etc.
+        query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%,category.ilike.%${q}%`);
       }
       const { data, error } = await query.order('created_at', { ascending: false });
       if (error) throw new Error(error.message);
       return (data as Job[]) ?? [];
+    },
+    // Semantic search via the recs server (gemini-embedding-2). Returns ranked
+    // open-job ids; callers merge these with the full job list they already hold.
+    async searchSemantic(query: string, opts?: { parish?: string; category?: string }): Promise<string[]> {
+      const res = await recsPost<{ results: { job_id: string }[] }>('/search', {
+        query,
+        parish: opts?.parish || undefined,
+        category: opts?.category || undefined,
+      });
+      return (res.results ?? []).map((r) => r.job_id);
     },
     async get(id: string): Promise<Job | null> {
       const { data } = await client().from('jobs').select('*').eq('id', id).maybeSingle();
