@@ -1,9 +1,11 @@
+import { useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Search, Plus, MessageCircle, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthProvider';
 import { useUnreadCount } from '../../hooks/useMessages';
 import { cx } from '../../lib/utils';
 import { haptic } from '../../lib/haptics';
+import { HapticTap } from '../ui/HapticTap';
 
 export function BottomNav() {
   const { user } = useAuth();
@@ -18,19 +20,10 @@ export function BottomNav() {
 
   return (
     <nav className="glass fixed inset-x-0 bottom-0 z-40 border-t border-border sm:hidden" aria-label="Primary">
-      <div className="mx-auto flex max-w-md items-center justify-between px-6 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+      <div className="mx-auto grid max-w-md grid-cols-5 place-items-center px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         <NavItem to="/" label="Home" active={isActive('/') && location.pathname === '/'} icon={<Home size={20} />} />
         <NavItem to="/jobs" label="Browse" active={isActive('/jobs') && !location.pathname.includes('/new')} icon={<Search size={20} />} />
-
-        <Link
-          to={postPath}
-          aria-label="Post a job"
-          onClick={() => haptic('select')}
-          className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-on-primary shadow-lg shadow-primary/30 transition-transform active:scale-95"
-        >
-          <Plus size={24} />
-        </Link>
-
+        <PostButton to={postPath} />
         <NavItem to={messagesPath} label="Messages" active={isActive('/messages')} icon={<MessageCircle size={20} />} badge={unread > 0} />
         <NavItem to={profilePath} label="Profile" active={isActive('/profile')} icon={<User size={20} />} />
       </div>
@@ -38,12 +31,39 @@ export function BottomNav() {
   );
 }
 
-function NavItem({ to, label, icon, active, badge }: { to: string; label: string; icon: React.ReactNode; active: boolean; badge?: boolean }) {
+function PostButton({ to }: { to: string }) {
+  const ref = useRef<HTMLAnchorElement>(null);
   return (
-    <Link onClick={() => haptic('tap')} to={to} className={cx('relative flex flex-col items-center gap-0.5 px-2 py-1 text-xs font-medium', active ? 'text-primary' : 'text-text-muted')}>
-      {icon}
-      {badge && <span className="absolute right-1.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />}
-      {label}
-    </Link>
+    <div className="relative -mt-6 h-14 w-14 shrink-0">
+      <Link
+        ref={ref}
+        to={to}
+        aria-label="Post a job"
+        onClick={() => haptic('select')}
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-on-primary shadow-lg shadow-primary/30 transition-transform active:scale-95"
+      >
+        <Plus size={24} />
+      </Link>
+      <HapticTap onTap={() => ref.current?.click()} radius={28} />
+    </div>
+  );
+}
+
+function NavItem({ to, label, icon, active, badge }: { to: string; label: string; icon: React.ReactNode; active: boolean; badge?: boolean }) {
+  const ref = useRef<HTMLAnchorElement>(null);
+  return (
+    <div className="relative flex">
+      <Link
+        ref={ref}
+        onClick={() => haptic('tap')}
+        to={to}
+        className={cx('relative flex flex-col items-center gap-0.5 px-2 py-1 text-xs font-medium', active ? 'text-primary' : 'text-text-muted')}
+      >
+        {icon}
+        {badge && <span className="absolute right-1.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />}
+        {label}
+      </Link>
+      <HapticTap onTap={() => ref.current?.click()} radius={8} />
+    </div>
   );
 }

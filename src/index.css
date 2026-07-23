@@ -123,6 +123,18 @@ body {
     inset 0 1px 0 0 color-mix(in srgb, white 8%, transparent);
 }
 
+/* iOS haptic overlay switch (see HapticTap): inert on hover/pointer devices so
+   desktop hover + clicks reach the real control, live on touch devices where it
+   captures the finger tap and produces WebKit's native haptic tick. */
+.haptic-overlay {
+  pointer-events: none;
+}
+@media (hover: none) and (pointer: coarse) {
+  .haptic-overlay {
+    pointer-events: auto;
+  }
+}
+
 /* Thin, theme-aware scrollbars so long lists don't feel like a spreadsheet. */
 * {
   scrollbar-width: thin;

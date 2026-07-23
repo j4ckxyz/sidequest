@@ -985,6 +985,17 @@ export const db = {
     async cancel(id: string): Promise<Job> {
       return this.update(id, { status: 'cancelled' });
     },
+    async remove(id: string): Promise<void> {
+      delete state.jobs[id];
+      for (const [aid, application] of Object.entries(state.applications)) {
+        if (application.job_id === id) delete state.applications[aid];
+      }
+      for (const [cid, conversation] of Object.entries(state.conversations)) {
+        if (conversation.job_id === id) delete state.conversations[cid];
+      }
+      touch();
+      notify();
+    },
     async markInProgress(id: string): Promise<Job> {
       return this.update(id, { status: 'in_progress' });
     },
@@ -1355,6 +1366,12 @@ export const db = {
     async listReports(callerId: string): Promise<Report[]> {
       assertAdmin(callerId);
       return delay(Object.values(state.reports).sort((a, b) => b.created_at.localeCompare(a.created_at)));
+    },
+    async myReportForTarget(reporterId: string, targetType: 'job' | 'user', targetId: string): Promise<{ status: string } | null> {
+      const found = Object.values(state.reports).find(
+        (r) => r.reporter_id === reporterId && r.target_type === targetType && r.target_id === targetId,
+      );
+      return delay(found ? { status: found.status } : null);
     },
     async listEvents(callerId: string): Promise<ModerationEvent[]> {
       assertAdmin(callerId);

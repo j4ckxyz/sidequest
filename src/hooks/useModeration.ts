@@ -10,6 +10,17 @@ export function useCreateReport() {
   });
 }
 
+// Whether the current user has already reported this target (and its review status),
+// so the UI can prevent a duplicate report.
+export function useMyReport(reporterId: string | undefined, targetType: 'job' | 'user', targetId: string | undefined) {
+  return useQuery({
+    queryKey: ['moderation', 'myReport', reporterId, targetType, targetId],
+    queryFn: () => db.moderation.myReportForTarget(reporterId as string, targetType, targetId as string),
+    enabled: !!reporterId && !!targetId,
+    staleTime: 30_000,
+  });
+}
+
 export function useReports(callerId: string | undefined, enabled = true) {
   return useQuery({
     queryKey: ['moderation', 'reports', callerId],

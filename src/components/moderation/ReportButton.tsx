@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Flag } from 'lucide-react';
+import { Flag, ShieldCheck } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Textarea } from '../ui/Textarea';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../context/AuthProvider';
 import { useToast } from '../../context/ToastProvider';
-import { useCreateReport } from '../../hooks/useModeration';
+import { useCreateReport, useMyReport } from '../../hooks/useModeration';
 import { cx } from '../../lib/utils';
 
 const REASONS = ['Scam or fraud', 'Spam or advertising', 'Off-platform payment', 'Harassment or abuse', 'Something else'];
@@ -24,11 +24,24 @@ export function ReportButton({
   const { user } = useAuth();
   const { showToast } = useToast();
   const createReport = useCreateReport();
+  const { data: myReport } = useMyReport(user?.id, targetType, targetId);
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [detail, setDetail] = useState('');
 
   if (!user) return null;
+
+  // Already reported by this user — one report per target; show the review state
+  // instead of letting them report again.
+  if (myReport) {
+    const reviewed = myReport.status === 'resolved';
+    return (
+      <span className={cx('inline-flex items-center gap-1.5 text-sm text-text-muted', className)} title={reviewed ? 'Reviewed by moderation' : 'Under moderation review'}>
+        <ShieldCheck size={14} className={reviewed ? 'text-sage' : undefined} />
+        {reviewed ? 'Reported · reviewed' : 'Reported · under review'}
+      </span>
+    );
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();

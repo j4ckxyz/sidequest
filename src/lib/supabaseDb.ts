@@ -233,6 +233,12 @@ export const db = {
     async cancel(id: string): Promise<Job> {
       return db.jobs.update(id, { status: 'cancelled' });
     },
+    async remove(id: string): Promise<void> {
+      // RLS lets the poster delete their own job at any status; cascades tidy up.
+      const { error } = await client().from('jobs').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+      notify();
+    },
     async markInProgress(id: string): Promise<Job> {
       const { error } = await client().rpc('start_job', { p_job_id: id });
       if (error) throw new Error(error.message);
@@ -453,6 +459,18 @@ export const db = {
     async listReports(_callerId: string): Promise<Report[]> {
       const { data } = await client().from('reports').select('*').order('created_at', { ascending: false }).limit(60);
       return (data as Report[]) ?? [];
+    },
+    async myReportForTarget(reporterId: string, targetType: 'job' | 'user', targetId: string): Promise<{ status: string } | null> {
+      const { data } = await client()
+        .from('reports')
+        .select('status')
+        .eq('reporter_id', reporterId)
+        .eq('target_type', targetType)
+        .eq('target_id', targetId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return (data as { status: string } | null) ?? null;
     },
     async listEvents(_callerId: string): Promise<ModerationEvent[]> {
       const { data } = await client().from('moderation_events').select('*').order('created_at', { ascending: false }).limit(60);

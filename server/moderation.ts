@@ -104,15 +104,20 @@ export async function processReport(reportId: string): Promise<void> {
     // 5. Apply decision
     try {
       if (verdict.decision === 'remove_post' && report.target_type === 'job') {
-        await admin.from('jobs').update({ status: 'cancelled' }).eq('id', report.target_id);
+        // Snapshot the title, log the action (job_id is `on delete set null`, so the
+        // record survives), then hard-delete the post so it's fully removed from the
+        // DB — not left lingering as a "cancelled" job at its old URL.
+        const { data: jobRow } = await admin.from('jobs').select('title').eq('id', report.target_id).maybeSingle();
+        const title = (jobRow?.title as string | undefined) ?? 'a post';
         await admin.from('moderation_actions').insert({
           report_id: report.id,
           decided_by: 'gemini',
           action: 'remove_post',
           target_user_id: targetUserId,
           job_id: report.target_id,
-          reason: verdict.reason,
+          reason: `Took down “${title}”: ${verdict.reason}`,
         });
+        await admin.from('jobs').delete().eq('id', report.target_id);
       } else if (verdict.decision === 'ban_user') {
         const days = verdict.ban_days ?? 7;
         const banUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();

@@ -36,12 +36,13 @@ export function MobileTopBar() {
   }, [menuOpen]);
 
   return (
-    <header className="glass sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border px-4 sm:hidden">
-      <Link to="/" className="flex items-center gap-1.5 font-display text-lg text-text">
-        <Compass size={19} className="text-primary" strokeWidth={2.25} />
-        SideQuest
-      </Link>
-      <div className="flex items-center gap-1">
+    <header className="glass sticky top-0 z-40 border-b border-border px-4 pt-[env(safe-area-inset-top)] sm:hidden">
+      <div className="flex h-14 items-center justify-between">
+        <Link to="/" className="flex items-center gap-1.5 font-display text-lg text-text">
+          <Compass size={19} className="text-primary" strokeWidth={2.25} />
+          SideQuest
+        </Link>
+        <div className="flex items-center gap-1">
         {user && (
           <Link
             to="/notifications"
@@ -101,6 +102,7 @@ export function MobileTopBar() {
             )}
           </div>
         )}
+        </div>
       </div>
     </header>
   );

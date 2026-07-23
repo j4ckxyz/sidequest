@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { MapPin, CalendarDays, Clock, BadgeCheck, Pencil, Ban, ArrowRight, Lock, Repeat, Users, Bot } from 'lucide-react';
-import { useJob, useJobByPublicId, useCancelJob, useCompleteJob, useMarkJobInProgress } from '../hooks/useJobs';
+import { MapPin, CalendarDays, Clock, BadgeCheck, Pencil, Ban, ArrowRight, Lock, Repeat, Users, Bot, Trash2 } from 'lucide-react';
+import { useJob, useJobByPublicId, useCancelJob, useCompleteJob, useDeleteJob, useMarkJobInProgress } from '../hooks/useJobs';
 import { useProfile } from '../hooks/useProfile';
 import { useAuth } from '../context/AuthProvider';
 import { useApplicationsByJob } from '../hooks/useApplications';
@@ -52,6 +52,7 @@ export function JobDetail() {
   const cancelJob = useCancelJob();
   const markInProgress = useMarkJobInProgress();
   const completeJob = useCompleteJob();
+  const deleteJob = useDeleteJob();
   const getOrCreateConversation = useGetOrCreateConversation();
 
   const isPoster = !!user && !!job && user.id === job.poster_id;
@@ -314,6 +315,27 @@ export function JobDetail() {
                   <Ban size={14} /> Cancel
                 </Button>
               </div>
+            )}
+
+            {/* Posters can permanently delete their own post at any point. */}
+            {isPoster && (
+              <Button
+                variant="secondary"
+                className="w-full"
+                isLoading={deleteJob.isPending}
+                onClick={() => {
+                  if (!confirm(`Delete “${job.title}” permanently? This can't be undone.`)) return;
+                  deleteJob.mutate(job.id, {
+                    onSuccess: () => {
+                      showToast('Post deleted.');
+                      navigate('/dashboard/posted');
+                    },
+                    onError: (err) => showToast(err instanceof Error ? err.message : 'Could not delete post.', 'error'),
+                  });
+                }}
+              >
+                <Trash2 size={14} /> Delete post
+              </Button>
             )}
           </div>
         </Card>

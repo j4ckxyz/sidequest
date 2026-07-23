@@ -89,6 +89,15 @@ export function useCancelJob() {
   });
 }
 
+// Poster deletes their own post permanently (any status).
+export function useDeleteJob() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => db.jobs.remove(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+  });
+}
+
 export function useMarkJobInProgress() {
   const queryClient = useQueryClient();
   return useMutation({
