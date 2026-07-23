@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck, Trash2, Sparkles, Bot, Crown, Ban, Search, Gavel, ShieldOff, ShieldPlus } from 'lucide-react';
+import { ShieldCheck, Trash2, Sparkles, Bot, Crown, Ban, Search, Gavel, ShieldOff, ShieldPlus, RotateCcw } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
-import { useAllJobsAdmin, useAllProfiles, useAdminDeleteJob, useSetAdmin } from '../hooks/useAdmin';
+import { useAllJobsAdmin, useAllProfiles, useAdminDeleteJob, useResetAccount, useSetAdmin } from '../hooks/useAdmin';
 import { useRefreshRecommendations } from '../hooks/useRecommendations';
 import { useAdminBan, useAdminSuspend, useAdminUnban, useModerationActions } from '../hooks/useModeration';
 import { useProfiles } from '../hooks/useProfile';
@@ -56,6 +56,8 @@ export function Admin() {
         <RecommendationsPanel />
         <BotsPanel />
       </div>
+
+      <ResetAccountPanel />
 
       <div className="mt-8 flex gap-1 border-b border-border">
         {(['users', 'jobs'] as const).map((t) => (
@@ -124,6 +126,46 @@ function ModerationActionsPanel({ callerId }: { callerId: string }) {
         })}
       </ul>
     </section>
+  );
+}
+
+// Prototype tool: wipe the current admin's own data and restart onboarding.
+function ResetAccountPanel() {
+  const reset = useResetAccount();
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger-soft/30 p-4">
+      <div className="flex items-start gap-2.5">
+        <RotateCcw size={18} className="mt-0.5 shrink-0 text-danger" />
+        <div>
+          <p className="text-sm font-medium text-text">Reset my account (prototype)</p>
+          <p className="text-xs text-text-muted">
+            Deletes all your posts, messages, reviews, and preferences, then logs you out. Your next sign-in starts fresh
+            onboarding. Admin access is kept.
+          </p>
+        </div>
+      </div>
+      <Button
+        variant="secondary"
+        isLoading={reset.isPending}
+        onClick={() => {
+          if (!confirm('Wipe ALL of your data and start over? This cannot be undone.')) return;
+          reset.mutate(undefined, {
+            onSuccess: async () => {
+              await signOut();
+              showToast('Account reset — sign in to start fresh.');
+              navigate('/login', { replace: true });
+            },
+            onError: (e) => showToast(e instanceof Error ? e.message : 'Reset failed.', 'error'),
+          });
+        }}
+      >
+        <RotateCcw size={14} /> Reset &amp; restart
+      </Button>
+    </div>
   );
 }
 

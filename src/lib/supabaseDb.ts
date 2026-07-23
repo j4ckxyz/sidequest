@@ -533,6 +533,19 @@ export const db = {
       notify();
       return result;
     },
+    async clearChat(): Promise<JobPreferenceState> {
+      const result = await recsPost<JobPreferenceState>('/preferences/clear', {});
+      notify();
+      return result;
+    },
+  },
+
+  // ---- admin: prototype account reset ---------------------------------
+  adminReset: {
+    async resetOwnAccount(): Promise<void> {
+      await recsPost<{ ok: boolean }>('/admin/reset-account', {});
+      notify();
+    },
   },
 
   // ---- bots (admin demo data) -----------------------------------------

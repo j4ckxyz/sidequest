@@ -1547,6 +1547,45 @@ export const db = {
       touch();
       return delay({ ...(await db.preferences.get()), messages });
     },
+    async clearChat(): Promise<JobPreferenceState> {
+      const userId = state.currentUserId;
+      if (!userId) throw new Error('You must be signed in.');
+      state.jobPreferenceMessages[userId] = [];
+      const existing = state.jobPreferences[userId];
+      if (existing) state.jobPreferences[userId] = { ...existing, summary: '', keywords: [] };
+      touch();
+      notify();
+      return delay(db.preferences.get());
+    },
+  },
+
+  adminReset: {
+    async resetOwnAccount(): Promise<void> {
+      const userId = state.currentUserId;
+      if (!userId) return;
+      // Local best-effort wipe so the dev/mock flow mirrors production.
+      for (const [id, job] of Object.entries(state.jobs)) if (job.poster_id === userId) delete state.jobs[id];
+      for (const [id, a] of Object.entries(state.applications)) if (a.quester_id === userId) delete state.applications[id];
+      for (const [id, c] of Object.entries(state.conversations)) if (c.poster_id === userId || c.quester_id === userId) delete state.conversations[id];
+      state.jobPreferenceMessages[userId] = [];
+      delete state.jobPreferences[userId];
+      const profile = state.profiles[userId];
+      if (profile) {
+        state.profiles[userId] = {
+          ...profile,
+          onboarded: false,
+          username: null,
+          full_name: '',
+          bio: '',
+          skills: [],
+          interest_keywords: [],
+          top_category: null,
+        };
+      }
+      touch();
+      notify();
+      return delay(undefined);
+    },
   },
 
   // ---- bots (admin demo data) — local generator so dev shows the feature -------

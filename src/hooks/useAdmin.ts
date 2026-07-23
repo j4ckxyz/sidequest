@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 
+// Prototype: reset the current admin's own account to a blank, un-onboarded state.
+export function useResetAccount() {
+  return useMutation({ mutationFn: () => db.adminReset.resetOwnAccount() });
+}
+
 export function useAllProfiles(callerId: string | undefined) {
   return useQuery({
     queryKey: ['admin', 'profiles', callerId],

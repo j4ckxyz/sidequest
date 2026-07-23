@@ -10,6 +10,7 @@ import { refresh, pendingNewJobCount, pendingPreferenceChangeCount, type Refresh
 import { summonBots, removeBots } from './bots';
 import { startNotificationPushWatcher } from './push';
 import { processReport, processPendingReports } from './moderation';
+import { resetAccount } from './reset';
 
 const PORT = Number(process.env.PORT ?? '8787');
 // Bind to localhost by default — Nginx (public :443) reverse-proxies to this. Set HOST=0.0.0.0
@@ -193,6 +194,33 @@ app.post('/preferences', rateLimit(30, 60_000), async (c) => {
     return c.json(await preferenceState(userId));
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : 'Could not save preferences' }, 500);
+  }
+});
+
+/** Wipe the private preference chat (messages + brief) without spending a Gemini call. */
+app.post('/preferences/clear', rateLimit(20, 60_000), async (c) => {
+  const userId = await authenticatedUserId(c.req.header('Authorization'));
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+  try {
+    await admin.from('job_preference_messages').delete().eq('user_id', userId);
+    await admin.from('job_preferences').update({ summary: '', keywords: [] }).eq('user_id', userId);
+    return c.json(await preferenceState(userId));
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : 'Could not clear chat' }, 500);
+  }
+});
+
+/** Prototype tool: an admin resets their OWN account to a blank, un-onboarded state. */
+app.post('/admin/reset-account', rateLimit(4, 60_000), async (c) => {
+  const userId = await authenticatedUserId(c.req.header('Authorization'));
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+  if (!(await isAdmin(userId))) return c.json({ error: 'Admins only' }, 403);
+  try {
+    await resetAccount(userId);
+    return c.json({ ok: true });
+  } catch (err) {
+    console.error('[reset] failed:', err);
+    return c.json({ error: err instanceof Error ? err.message : 'Reset failed' }, 500);
   }
 });
 

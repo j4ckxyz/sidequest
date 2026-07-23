@@ -9,6 +9,7 @@ import { Textarea } from '../components/ui/Textarea';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { Avatar } from '../components/ui/Avatar';
+import { PreferenceAgent } from '../components/settings/PreferenceAgent';
 import { db } from '../lib/db';
 import { cx } from '../lib/utils';
 
@@ -30,6 +31,7 @@ export function Onboarding() {
   const [skills, setSkills] = useState<string[]>(user?.skills ?? []);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1);
 
   if (!user) return null;
 
@@ -58,23 +60,28 @@ export function Onboarding() {
         id: user.id,
         patch: { full_name: displayName.trim() || 'Islander', username: handle, parish: parish as (typeof PARISHES)[number], bio, skills, onboarded: true },
       },
-      { onSuccess: () => navigate('/', { replace: true }) },
+      // Straight into the optional AI chat step rather than the app, so people
+      // arrive with a matching brief already set.
+      { onSuccess: () => setStep(2) },
     );
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col px-6 py-14">
+    <div className={cx('mx-auto flex flex-col px-6 py-14', step === 2 ? 'max-w-3xl' : 'max-w-md')}>
       <div className="mb-8 flex items-center justify-center gap-2 font-display text-xl text-text">
         <Compass size={22} className="text-primary" strokeWidth={2.25} />
         SideQuest
       </div>
-      <div className="flex flex-col items-center">
-        <Avatar name={user.full_name || 'You'} src={user.avatar_url} size="lg" />
-        <h1 className="mt-4 text-center text-2xl text-text">Welcome — let’s set you up</h1>
-        <p className="mt-1.5 text-center text-sm text-text-muted">Thirty seconds. This is what neighbours will see.</p>
-      </div>
 
-      <form onSubmit={submit} className="mt-7 flex flex-col gap-4">
+      {step === 1 ? (
+        <>
+          <div className="flex flex-col items-center">
+            <Avatar name={user.full_name || 'You'} src={user.avatar_url} size="lg" />
+            <h1 className="mt-4 text-center text-2xl text-text">Welcome — let’s set you up</h1>
+            <p className="mt-1.5 text-center text-sm text-text-muted">Thirty seconds. This is what neighbours will see.</p>
+          </div>
+
+          <form onSubmit={submit} className="mt-7 flex flex-col gap-4">
         <div>
           <Label htmlFor="displayName" hint="First name or nickname is fine">
             Display name
@@ -136,10 +143,25 @@ export function Onboarding() {
           </Label>
           <Textarea id="bio" rows={3} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="e.g. Keen gardener, free most weekends." />
         </div>
-        <Button type="submit" size="lg" isLoading={isPending || checking} className="mt-2">
-          Take me to SideQuest
-        </Button>
-      </form>
+          <Button type="submit" size="lg" isLoading={isPending || checking} className="mt-2">
+            Continue
+          </Button>
+          </form>
+        </>
+      ) : (
+        <div className="flex flex-col items-center">
+          <h1 className="text-center text-2xl text-text">Tell us what you’re after</h1>
+          <p className="mt-1.5 max-w-md text-center text-sm leading-6 text-text-muted">
+            Optional — a quick private chat helps us match you to the right jobs. You can always do this later in Settings.
+          </p>
+          <div className="mt-6 w-full">
+            <PreferenceAgent userId={user.id} />
+          </div>
+          <Button size="lg" className="mt-6 w-full max-w-sm" onClick={() => navigate('/', { replace: true })}>
+            Take me to SideQuest
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

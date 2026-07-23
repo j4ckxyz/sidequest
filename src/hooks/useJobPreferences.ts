@@ -35,3 +35,14 @@ export function useSendJobPreferenceMessage(userId: string) {
   });
 }
 
+export function useClearJobPreferenceChat(userId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => db.preferences.clearChat(),
+    onSuccess: (state) => {
+      queryClient.setQueryData<JobPreferenceState>(preferenceKey(userId), state);
+      queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+    },
+  });
+}
+

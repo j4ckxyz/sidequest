@@ -73,6 +73,40 @@ export function LandingPage() {
         </p>
       </section>
 
+      {/* Product shots — real desktop + PWA screenshots so it feels tangible. */}
+      <section className="border-y border-border bg-surface-2/40">
+        <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+          <h2 className="font-display text-3xl text-text sm:text-4xl">See it in action</h2>
+          <p className="mt-3 max-w-lg text-text-muted">
+            The same SideQuest on your laptop and in your pocket — add it to your home screen and it feels like a native app.
+          </p>
+          <div className="mt-10 grid items-end gap-8 lg:grid-cols-[1.55fr_1fr]">
+            <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-float)]">
+              <img
+                src="/screenshots/desktop.png"
+                alt="Browsing SideQuest jobs on a laptop"
+                className="w-full"
+                loading="lazy"
+              />
+            </div>
+            <div className="flex justify-center gap-4 sm:gap-5">
+              <img
+                src="/screenshots/mobile-1.png"
+                alt="A SideQuest job open in the iPhone app"
+                className="w-1/2 max-w-[190px] rounded-[1.9rem] border border-border shadow-[var(--shadow-float)]"
+                loading="lazy"
+              />
+              <img
+                src="/screenshots/mobile-2.png"
+                alt="Another SideQuest job in the iPhone app"
+                className="mt-10 w-1/2 max-w-[190px] rounded-[1.9rem] border border-border shadow-[var(--shadow-float)]"
+                loading="lazy"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Parish rail — the signature. Twelve real places, the island's own structure. */}
       <section aria-labelledby="parishes-heading" className="border-y border-border bg-surface-2/50">
         <div className="mx-auto max-w-6xl px-6 py-8">
