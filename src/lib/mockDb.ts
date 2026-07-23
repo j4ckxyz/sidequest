@@ -809,7 +809,7 @@ export const db = {
     },
     // Dev stand-in for Google OAuth: sign straight into the demo account (Ellie, an admin
     // in the seed) so the mock backend exercises the whole signed-in app without real OAuth.
-    async signInWithGoogle(): Promise<void> {
+    async signInWithGoogle(_next?: string): Promise<void> {
       const demo = Object.values(state.profiles).find((p) => p.email === 'ellie.vibert@example.je') ?? Object.values(state.profiles)[0];
       if (demo) {
         state.currentUserId = demo.id;

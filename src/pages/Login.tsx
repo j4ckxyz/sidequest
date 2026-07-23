@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../components/layout/AuthLayout';
 import { useAuth } from '../context/AuthProvider';
 import { useToast } from '../context/ToastProvider';
+import { isLiveBackend } from '../lib/supabase';
+import { SigningIn } from './AuthCallback';
 
 function GoogleIcon() {
   return (
@@ -22,18 +24,30 @@ export function Login() {
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? '/';
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   async function onGoogle() {
     setIsSubmitting(true);
     try {
-      // Production: redirects to Google (this page unloads). Dev mock: resolves in place, so we navigate.
-      await signInWithGoogle();
+      if (isLiveBackend) {
+        // Show the status screen immediately so the app doesn't flash the home
+        // page before the browser leaves for Google. This page then unloads.
+        setRedirecting(true);
+        await signInWithGoogle(from);
+        return; // /auth/callback handles the return + "Welcome back" toast
+      }
+      // Dev mock: resolves in place — greet and navigate ourselves.
+      await signInWithGoogle(from);
+      showToast('Welcome back!');
       navigate(from, { replace: true });
     } catch (err) {
+      setRedirecting(false);
       showToast(err instanceof Error ? err.message : 'Could not sign in.', 'error');
       setIsSubmitting(false);
     }
   }
+
+  if (redirecting) return <SigningIn />;
 
   return (
     <AuthLayout

@@ -91,13 +91,13 @@ export const db = {
       }
       return (profile as Profile | null) ?? null;
     },
-    async signInWithGoogle(): Promise<void> {
-      // Redirects the browser to Google and back to this origin. The handle_new_user trigger
-      // creates the profiles row on first sign-in; onAuthStateChange (below) picks up the
-      // returning session and notifies AuthProvider.
+    async signInWithGoogle(next?: string): Promise<void> {
+      // Redirects to Google, then back to /auth/callback which exchanges the code
+      // for a session (showing a "Signing in…" status) and forwards to `next`.
+      const target = `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}`;
       const { error } = await client().auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin },
+        options: { redirectTo: target },
       });
       if (error) throw new Error(error.message);
     },

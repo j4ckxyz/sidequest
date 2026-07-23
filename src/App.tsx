@@ -9,6 +9,7 @@ import { ProtectedRoute } from './components/layout/ProtectedRoute';
 
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
+import { AuthCallback } from './pages/AuthCallback';
 import { Signup } from './pages/Signup';
 import { Onboarding } from './pages/Onboarding';
 import { BrowseJobs } from './pages/BrowseJobs';
@@ -41,6 +42,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route
                   path="/onboarding"

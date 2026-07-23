@@ -5,9 +5,9 @@ import type { Profile } from '../types/models';
 interface AuthContextValue {
   user: Profile | null;
   isLoading: boolean;
-  /** Redirects to Google, then back to the app with a session (production).
+  /** Redirects to Google, then back to /auth/callback with a session (production).
    *  On the dev mock backend this signs straight into the demo account. */
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (next?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     user,
     isLoading,
-    signInWithGoogle: () => db.auth.signInWithGoogle(),
+    signInWithGoogle: (next?: string) => db.auth.signInWithGoogle(next),
     signOut: () => db.auth.signOut(),
   };
 

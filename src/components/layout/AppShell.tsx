@@ -6,7 +6,7 @@ import { BottomNav } from './BottomNav';
 import { MobileTopBar } from './MobileTopBar';
 import { BannedScreen, userBlock } from './BannedScreen';
 
-const CHROMELESS_ROUTES = ['/login', '/signup', '/onboarding'];
+const CHROMELESS_ROUTES = ['/login', '/signup', '/onboarding', '/auth/callback'];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
