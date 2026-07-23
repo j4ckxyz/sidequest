@@ -80,11 +80,11 @@ export function Settings() {
         </p>
       </header>
 
-      <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.35fr)]">
-        <div className="flex flex-col gap-6">
+      <div className="mt-8 flex flex-col gap-6">
+        <div className="grid items-start gap-6 md:grid-cols-2">
           <UsernameSection key={user.username} current={user.username} />
 
-          <section className="rounded-xl border border-border bg-surface p-5">
+          <section className="glass-card rounded-xl border border-border p-5">
             <div className="flex items-start gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sage-soft text-sage">
                 <LockKeyhole size={18} />
@@ -114,7 +114,7 @@ export function Settings() {
             </label>
           </section>
 
-          <section className="rounded-xl border border-border bg-surface p-5">
+          <section className="glass-card rounded-xl border border-border p-5 md:col-span-2">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-text">Preferred job topics</h2>
@@ -126,7 +126,7 @@ export function Settings() {
                 </span>
               )}
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
               {JOB_CATEGORIES.map((category) => {
                 const selected = preferredCategories.includes(category.slug);
                 return (
@@ -216,7 +216,7 @@ function PreferenceAgent({
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[0_18px_55px_-40px_rgba(30,36,43,0.65)] lg:sticky lg:top-24">
+    <section className="glass-card overflow-hidden rounded-2xl border border-border">
       <div className="border-b border-border bg-[linear-gradient(135deg,var(--color-primary-soft),var(--color-surface)_62%)] px-5 py-5 sm:px-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
@@ -390,7 +390,7 @@ function UsernameSection({ current }: { current: string | null }) {
   }
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-5">
+    <section className="glass-card rounded-xl border border-border p-5">
       <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
           <AtSign size={18} />

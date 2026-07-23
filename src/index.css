@@ -106,6 +106,23 @@ body {
   -webkit-backdrop-filter: blur(16px);
 }
 
+/* Resting-card glass — a lighter, quieter cousin of .glass for panels that sit
+   in the page flow (message list, settings cards). Slight translucency + a
+   hairline top sheen reads modern without the cool iOS slab look. Blur is kept
+   low since most cards sit on a solid canvas; the sheen carries the "glassy". */
+.glass-card {
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-soft),
+    inset 0 1px 0 0 color-mix(in srgb, white 60%, transparent);
+}
+:root[data-theme='dark'] .glass-card {
+  background: color-mix(in srgb, var(--color-surface) 68%, transparent);
+  box-shadow: var(--shadow-soft),
+    inset 0 1px 0 0 color-mix(in srgb, white 8%, transparent);
+}
+
 /* Thin, theme-aware scrollbars so long lists don't feel like a spreadsheet. */
 * {
   scrollbar-width: thin;

@@ -15,7 +15,7 @@ export function Messages() {
   return (
     <div className="mx-auto flex h-[calc(100vh-9.5rem)] max-w-5xl sm:h-[calc(100vh-7rem)]">
       <aside className={cx('w-full shrink-0 overflow-y-auto border-border sm:w-80 sm:border-r', conversationId && 'hidden sm:block')}>
-        <div className="border-b border-border px-4 py-4">
+        <div className="glass sticky top-0 z-10 border-b border-border px-4 py-4">
           <h1 className="text-2xl text-text">Messages</h1>
         </div>
         {isLoading && <PageSpinner />}

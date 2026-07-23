@@ -32,7 +32,7 @@ export function MessagesThreadPage() {
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
-      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+      <div className="glass sticky top-0 z-10 flex items-center gap-3 border-b border-border px-4 py-3">
         <button onClick={() => navigate('/messages')} className="text-text-muted hover:text-text sm:hidden" aria-label="Back to conversations">
           <ArrowLeft size={20} />
         </button>

@@ -16,7 +16,7 @@ export function BottomNav() {
   const postPath = user ? '/jobs/new' : '/login';
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-canvas/90 backdrop-blur-md sm:hidden" aria-label="Primary">
+    <nav className="glass fixed inset-x-0 bottom-0 z-40 border-t border-border sm:hidden" aria-label="Primary">
       <div className="mx-auto flex max-w-md items-center justify-between px-6 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         <NavItem to="/" label="Home" active={isActive('/') && location.pathname === '/'} icon={<Home size={20} />} />
         <NavItem to="/jobs" label="Browse" active={isActive('/jobs') && !location.pathname.includes('/new')} icon={<Search size={20} />} />
