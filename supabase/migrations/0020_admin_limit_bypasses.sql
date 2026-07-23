@@ -1,6 +1,34 @@
--- Allow admins to bypass rate limits (7-day username change cooldown and AI preference chat rate limits)
--- and clear username history when resetting an admin account.
+-- Allow admins to bypass rate limits (7-day username change cooldown, direct username updates,
+-- AI preference chat rate limits, open job limits, and message rate limits) and clear username history
+-- when resetting an admin account.
 
+-- 1. Protect username change trigger function: allow admin accounts to bypass the direct update restriction
+create or replace function public.protect_username_change()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  -- Admins can update their username directly at any time (e.g. during onboarding or prototype resets)
+  if coalesce(new.is_admin, false) or coalesce(old.is_admin, false) then
+    return new;
+  end if;
+
+  if new.username is distinct from old.username
+     and old.username is not null
+     and coalesce(nullif(current_setting('sidequest.username_change_allowed', true), ''), 'false') <> 'true' then
+    raise exception 'Use the username change flow. Usernames can only be changed once every 7 days.';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_protect_username_change on public.profiles;
+create trigger profiles_protect_username_change
+  before update of username on public.profiles
+  for each row execute function public.protect_username_change();
+
+-- 2. change_username RPC: allow admins to bypass the 7-day cooldown and handle reservations
 create or replace function public.change_username(p_new text)
 returns void
 language plpgsql
@@ -43,7 +71,9 @@ begin
     select 1 from public.username_history
     where username_lower = v_new_lower and user_id <> v_uid
   ) then
-    raise exception 'That username is reserved.';
+    if not coalesce(v_is_admin, false) then
+      raise exception 'That username is reserved.';
+    end if;
   end if;
 
   if v_old is not null then
@@ -60,7 +90,7 @@ begin
 end;
 $$;
 
--- Allow admins to bypass AI preference chat daily quotas
+-- 3. Allow admins to bypass AI preference chat daily quotas
 create or replace function public.claim_preference_chat_quota(
   p_user_id uuid,
   p_user_daily_limit integer,
@@ -115,5 +145,38 @@ begin
   end if;
 
   return true;
+end;
+$$;
+
+-- 4. Open jobs rate limit bypass for admins
+create or replace function public.limit_open_jobs()
+returns trigger
+language plpgsql
+as $$
+begin
+  if exists (select 1 from public.profiles where id = new.poster_id and is_admin = true) then
+    return new;
+  end if;
+  if (select count(*) from public.jobs where poster_id = new.poster_id and status = 'open') >= 20 then
+    raise exception 'You already have 20 open jobs — close or complete some before posting more.';
+  end if;
+  return new;
+end;
+$$;
+
+-- 5. Message rate limit bypass for admins
+create or replace function public.limit_message_rate()
+returns trigger
+language plpgsql
+as $$
+begin
+  if exists (select 1 from public.profiles where id = new.sender_id and is_admin = true) then
+    return new;
+  end if;
+  if (select count(*) from public.messages
+      where sender_id = new.sender_id and created_at > now() - interval '1 minute') >= 20 then
+    raise exception 'You are sending messages too quickly — give it a moment.';
+  end if;
+  return new;
 end;
 $$;
