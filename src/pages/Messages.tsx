@@ -13,8 +13,8 @@ export function Messages() {
   const { data: rows, isLoading } = useConversationsEnriched(user?.id);
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-9.5rem)] max-w-5xl sm:h-[calc(100vh-7rem)]">
-      <aside className={cx('w-full shrink-0 overflow-y-auto border-border sm:w-80 sm:border-r', conversationId && 'hidden sm:block')}>
+    <div className="mx-auto flex h-[calc(100dvh-9.5rem)] max-w-5xl overflow-hidden sm:h-[calc(100dvh-7rem)]">
+      <aside className={cx('flex w-full min-h-0 shrink-0 flex-col overflow-y-auto border-border sm:w-80 sm:border-r', conversationId && 'hidden sm:block')}>
         <div className="glass sticky top-0 z-10 border-b border-border px-4 py-4">
           <h1 className="text-2xl text-text">Messages</h1>
         </div>
@@ -24,9 +24,9 @@ export function Messages() {
             <EmptyState icon={<MessageCircle size={24} />} title="No conversations yet" description="Apply to a job or hire someone to start chatting." />
           </div>
         )}
-        {!isLoading && rows && rows.length > 0 && <ThreadList rows={rows} />}
+        {!isLoading && rows && rows.length > 0 && <ThreadList rows={rows} userId={user?.id} />}
       </aside>
-      <section className={cx('min-w-0 flex-1', !conversationId && 'hidden sm:flex')}>
+      <section className={cx('min-h-0 min-w-0 flex-1', !conversationId && 'hidden sm:flex')}>
         <Outlet />
       </section>
     </div>
