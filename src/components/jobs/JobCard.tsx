@@ -52,7 +52,7 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
     <Link
       to={to}
       onClick={handleClick}
-      className="group flex flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-primary/40"
+      className="group flex h-full flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-primary/40"
     >
       <div className="flex items-start justify-between gap-3">
         <Badge tone="neutral" icon={category && <CategoryIcon name={category.icon} size={13} />}>
@@ -86,14 +86,14 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
         )}
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-4">
         {user && poster ? (
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Avatar name={poster.full_name} src={poster.avatar_url} size="sm" />
-            <div className="leading-tight">
-              <p className="flex items-center gap-1 text-sm text-text">
-                {poster.full_name}
-                {poster.is_bot && <Bot size={13} className="text-text-muted" />}
+            <div className="min-w-0 leading-tight">
+              <p className="flex items-center gap-1 truncate text-sm text-text">
+                <span className="truncate">{poster.full_name}</span>
+                {poster.is_bot && <Bot size={13} className="shrink-0 text-text-muted" />}
               </p>
               {poster.rating_count > 0 ? (
                 <div className="flex items-center gap-1">
@@ -110,7 +110,7 @@ export function JobCard({ job, poster }: { job: Job; poster?: Profile | null }) 
             <Lock size={12} /> Sign in to see who posted
           </span>
         )}
-        <p className="text-base text-text">
+        <p className="shrink-0 text-base text-text">
           {formatCurrency(job.budget_amount)}
           {job.budget_type === 'hourly' && job.budget_amount != null && <span className="text-xs text-text-muted">/hr</span>}
         </p>

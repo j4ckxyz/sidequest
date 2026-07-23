@@ -9,6 +9,7 @@ import { JobFilters, type JobFilterState } from '../components/jobs/JobFilters';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Kbd } from '../components/ui/Kbd';
 import { JOB_CATEGORIES } from '../lib/constants';
+import { fuzzyScore } from '../lib/fuzzy';
 import type { Job, Profile } from '../types/models';
 
 function PosterFor({ posterId, children }: { posterId: string; children: (p: Profile | null) => React.ReactNode }) {
@@ -61,17 +62,14 @@ export function BrowseJobs() {
       return copy;
     }
 
-    // Query → relevance order: semantic matches first (e.g. "laptop" → Computer
-    // jobs), then literal keyword/category matches not already surfaced.
+    // Query → relevance order. Semantic matches (meaning: "laptop" → Computer
+    // jobs) lead, in their server rank. The rest are scored with a fuzzy matcher
+    // so loose queries ("dogs", "gardner") still surface — and the closest
+    // matches rank highest — then appended by descending score.
     const q = query.toLowerCase();
-    const catSlugs = JOB_CATEGORIES.filter(
-      (c) => c.label.toLowerCase().includes(q) || c.slug.replace(/-/g, ' ').includes(q),
-    ).map((c) => c.slug);
-    const keywordMatch = (j: Job) =>
-      j.title.toLowerCase().includes(q) ||
-      j.description.toLowerCase().includes(q) ||
-      catSlugs.includes(j.category) ||
-      j.category.replace(/-/g, ' ').includes(q);
+    const labelFor = (slug: string) =>
+      (JOB_CATEGORIES.find((c) => c.slug === slug)?.label ?? slug) + ' ' + slug.replace(/-/g, ' ');
+    const jobText = (j: Job) => `${j.title} ${j.description} ${labelFor(j.category)}`;
 
     const byId = new Map(jobs.map((j) => [j.id, j]));
     const ordered: Job[] = [];
@@ -83,12 +81,14 @@ export function BrowseJobs() {
         seen.add(id);
       }
     }
-    for (const job of jobs) {
-      if (!seen.has(job.id) && keywordMatch(job)) {
-        ordered.push(job);
-        seen.add(job.id);
-      }
-    }
+
+    const fuzzy = jobs
+      .filter((job) => !seen.has(job.id))
+      .map((job) => ({ job, score: fuzzyScore(q, jobText(job)) }))
+      .filter((entry) => entry.score >= 0.5)
+      .sort((a, b) => b.score - a.score);
+    for (const { job } of fuzzy) ordered.push(job);
+
     return ordered;
   }, [jobs, query, semanticIds, filters.sort]);
 
