@@ -488,11 +488,15 @@ export const db = {
       const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
       await client().from('profiles').update({ banned_until: until, ban_reason: reason }).eq('id', targetId);
       await client().from('moderation_actions').insert({ decided_by: callerId, action: 'ban_user', target_user_id: targetId, reason, ban_until: until });
+      // Banned users' posts come off the platform entirely.
+      await client().from('jobs').delete().eq('poster_id', targetId);
       notify();
     },
     async adminSuspend(callerId: string, targetId: string, reason: string): Promise<void> {
       await client().from('profiles').update({ suspended: true, ban_reason: reason }).eq('id', targetId);
       await client().from('moderation_actions').insert({ decided_by: callerId, action: 'suspend_user', target_user_id: targetId, reason });
+      // Suspended users' posts come off the platform entirely.
+      await client().from('jobs').delete().eq('poster_id', targetId);
       notify();
     },
     async adminUnban(callerId: string, targetId: string): Promise<void> {

@@ -1436,6 +1436,7 @@ export const db = {
     async adminBan(callerId: string, targetId: string, days: number, reason: string): Promise<void> {
       assertAdmin(callerId);
       applyBan(targetId, days, null, callerId, reason);
+      for (const [id, job] of Object.entries(state.jobs)) if (job.poster_id === targetId) delete state.jobs[id];
       touch();
       notify();
       return delay(undefined);
@@ -1443,6 +1444,7 @@ export const db = {
     async adminSuspend(callerId: string, targetId: string, reason: string): Promise<void> {
       assertAdmin(callerId);
       applySuspend(targetId, null, callerId, reason);
+      for (const [id, job] of Object.entries(state.jobs)) if (job.poster_id === targetId) delete state.jobs[id];
       touch();
       notify();
       return delay(undefined);

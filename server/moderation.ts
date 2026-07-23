@@ -16,6 +16,16 @@ async function addModEvent(reportId: string, kind: string, message: string) {
   }
 }
 
+/** When a user is banned or suspended, their remaining posts come off the platform
+ * entirely (hard delete), not just the single reported one. */
+async function takedownAllPosts(reportId: string, userId: string): Promise<void> {
+  const { data: jobs } = await admin.from('jobs').select('id').eq('poster_id', userId);
+  const count = jobs?.length ?? 0;
+  if (count === 0) return;
+  await admin.from('jobs').delete().eq('poster_id', userId);
+  await addModEvent(reportId, 'applied', `Removed all ${count} of their remaining post${count === 1 ? '' : 's'} from the platform.`);
+}
+
 /**
  * Process a single report using the autonomous Gemini moderation agent.
  * Stream status updates to `moderation_events` table (Realtime to admin dashboard)
@@ -136,6 +146,7 @@ export async function processReport(reportId: string): Promise<void> {
           ban_until: banUntil,
           reason: logLine,
         });
+        await takedownAllPosts(report.id, targetUserId);
       } else if (verdict.decision === 'suspend_user') {
         await admin.from('profiles').update({ suspended: true, ban_reason: verdict.reason }).eq('id', targetUserId);
         await admin.from('moderation_actions').insert({
@@ -145,6 +156,7 @@ export async function processReport(reportId: string): Promise<void> {
           target_user_id: targetUserId,
           reason: logLine,
         });
+        await takedownAllPosts(report.id, targetUserId);
       } else {
         await admin.from('moderation_actions').insert({
           report_id: report.id,
