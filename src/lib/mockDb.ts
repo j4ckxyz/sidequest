@@ -1228,8 +1228,10 @@ export const db = {
   // ---- reviews --------------------------------------------------------
   reviews: {
     async create(input: { job_id: string; reviewer_id: string; reviewee_id: string; rating: number; comment: string }): Promise<Review> {
-      const dupe = Object.values(state.reviews).find((r) => r.job_id === input.job_id && r.reviewer_id === input.reviewer_id);
-      if (dupe) throw new Error('You have already reviewed this job.');
+      const dupe = Object.values(state.reviews).find(
+        (r) => r.job_id === input.job_id && r.reviewer_id === input.reviewer_id && r.reviewee_id === input.reviewee_id,
+      );
+      if (dupe) throw new Error('You have already reviewed this person for this job.');
       const id = genId();
       const review: Review = { ...input, id, created_at: new Date().toISOString() };
       state.reviews[id] = review;
@@ -1244,8 +1246,12 @@ export const db = {
       notify();
       return delay(review);
     },
-    async existsFor(jobId: string, reviewerId: string): Promise<boolean> {
-      return delay(Object.values(state.reviews).some((r) => r.job_id === jobId && r.reviewer_id === reviewerId));
+    async existsFor(jobId: string, reviewerId: string, revieweeId?: string): Promise<boolean> {
+      return delay(
+        Object.values(state.reviews).some(
+          (r) => r.job_id === jobId && r.reviewer_id === reviewerId && (!revieweeId || r.reviewee_id === revieweeId),
+        ),
+      );
     },
   },
 

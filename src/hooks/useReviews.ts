@@ -9,10 +9,10 @@ export function useReviewsFor(profileId: string | undefined) {
   });
 }
 
-export function useHasReviewed(jobId: string | undefined, reviewerId: string | undefined) {
+export function useHasReviewed(jobId: string | undefined, reviewerId: string | undefined, revieweeId?: string) {
   return useQuery({
-    queryKey: ['reviews', 'exists', jobId, reviewerId],
-    queryFn: () => db.reviews.existsFor(jobId as string, reviewerId as string),
+    queryKey: ['reviews', 'exists', jobId, reviewerId, revieweeId],
+    queryFn: () => db.reviews.existsFor(jobId as string, reviewerId as string, revieweeId),
     enabled: !!jobId && !!reviewerId,
   });
 }

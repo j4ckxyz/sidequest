@@ -45,23 +45,18 @@ export function JobDetail() {
     const canonical = jobPath(job, poster);
     if (location.pathname !== canonical) navigate(canonical, { replace: true });
   }, [job, poster, location.pathname, navigate]);
-  const { data: quester } = useProfile(job?.assigned_quester_id ?? undefined);
   const { data: applications } = useApplicationsByJob(job?.id);
 
   const [applyOpen, setApplyOpen] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
 
   const cancelJob = useCancelJob();
   const markInProgress = useMarkJobInProgress();
   const completeJob = useCompleteJob();
   const getOrCreateConversation = useGetOrCreateConversation();
-  const createReview = useCreateReview();
 
   const isPoster = !!user && !!job && user.id === job.poster_id;
   const myApplication = applications?.find((a) => a.quester_id === user?.id);
   const isAssignedQuester = !!user && !!job && (user.id === job.assigned_quester_id || myApplication?.status === 'accepted');
-  const revieweeId = isPoster ? job?.assigned_quester_id : job?.poster_id;
-  const { data: hasReviewed } = useHasReviewed(job?.status === 'completed' ? job.id : undefined, user?.id);
 
   if (isLoading) return <PageSpinner />;
   if (!job) {
@@ -77,6 +72,16 @@ export function JobDetail() {
 
   const category = JOB_CATEGORIES.find((c) => c.slug === job.category);
   const vid = viewName(job.id);
+
+  // Multi-person jobs hire several helpers (each an accepted application). Union
+  // in the legacy single assigned_quester_id so nothing is missed. The poster
+  // messages and reviews every hire, not just the first.
+  const hiredIds = Array.from(
+    new Set([
+      ...(applications?.filter((a) => a.status === 'accepted').map((a) => a.quester_id) ?? []),
+      ...(job.assigned_quester_id ? [job.assigned_quester_id] : []),
+    ]),
+  );
 
   async function messageCounterpart(counterpartId: string) {
     if (!user || !job) return;
@@ -178,15 +183,22 @@ export function JobDetail() {
           </div>
         )}
 
-        {job.status === 'completed' && revieweeId && (isPoster || isAssignedQuester) && (
+        {user && job.status === 'completed' && isPoster && hiredIds.length > 0 && (
           <div className="mt-8 border-t border-border pt-6">
-            {hasReviewed ? (
-              <p className="text-sm text-text-muted">You've already left a review for this job. Thanks for keeping SideQuest trustworthy.</p>
-            ) : (
-              <Button variant="secondary" onClick={() => setReviewOpen(true)}>
-                Leave a review
-              </Button>
-            )}
+            <h2 className="mb-3 text-sm font-medium text-text-muted">
+              Leave a review{hiredIds.length > 1 ? ' for each helper' : ''}
+            </h2>
+            <div className="flex flex-col gap-3">
+              {hiredIds.map((hid) => (
+                <HelperReviewRow key={hid} jobId={job.id} reviewerId={user.id} helperId={hid} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {user && job.status === 'completed' && !isPoster && isAssignedQuester && (
+          <div className="mt-8 border-t border-border pt-6">
+            <ReviewControl jobId={job.id} reviewerId={user.id} revieweeId={job.poster_id} revieweeName={poster?.full_name ?? 'them'} />
           </div>
         )}
       </div>
@@ -255,10 +267,7 @@ export function JobDetail() {
                     className="w-full"
                     onClick={() =>
                       completeJob.mutate(job.id, {
-                        onSuccess: () => {
-                          showToast('Nice one — done! Leave a quick review.');
-                          setReviewOpen(true);
-                        },
+                        onSuccess: () => showToast('Nice one — done! Leave a quick review below.'),
                       })
                     }
                     isLoading={completeJob.isPending}
@@ -269,23 +278,16 @@ export function JobDetail() {
               </>
             )}
 
-            {isPoster && (job.status === 'assigned' || job.status === 'in_progress') && quester && (
+            {isPoster && (job.status === 'assigned' || job.status === 'in_progress') && hiredIds.length > 0 && (
               <>
-                <div className="flex items-center gap-2 rounded-xl bg-sage-soft px-3 py-2.5 text-sm text-text">
-                  <Avatar name={quester.full_name} src={quester.avatar_url} size="sm" />
-                  Hired: {quester.full_name}
-                </div>
-                <Button variant="secondary" className="w-full" onClick={() => messageCounterpart(quester.id)}>
-                  Message {quester.full_name.split(' ')[0]}
-                </Button>
+                {hiredIds.map((hid) => (
+                  <HiredHelperRow key={hid} helperId={hid} onMessage={messageCounterpart} />
+                ))}
                 <Button
                   className="w-full"
                   onClick={() =>
                     completeJob.mutate(job.id, {
-                      onSuccess: () => {
-                        showToast('Marked as completed — leave a quick review.');
-                        setReviewOpen(true);
-                      },
+                      onSuccess: () => showToast('Marked as completed — leave a review below.'),
                     })
                   }
                   isLoading={completeJob.isPending}
@@ -320,27 +322,81 @@ export function JobDetail() {
       {user && (
         <ApplyModal job={job} questerId={user.id} open={applyOpen} onClose={() => setApplyOpen(false)} />
       )}
+    </div>
+  );
+}
 
-      {user && revieweeId && (
-        <Modal open={reviewOpen} onClose={() => setReviewOpen(false)} title="Leave a review">
-          <ReviewForm
-            revieweeName={(isPoster ? quester?.full_name : poster?.full_name) ?? 'them'}
-            isSubmitting={createReview.isPending}
-            onSubmit={(rating, comment) =>
-              createReview.mutate(
-                { job_id: job.id, reviewer_id: user.id, reviewee_id: revieweeId, rating, comment },
-                {
-                  onSuccess: () => {
-                    showToast('Review posted, thank you.');
-                    setReviewOpen(false);
-                  },
-                  onError: (err) => showToast(err instanceof Error ? err.message : 'Could not post review.', 'error'),
-                },
-              )
-            }
-          />
-        </Modal>
+// One hired helper in the poster's action panel: their identity + a direct message.
+function HiredHelperRow({ helperId, onMessage }: { helperId: string; onMessage: (id: string) => void }) {
+  const { data: helper } = useProfile(helperId);
+  if (!helper) return null;
+  return (
+    <>
+      <div className="flex items-center gap-2 rounded-xl bg-sage-soft px-3 py-2.5 text-sm text-text">
+        <Avatar name={helper.full_name} src={helper.avatar_url} size="sm" />
+        Hired: {helper.full_name}
+      </div>
+      <Button variant="secondary" className="w-full" onClick={() => onMessage(helper.id)}>
+        Message {helper.full_name.split(' ')[0]}
+      </Button>
+    </>
+  );
+}
+
+// Resolves a hired helper's name, then renders a per-helper review control.
+function HelperReviewRow({ jobId, reviewerId, helperId }: { jobId: string; reviewerId: string; helperId: string }) {
+  const { data: helper } = useProfile(helperId);
+  if (!helper) return null;
+  return <ReviewControl jobId={jobId} reviewerId={reviewerId} revieweeId={helper.id} revieweeName={helper.full_name} />;
+}
+
+// A single review action, scoped to one reviewee. Tracks whether this exact
+// (job, reviewer, reviewee) has already been reviewed so multi-person jobs let
+// the poster review each helper independently.
+function ReviewControl({
+  jobId,
+  reviewerId,
+  revieweeId,
+  revieweeName,
+}: {
+  jobId: string;
+  reviewerId: string;
+  revieweeId: string;
+  revieweeName: string;
+}) {
+  const { showToast } = useToast();
+  const [open, setOpen] = useState(false);
+  const createReview = useCreateReview();
+  const { data: hasReviewed } = useHasReviewed(jobId, reviewerId, revieweeId);
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-text">{revieweeName}</span>
+      {hasReviewed ? (
+        <span className="shrink-0 text-sm text-text-muted">Reviewed ✓</span>
+      ) : (
+        <Button variant="secondary" className="shrink-0" onClick={() => setOpen(true)}>
+          Leave a review
+        </Button>
       )}
+      <Modal open={open} onClose={() => setOpen(false)} title={`Review ${revieweeName}`}>
+        <ReviewForm
+          revieweeName={revieweeName}
+          isSubmitting={createReview.isPending}
+          onSubmit={(rating, comment) =>
+            createReview.mutate(
+              { job_id: jobId, reviewer_id: reviewerId, reviewee_id: revieweeId, rating, comment },
+              {
+                onSuccess: () => {
+                  showToast('Review posted, thank you.');
+                  setOpen(false);
+                },
+                onError: (err) => showToast(err instanceof Error ? err.message : 'Could not post review.', 'error'),
+              },
+            )
+          }
+        />
+      </Modal>
     </div>
   );
 }

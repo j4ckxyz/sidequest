@@ -368,8 +368,11 @@ export const db = {
       notify();
       return unwrap<Review>(result);
     },
-    async existsFor(jobId: string, reviewerId: string): Promise<boolean> {
-      const { data } = await client().from('reviews').select('id').eq('job_id', jobId).eq('reviewer_id', reviewerId).maybeSingle();
+    async existsFor(jobId: string, reviewerId: string, revieweeId?: string): Promise<boolean> {
+      let query = client().from('reviews').select('id').eq('job_id', jobId).eq('reviewer_id', reviewerId);
+      // Multi-person jobs: scope the "already reviewed" check to a single helper.
+      if (revieweeId) query = query.eq('reviewee_id', revieweeId);
+      const { data } = await query.limit(1).maybeSingle();
       return !!data;
     },
   },
