@@ -1,7 +1,65 @@
+import type { ComponentType } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Star, MapPin, MessagesSquare } from 'lucide-react';
+import {
+  ArrowRight,
+  Star,
+  MapPin,
+  MessagesSquare,
+  ListFilter,
+  Map as MapIcon,
+  Sparkles,
+  Download,
+  BellRing,
+  Compass,
+} from 'lucide-react';
 import { JOB_CATEGORIES, PARISHES } from '../lib/constants';
 import { CategoryIcon } from '../components/jobs/CategoryIcon';
+import { cx } from '../lib/utils';
+
+type Feature = { icon: ComponentType<{ size?: number; className?: string }>; text: string };
+
+const DESKTOP_FEATURES: Feature[] = [
+  { icon: ListFilter, text: 'Filter by parish and category, or search the second something springs to mind.' },
+  { icon: MapIcon, text: 'An interactive island map that pins every job to a real place.' },
+  { icon: Star, text: 'Reviews and ratings on every helper, so you know before you say yes.' },
+  { icon: Sparkles, text: 'Recommendations that quietly learn what you’re handy with.' },
+];
+
+const PHONE_FEATURES: Feature[] = [
+  { icon: Download, text: 'Installs straight to your home screen — no App Store, no download.' },
+  { icon: BellRing, text: 'Push notifications the moment someone offers to help or drops you a message.' },
+  { icon: MessagesSquare, text: 'Chat, post and reply from wherever you are on the island.' },
+  { icon: Compass, text: 'Thumb-friendly bottom nav and full-screen island maps.' },
+];
+
+/** A lightweight device bezel so the app screenshots read as a real phone. */
+function PhoneFrame({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  return (
+    <div
+      className={cx(
+        'rounded-[2.6rem] border border-border bg-surface-2 p-2.5 shadow-[var(--shadow-float)]',
+        className,
+      )}
+    >
+      <img src={src} alt={alt} className="w-full rounded-[2.1rem]" loading="lazy" />
+    </div>
+  );
+}
+
+function FeatureList({ features }: { features: Feature[] }) {
+  return (
+    <ul className="mt-6 space-y-3.5">
+      {features.map(({ icon: Icon, text }) => (
+        <li key={text} className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
+            <Icon size={15} />
+          </span>
+          <span className="leading-relaxed text-text-muted">{text}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 const STEPS = [
   {
@@ -42,45 +100,65 @@ const TRUST = [
 export function LandingPage() {
   return (
     <div className="overflow-hidden">
-      {/* Hero */}
+      {/* Hero — copy paired with a real phone screenshot so the product leads. */}
       <section className="mx-auto max-w-6xl px-6 pb-16 pt-14 sm:pt-20">
-        <p className="sq-rise sq-rise-1 text-sm font-medium uppercase tracking-[0.18em] text-primary">
-          Bouônjour — Jersey’s neighbourly job board
-        </p>
-        <h1 className="sq-rise sq-rise-2 mt-5 max-w-3xl font-display text-[clamp(2.75rem,6vw+0.5rem,5rem)] leading-[1.02] tracking-[-0.015em] text-text">
-          Short jobs, done by <span className="sq-underline text-primary">your neighbours</span>.
-        </h1>
-        <p className="sq-rise sq-rise-3 mt-6 max-w-xl text-lg leading-relaxed text-text-muted">
-          A Trinity hedge that wants a trim, a shop run into town, a flat-pack that won’t behave. Post your side quest and a
-          local lends a hand — every job’s a day or two, every helper’s from the island.
-        </p>
-        <div className="sq-rise sq-rise-3 mt-8 flex flex-wrap items-center gap-3">
-          <Link
-            to="/login"
-            className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-6 text-base font-medium text-on-primary shadow-sm transition hover:bg-primary-hover"
-          >
-            Get started <ArrowRight size={18} />
-          </Link>
-          <Link
-            to="/jobs"
-            className="inline-flex h-12 items-center rounded-lg border border-border px-6 text-base font-medium text-text transition hover:bg-surface-2"
-          >
-            Browse jobs
-          </Link>
+        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
+          <div>
+            <p className="sq-rise sq-rise-1 text-sm font-medium uppercase tracking-[0.18em] text-primary">
+              Bouônjour — Jersey’s neighbourly job board
+            </p>
+            <h1 className="sq-rise sq-rise-2 mt-5 font-display text-[clamp(2.5rem,4.4vw+0.6rem,4.5rem)] leading-[1.03] tracking-[-0.015em] text-text">
+              Short jobs, done by <span className="sq-underline text-primary">your neighbours</span>.
+            </h1>
+            <p className="sq-rise sq-rise-3 mt-6 max-w-xl text-lg leading-relaxed text-text-muted">
+              A Trinity hedge that wants a trim, a shop run into town, a flat-pack that won’t behave. Post your side quest and a
+              local lends a hand — every job’s a day or two, every helper’s from the island.
+            </p>
+            <div className="sq-rise sq-rise-3 mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                to="/login"
+                className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-6 text-base font-medium text-on-primary shadow-sm transition hover:bg-primary-hover"
+              >
+                Get started <ArrowRight size={18} />
+              </Link>
+              <Link
+                to="/jobs"
+                className="inline-flex h-12 items-center rounded-lg border border-border px-6 text-base font-medium text-text transition hover:bg-surface-2"
+              >
+                Browse jobs
+              </Link>
+            </div>
+            <p className="sq-rise sq-rise-4 mt-5 text-sm text-text-muted">
+              Free to post · Sign in with Google · Islanders helping islanders
+            </p>
+          </div>
+
+          {/* The phone leads the page — big, framed, with a soft granite glow. */}
+          <div className="sq-rise sq-rise-4 relative mx-auto w-full max-w-[320px] lg:ml-auto lg:mr-0">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-6 rounded-[3rem] bg-primary/15 blur-3xl"
+            />
+            <PhoneFrame
+              src="/screenshots/mobile-1.png"
+              alt="A SideQuest job open in the phone app"
+              className="relative mx-auto max-w-[300px]"
+            />
+          </div>
         </div>
-        <p className="sq-rise sq-rise-4 mt-5 text-sm text-text-muted">
-          Free to post · Sign in with Google · Islanders helping islanders
-        </p>
       </section>
 
-      {/* Product shots — real desktop + PWA screenshots so it feels tangible. */}
+      {/* Product tour — real desktop + PWA screenshots, alternating side to side. */}
       <section className="border-y border-border bg-surface-2/40">
-        <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
           <h2 className="font-display text-3xl text-text sm:text-4xl">See it in action</h2>
-          <p className="mt-3 max-w-lg text-text-muted">
-            The same SideQuest on your laptop and in your pocket — add it to your home screen and it feels like a native app.
+          <p className="mt-3 max-w-xl text-text-muted">
+            One SideQuest, made to feel right whether you’re at your desk or halfway up a Trinity lane — it works beautifully
+            on desktop and phone alike.
           </p>
-          <div className="mt-10 grid items-end gap-8 lg:grid-cols-[1.55fr_1fr]">
+
+          {/* Desktop — screenshot left, words right. */}
+          <div className="mt-14 grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-float)]">
               <img
                 src="/screenshots/desktop.png"
@@ -89,19 +167,34 @@ export function LandingPage() {
                 loading="lazy"
               />
             </div>
-            <div className="flex justify-center gap-4 sm:gap-5">
-              <img
-                src="/screenshots/mobile-1.png"
-                alt="A SideQuest job open in the iPhone app"
-                className="w-1/2 max-w-[190px] rounded-[1.9rem] border border-border shadow-[var(--shadow-float)]"
-                loading="lazy"
-              />
-              <img
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">On your laptop</p>
+              <h3 className="mt-3 font-display text-2xl text-text sm:text-3xl">The whole island, on one screen</h3>
+              <p className="mt-3 max-w-md leading-relaxed text-text-muted">
+                SideQuest is built for a proper browse. Scan every open job across the parishes, narrow it to what’s near you,
+                and see who needs a hand, where.
+              </p>
+              <FeatureList features={DESKTOP_FEATURES} />
+            </div>
+          </div>
+
+          {/* Phone — words left, screenshot right. */}
+          <div className="mt-16 grid items-center gap-10 sm:mt-20 lg:grid-cols-2 lg:gap-16">
+            <div className="lg:order-2 lg:justify-self-end">
+              <PhoneFrame
                 src="/screenshots/mobile-2.png"
-                alt="Another SideQuest job in the iPhone app"
-                className="mt-10 w-1/2 max-w-[190px] rounded-[1.9rem] border border-border shadow-[var(--shadow-float)]"
-                loading="lazy"
+                alt="A SideQuest job open in the phone app"
+                className="mx-auto max-w-[280px]"
               />
+            </div>
+            <div className="lg:order-1">
+              <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">In your pocket</p>
+              <h3 className="mt-3 font-display text-2xl text-text sm:text-3xl">The island comes with you</h3>
+              <p className="mt-3 max-w-md leading-relaxed text-text-muted">
+                Add it to your home screen and SideQuest opens like a native app — the same jobs, the same island, wherever
+                you happen to be.
+              </p>
+              <FeatureList features={PHONE_FEATURES} />
             </div>
           </div>
         </div>
