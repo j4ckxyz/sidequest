@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, ShieldOff } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import { useProfile, useProfileByUsername } from '../hooks/useProfile';
 import { useReviewsFor } from '../hooks/useReviews';
@@ -40,10 +40,37 @@ export function ProfileView() {
   if (isLoading) return <PageSpinner />;
   if (!profile) return <p className="px-6 py-10 text-center text-text-muted">Profile not found.</p>;
 
+  // Suspended / banned accounts vanish from the public app. Only admins (to moderate) and the
+  // account owner can still open the full profile; everyone else sees a suspension notice.
+  const isAdminViewer = user?.is_admin === true;
+  const isSelf = user?.id === profile.id;
+  if (profile.is_blocked && !isAdminViewer && !isSelf) {
+    return (
+      <div className="mx-auto max-w-lg px-6 py-20 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-danger-soft">
+          <ShieldOff size={26} className="text-danger" />
+        </div>
+        <h1 className="mt-5 text-xl text-text">This account has been suspended</h1>
+        <p className="mt-2 text-sm text-text-muted">
+          It was removed for breaking SideQuest’s community rules. Its posts are no longer available.
+        </p>
+      </div>
+    );
+  }
+
   const bestCategory = profile.top_category ? JOB_CATEGORIES.find((c) => c.slug === profile.top_category) : undefined;
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
+      {profile.is_blocked && (
+        <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-danger/40 bg-danger-soft/30 px-4 py-3">
+          <ShieldOff size={18} className="shrink-0 text-danger" />
+          <p className="text-sm text-text">
+            <span className="font-medium">Suspended account</span>
+            <span className="text-text-muted"> — hidden from the public; visible to you as an admin.</span>
+          </p>
+        </div>
+      )}
       <ProfileHeader profile={profile} isOwn={user?.id === profile.id} />
       {user && user.id !== profile.id && (
         <div className="mt-4 flex justify-end">

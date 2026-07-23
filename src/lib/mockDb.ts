@@ -630,6 +630,24 @@ function assertAdmin(callerId: string) {
   if (!state.profiles[callerId]?.is_admin) throw new Error('Admins only.');
 }
 
+/** True when a profile is suspended or within a timed ban (mirrors public.is_blocked). */
+function isBlockedProfile(p: { suspended: boolean; banned_until: string | null } | null | undefined): boolean {
+  if (!p) return false;
+  return p.suspended || (!!p.banned_until && new Date(p.banned_until).getTime() > Date.now());
+}
+
+/** Attach the computed is_blocked flag the public_profiles view exposes in production. */
+function withBlocked(p: Profile | null): Profile | null {
+  return p ? { ...p, is_blocked: isBlockedProfile(p) } : null;
+}
+
+/** Mirrors the jobs RLS: a blocked poster's jobs are visible only to admins and the poster. */
+function canSeeJobFromPoster(posterId: string): boolean {
+  const viewerId = state.currentUserId;
+  if (viewerId && (viewerId === posterId || state.profiles[viewerId]?.is_admin)) return true;
+  return !isBlockedProfile(state.profiles[posterId]);
+}
+
 /** Mock equivalent of the DB notification triggers — creates an in-app notification
  *  (skipping self-notifications). Prod does this with Postgres triggers (migration 0014). */
 function emitNotification(
@@ -845,18 +863,18 @@ export const db = {
   // ---- profiles -------------------------------------------------------
   profiles: {
     async get(id: string): Promise<Profile | null> {
-      return delay(state.profiles[id] ?? null);
+      return delay(withBlocked(state.profiles[id] ?? null));
     },
     async getMany(ids: string[]): Promise<Profile[]> {
       const set = new Set(ids);
-      return delay(Object.values(state.profiles).filter((p) => set.has(p.id)));
+      return delay(Object.values(state.profiles).filter((p) => set.has(p.id)).map((p) => withBlocked(p)!));
     },
     async getByUsername(username: string): Promise<Profile | null> {
       const u = username.toLowerCase();
       const current = Object.values(state.profiles).find((p) => p.username?.toLowerCase() === u);
-      if (current) return delay(current);
+      if (current) return delay(withBlocked(current));
       const ownerId = (state.usernameHistory ?? {})[u];
-      return delay(ownerId ? state.profiles[ownerId] ?? null : null);
+      return delay(ownerId ? withBlocked(state.profiles[ownerId] ?? null) : null);
     },
     async usernameAvailable(username: string, excludeId?: string): Promise<boolean> {
       const u = username.toLowerCase();
@@ -951,6 +969,8 @@ export const db = {
   jobs: {
     async list(filters?: { search?: string; category?: string; parish?: string; status?: string }): Promise<Job[]> {
       let jobs = Object.values(state.jobs);
+      // Hide posts by blocked (suspended/banned) users from everyone but admins and the poster.
+      jobs = jobs.filter((j) => canSeeJobFromPoster(j.poster_id));
       if (filters?.status) jobs = jobs.filter((j) => j.status === filters.status);
       else jobs = jobs.filter((j) => j.status !== 'cancelled');
       if (filters?.category) jobs = jobs.filter((j) => j.category === filters.category);
@@ -987,10 +1007,12 @@ export const db = {
       );
     },
     async get(id: string): Promise<Job | null> {
-      return delay(state.jobs[id] ?? null);
+      const job = state.jobs[id] ?? null;
+      return delay(job && canSeeJobFromPoster(job.poster_id) ? job : null);
     },
     async getByPublicId(publicId: string): Promise<Job | null> {
-      return delay(Object.values(state.jobs).find((j) => j.public_id === publicId) ?? null);
+      const job = Object.values(state.jobs).find((j) => j.public_id === publicId) ?? null;
+      return delay(job && canSeeJobFromPoster(job.poster_id) ? job : null);
     },
     async listByPoster(posterId: string): Promise<Job[]> {
       return delay(

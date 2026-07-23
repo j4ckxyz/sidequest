@@ -39,6 +39,9 @@ export interface Profile {
   suspended: boolean;
   /** Human-readable reason shown to the user on the blocked screen. */
   ban_reason: string | null;
+  /** True when this user is suspended or within a timed ban. Exposed on the public profile
+   * view so other users see a suspension notice instead of the normal profile. */
+  is_blocked?: boolean;
   created_at: string;
 }
 
