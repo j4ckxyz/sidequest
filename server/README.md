@@ -80,4 +80,4 @@ journalctl -u sidequest-recs -f
 
 The service refreshes on its own interval; the app's admin "Refresh recommendations" button
 hits `/refresh` with the admin's token for an immediate run. Point the frontend at the box
-with `VITE_RECS_API_URL=https://recs.example.com` in `.env.production`.
+with `VITE_RECS_API_URL=https://recs.sidequest.je` in `.env.production`.

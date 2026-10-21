@@ -5,7 +5,7 @@ import { admin } from './supabaseAdmin';
 
 const PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
-const SUBJECT = process.env.VAPID_SUBJECT ?? 'mailto:hello@sidequest.j4ck.xyz';
+const SUBJECT = process.env.VAPID_SUBJECT ?? 'mailto:hello@sidequest.je';
 
 const configured = Boolean(PUBLIC_KEY && PRIVATE_KEY);
 if (configured) {

@@ -190,7 +190,7 @@ For frontend production builds (`vite build`), configure `.env.production`:
 ```ini
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-VITE_RECS_API_URL=https://recs.your-domain.com
+VITE_RECS_API_URL=https://recs.sidequest.je
 VITE_VAPID_PUBLIC_KEY=your-vapid-public-key
 ```
 
