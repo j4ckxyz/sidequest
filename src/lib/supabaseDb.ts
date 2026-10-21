@@ -210,7 +210,8 @@ export const db = {
       return (data as Profile[]) ?? [];
     },
     async setAdmin(_callerId: string, targetId: string, isAdmin: boolean): Promise<Profile> {
-      const result = await client().from('profiles').update({ is_admin: isAdmin }).eq('id', targetId).select().single();
+      // Protected columns aren't client-writable (0032); the RPC enforces owner-only.
+      const result = await client().rpc('admin_update_profile_moderation', { p_target: targetId, p_action: 'set_admin', p_is_admin: isAdmin });
       notify();
       return unwrap<Profile>(result);
     },
@@ -540,21 +541,21 @@ export const db = {
     },
     async adminBan(callerId: string, targetId: string, days: number, reason: string): Promise<void> {
       const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-      await client().from('profiles').update({ banned_until: until, ban_reason: reason }).eq('id', targetId);
+      unwrap(await client().rpc('admin_update_profile_moderation', { p_target: targetId, p_action: 'ban', p_until: until, p_reason: reason }));
       await client().from('moderation_actions').insert({ decided_by: callerId, action: 'ban_user', target_user_id: targetId, reason, ban_until: until });
       // Banned users' posts come off the platform entirely.
       await client().from('jobs').delete().eq('poster_id', targetId);
       notify();
     },
     async adminSuspend(callerId: string, targetId: string, reason: string): Promise<void> {
-      await client().from('profiles').update({ suspended: true, ban_reason: reason }).eq('id', targetId);
+      unwrap(await client().rpc('admin_update_profile_moderation', { p_target: targetId, p_action: 'suspend', p_reason: reason }));
       await client().from('moderation_actions').insert({ decided_by: callerId, action: 'suspend_user', target_user_id: targetId, reason });
       // Suspended users' posts come off the platform entirely.
       await client().from('jobs').delete().eq('poster_id', targetId);
       notify();
     },
     async adminUnban(callerId: string, targetId: string): Promise<void> {
-      await client().from('profiles').update({ banned_until: null, suspended: false, ban_reason: null }).eq('id', targetId);
+      unwrap(await client().rpc('admin_update_profile_moderation', { p_target: targetId, p_action: 'unban' }));
       await client().from('moderation_actions').insert({ decided_by: callerId, action: 'unban', target_user_id: targetId, reason: 'Lifted by admin.' });
       notify();
     },

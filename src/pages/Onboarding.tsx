@@ -57,11 +57,22 @@ export function Onboarding() {
       setUsernameError('That username is taken — try another.');
       return;
     }
+    // username isn't client-writable on profiles (0032): it goes through the change_username RPC,
+    // which re-checks format, uniqueness and reservations server-side.
+    setChecking(true);
+    try {
+      await db.profiles.changeUsername(handle);
+    } catch (err) {
+      setUsernameError(err instanceof Error ? err.message : 'Could not save that username.');
+      return;
+    } finally {
+      setChecking(false);
+    }
     setUsernameError(null);
     mutate(
       {
         id: user.id,
-        patch: { full_name: displayName.trim() || 'Islander', username: handle, parish: parish as (typeof PARISHES)[number], bio, skills, onboarded: true },
+        patch: { full_name: displayName.trim() || 'Islander', parish: parish as (typeof PARISHES)[number], bio, skills, onboarded: true },
       },
       // Straight into the optional AI chat step rather than the app, so people
       // arrive with a matching brief already set.
