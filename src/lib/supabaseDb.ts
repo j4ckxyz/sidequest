@@ -33,6 +33,10 @@ async function recsRequest<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const b = (await res.json().catch(() => ({}))) as { error?: string };
+    // The recs server answers 503 `ai_unavailable` whenever Gemini fails (outage, suspended key…).
+    if (res.status === 503 && b.error === 'ai_unavailable') {
+      throw new Error('The AI helper is temporarily unavailable. Try again later.');
+    }
     throw new Error(b.error ?? `Request failed (${res.status})`);
   }
   return res.json() as Promise<T>;
