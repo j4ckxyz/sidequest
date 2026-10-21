@@ -407,6 +407,7 @@ function UserRow({ profile, callerId, canManageAdmins, strikes }: { profile: Pro
   const isSelf = profile.id === callerId;
   // Any admin can delete a regular user; only the owner can delete another admin.
   const canDelete = !profile.is_admin || canManageAdmins;
+  const onModerationError = (error: unknown) => showToast(error instanceof Error ? error.message : 'Could not update that account.', 'error');
 
   return (
     <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -446,7 +447,7 @@ function UserRow({ profile, callerId, canManageAdmins, strikes }: { profile: Pro
               size="sm"
               variant="secondary"
               disabled={unban.isPending}
-              onClick={() => unban.mutate({ callerId, targetId: profile.id }, { onSuccess: () => showToast('Restriction lifted.') })}
+              onClick={() => unban.mutate({ callerId, targetId: profile.id }, { onSuccess: () => showToast('Restriction lifted.'), onError: onModerationError })}
             >
               <ShieldPlus size={14} /> Unban
             </Button>
@@ -459,7 +460,7 @@ function UserRow({ profile, callerId, canManageAdmins, strikes }: { profile: Pro
                 onClick={() =>
                   ban.mutate(
                     { callerId, targetId: profile.id, days: 7, reason: 'Banned by an admin for breaking the community rules.' },
-                    { onSuccess: () => showToast(`${profile.full_name} banned for 7 days.`) },
+                    { onSuccess: () => showToast(`${profile.full_name} banned for 7 days.`), onError: onModerationError },
                   )
                 }
               >
@@ -472,7 +473,7 @@ function UserRow({ profile, callerId, canManageAdmins, strikes }: { profile: Pro
                 onClick={() =>
                   ban.mutate(
                     { callerId, targetId: profile.id, days: 30, reason: 'Banned by an admin for breaking the community rules.' },
-                    { onSuccess: () => showToast(`${profile.full_name} banned for 30 days.`) },
+                    { onSuccess: () => showToast(`${profile.full_name} banned for 30 days.`), onError: onModerationError },
                   )
                 }
               >
@@ -486,7 +487,7 @@ function UserRow({ profile, callerId, canManageAdmins, strikes }: { profile: Pro
                   if (!confirm(`Suspend ${profile.full_name} indefinitely?`)) return;
                   suspend.mutate(
                     { callerId, targetId: profile.id, reason: 'Suspended by an admin.' },
-                    { onSuccess: () => showToast(`${profile.full_name} suspended.`) },
+                    { onSuccess: () => showToast(`${profile.full_name} suspended.`), onError: onModerationError },
                   );
                 }}
               >
