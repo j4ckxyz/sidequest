@@ -23,13 +23,53 @@ function requireEnv(name: string): string {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Any failure of the Gemini API (HTTP error, network error, unusable model output). The message
+ * never contains the upstream response body: Google's error text can include the API key
+ * ("Consumer 'api_key:AIza…' has been suspended"). The body is only logged, redacted, in post().
+ * Routes map this to a generic 503 `ai_unavailable` (see server/http.ts).
+ */
+export class GeminiError extends Error {
+  readonly status: number;
+  constructor(message: string, status = 0) {
+    super(message);
+    this.name = 'GeminiError';
+    this.status = status;
+  }
+}
+
+export function isGeminiError(err: unknown): err is GeminiError {
+  return err instanceof GeminiError;
+}
+
+/** Strip API keys from text before it reaches a log line. */
+export function redact(s: string): string {
+  // Guard the literal match: splitting on an empty (or trivially short) key would mangle the text.
+  const withoutKey = API_KEY.length >= 8 ? s.split(API_KEY).join('[redacted]') : s;
+  return withoutKey
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[redacted]')
+    .replace(/api_key:[^'"\s]+/g, 'api_key:[redacted]');
+}
+
+// The key is only ever sent as the x-goog-api-key header, never as a ?key= query param, so it
+// can't end up in URLs, proxy logs or error messages that echo the request URL.
+function geminiHeaders(): Record<string, string> {
+  return { 'Content-Type': 'application/json', 'x-goog-api-key': API_KEY };
+}
+
 async function post(model: string, method: string, body: unknown, retries = 0): Promise<unknown> {
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(`${BASE}/${model}:${method}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': API_KEY },
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${BASE}/${model}:${method}`, {
+        method: 'POST',
+        headers: geminiHeaders(),
+        body: JSON.stringify(body),
+      });
+    } catch (err) {
+      console.error(`[gemini] ${model}:${method} request failed:`, redact(String(err)));
+      throw new GeminiError(`Gemini ${model}:${method} request failed`);
+    }
     if (res.ok) return res.json();
 
     // Back off and retry on rate-limit / transient errors (protects the free tier).
@@ -38,9 +78,47 @@ async function post(model: string, method: string, body: unknown, retries = 0): 
       await sleep(Math.min(2000 * 2 ** attempt, 30000)); // 2s, 4s, 8s… capped at 30s
       continue;
     }
-    const text = await res.text();
-    throw new Error(`Gemini ${model}:${method} → HTTP ${res.status}: ${text.slice(0, 300)}`);
+    const text = await res.text().catch(() => '');
+    console.error(`[gemini] ${model}:${method} → HTTP ${res.status}:`, redact(text.slice(0, 500)));
+    throw new GeminiError(`Gemini ${model}:${method} → HTTP ${res.status}`, res.status);
   }
+}
+
+/** Parse the JSON text a model returned; unusable output counts as an AI failure. */
+function parseModelJson(raw: string, what: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new GeminiError(`Gemini returned unparseable JSON for ${what}`);
+  }
+}
+
+// Cheap liveness probe for /health: list one model. Cached so a public health check costs at most
+// one Gemini request per AI_HEALTH_TTL_MS. Only a boolean leaves this function.
+const AI_HEALTH_TTL_MS = 5 * 60 * 1000;
+let aiHealth: { ok: boolean; checkedAt: number } | null = null;
+let aiHealthCheck: Promise<boolean> | null = null;
+
+export function aiAvailable(): Promise<boolean> {
+  if (aiHealth && Date.now() - aiHealth.checkedAt < AI_HEALTH_TTL_MS) return Promise.resolve(aiHealth.ok);
+  aiHealthCheck ??= (async () => {
+    let ok = false;
+    try {
+      const res = await fetch(`${BASE}?pageSize=1`, { headers: geminiHeaders(), signal: AbortSignal.timeout(5000) });
+      ok = res.ok;
+      if (!ok) {
+        const text = await res.text().catch(() => '');
+        console.error(`[gemini] health check → HTTP ${res.status}:`, redact(text.slice(0, 500)));
+      }
+    } catch (err) {
+      console.error('[gemini] health check failed:', redact(String(err)));
+    }
+    aiHealth = { ok, checkedAt: Date.now() };
+    return ok;
+  })().finally(() => {
+    aiHealthCheck = null;
+  });
+  return aiHealthCheck;
 }
 
 /** Embed a list of texts. Returns one vector per input, in order. Chunks to the batch limit. */
@@ -62,7 +140,7 @@ export async function embedBatch(texts: string[], taskType: EmbedTask): Promise<
     for (const e of json.embeddings ?? []) out.push(normalize(e.values));
   }
   if (out.length !== texts.length) {
-    throw new Error(`Embedding count mismatch: got ${out.length}, expected ${texts.length}`);
+    throw new GeminiError(`Embedding count mismatch: got ${out.length}, expected ${texts.length}`);
   }
   return out;
 }
@@ -94,7 +172,7 @@ async function embedSearchBatch(texts: string[]): Promise<number[][]> {
     for (const e of json.embeddings ?? []) out.push(normalize(e.values));
   }
   if (out.length !== texts.length) {
-    throw new Error(`Search embedding count mismatch: got ${out.length}, expected ${texts.length}`);
+    throw new GeminiError(`Search embedding count mismatch: got ${out.length}, expected ${texts.length}`);
   }
   return out;
 }
@@ -160,7 +238,7 @@ export async function generateJson(prompt: string): Promise<unknown> {
     2,
   )) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
   const raw = json.candidates?.[0]?.content?.parts?.[0]?.text ?? 'null';
-  return JSON.parse(raw);
+  return parseModelJson(raw, 'generateJson');
 }
 
 export interface PreferenceChatTurn {
@@ -221,9 +299,9 @@ export async function preferenceChat(
     1,
   )) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
   const raw = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
-  const parsed = JSON.parse(raw) as Partial<PreferenceChatReply>;
+  const parsed = parseModelJson(raw, 'preferenceChat') as Partial<PreferenceChatReply>;
   if (typeof parsed.reply !== 'string' || typeof parsed.summary !== 'string' || !Array.isArray(parsed.keywords)) {
-    throw new Error('The preference assistant returned an incomplete response.');
+    throw new GeminiError('The preference assistant returned an incomplete response.');
   }
   const keywords = parsed.keywords
     .filter((keyword): keyword is string => typeof keyword === 'string')
@@ -301,7 +379,7 @@ export async function moderationDecision(input: {
     2,
   )) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
   const raw = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
-  const p = JSON.parse(raw) as Partial<ModerationVerdict>;
+  const p = parseModelJson(raw, 'moderationDecision') as Partial<ModerationVerdict>;
   const allowed = ['dismiss', 'remove_post', 'ban_user', 'suspend_user'];
   const decision = (allowed.includes(p.decision as string) ? p.decision : 'dismiss') as ModerationVerdict['decision'];
   return {

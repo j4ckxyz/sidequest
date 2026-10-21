@@ -11,6 +11,7 @@
 import { createHash } from 'node:crypto';
 import { admin } from './supabaseAdmin';
 import { embedBatch, embedSearchDocuments, reasons, EMBED_DIMS } from './gemini';
+import { logError } from './http';
 
 // Store a deep pool per user so the client can page through "other opportunities"
 // without another server/LLM round-trip.
@@ -162,7 +163,7 @@ async function refreshSearchEmbeddings(openJobs: JobRow[]): Promise<number> {
     if (upErr) throw new Error(upErr.message);
     return stale.length;
   } catch (err) {
-    console.error('[search-embeddings] skipped:', err instanceof Error ? err.message : err);
+    logError('search-embeddings skipped', err);
     return 0;
   }
 }

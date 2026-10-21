@@ -8,6 +8,7 @@
 
 import { admin } from './supabaseAdmin';
 import { moderateBatch, type BatchPost, type BatchVerdict } from './gemini';
+import { logError } from './http';
 
 interface JobRow {
   id: string;
@@ -180,7 +181,7 @@ export async function sweepAutomod(batch = 80, chunkSize = 20, maxRequests = 4):
         scannedIds.push(job.id); // deleted rows mark as a harmless no-op
       }
     } catch (err) {
-      console.error('[automod] batch failed:', err instanceof Error ? err.message : err);
+      logError('automod batch', err);
       // Leave this chunk unmarked so it retries next sweep; stop to avoid hammering on errors.
       break;
     }

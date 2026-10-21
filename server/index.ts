@@ -5,7 +5,8 @@
 import { Hono, type Context, type Next } from 'hono';
 import { cors } from 'hono/cors';
 import { admin, isAdmin, userIdFromToken } from './supabaseAdmin';
-import { embedSearchQuery, preferenceChat, type PreferenceChatTurn } from './gemini';
+import { aiAvailable, embedSearchQuery, GeminiError, preferenceChat, type PreferenceChatTurn } from './gemini';
+import { logError, routeError } from './http';
 import { refresh, pendingNewJobCount, pendingPreferenceChangeCount, type RefreshResult } from './pipeline';
 import { summonBots, removeBots } from './bots';
 import { startNotificationPushWatcher } from './push';
@@ -97,7 +98,8 @@ setInterval(() => {
   for (const [k, v] of searchCache) if (now > v.expires) searchCache.delete(k);
 }, 5 * 60 * 1000);
 
-app.get('/health', (c) => c.json({ ok: true }));
+// `ai` is a cached (5-minute) boolean from a cheap Gemini models.list call; never any error text.
+app.get('/health', async (c) => c.json({ ok: true, ai: await aiAvailable() }));
 
 /**
  * Trigger a refresh. Authorised either by the cron secret (systemd/curl) or by an
@@ -112,8 +114,7 @@ app.post('/refresh', rateLimit(6, 60_000), async (c) => {
     const result = await runRefresh();
     return c.json({ ok: true, ...result });
   } catch (err) {
-    console.error('[refresh] failed:', err);
-    return c.json({ error: err instanceof Error ? err.message : 'Refresh failed' }, 500);
+    return routeError(c, 'refresh', err, 'Refresh failed. Check the server logs.');
   }
 });
 
@@ -125,8 +126,7 @@ app.post('/bots', rateLimit(4, 60_000), async (c) => {
     const result = await summonBots(Number(body.count) || 5, typeof body.theme === 'string' ? body.theme : undefined);
     return c.json({ ok: true, ...result });
   } catch (err) {
-    console.error('[bots] summon failed:', err);
-    return c.json({ error: err instanceof Error ? err.message : 'Summon failed' }, 500);
+    return routeError(c, 'bots', err, 'Summoning bots failed. Check the server logs.');
   }
 });
 
@@ -136,7 +136,7 @@ app.post('/bots/remove', rateLimit(4, 60_000), async (c) => {
   try {
     return c.json({ ok: true, ...(await removeBots()) });
   } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : 'Remove failed' }, 500);
+    return routeError(c, 'bots/remove', err, 'Removing bots failed. Check the server logs.');
   }
 });
 
@@ -146,17 +146,10 @@ app.post('/moderate', rateLimit(20, 60_000), async (c) => {
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   const body = (await c.req.json().catch(() => ({}))) as { report_id?: string };
-  try {
-    if (body.report_id && typeof body.report_id === 'string') {
-      void processReport(body.report_id);
-    } else {
-      void processPendingReports();
-    }
-    return c.json({ ok: true });
-  } catch (err) {
-    console.error('[moderate] trigger failed:', err);
-    return c.json({ error: err instanceof Error ? err.message : 'Moderation failed' }, 500);
-  }
+  // Fire-and-forget: failures (including Gemini outages) are only logged, never returned.
+  const run = body.report_id && typeof body.report_id === 'string' ? processReport(body.report_id) : processPendingReports();
+  void Promise.resolve(run).catch((err) => logError('moderate', err));
+  return c.json({ ok: true });
 });
 
 /** Private settings state. This endpoint never calls Gemini. */
@@ -166,7 +159,7 @@ app.get('/preferences', async (c) => {
   try {
     return c.json(await preferenceState(userId));
   } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : 'Could not load preferences' }, 500);
+    return routeError(c, 'preferences', err, 'Could not load preferences.');
   }
 });
 
@@ -197,7 +190,7 @@ app.post('/preferences', rateLimit(30, 60_000), async (c) => {
     if (error) throw new Error(error.message);
     return c.json(await preferenceState(userId));
   } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : 'Could not save preferences' }, 500);
+    return routeError(c, 'preferences/save', err, 'Could not save preferences.');
   }
 });
 
@@ -210,7 +203,7 @@ app.post('/preferences/clear', rateLimit(20, 60_000), async (c) => {
     await admin.from('job_preferences').update({ summary: '', keywords: [] }).eq('user_id', userId);
     return c.json(await preferenceState(userId));
   } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : 'Could not clear chat' }, 500);
+    return routeError(c, 'preferences/clear', err, 'Could not clear the chat.');
   }
 });
 
@@ -223,8 +216,7 @@ app.post('/admin/reset-account', rateLimit(4, 60_000), async (c) => {
     await resetAccount(userId);
     return c.json({ ok: true });
   } catch (err) {
-    console.error('[reset] failed:', err);
-    return c.json({ error: err instanceof Error ? err.message : 'Reset failed' }, 500);
+    return routeError(c, 'reset', err, 'Reset failed. Check the server logs.');
   }
 });
 
@@ -260,8 +252,7 @@ app.post('/admin/delete-account', rateLimit(10, 60_000), async (c) => {
     await deleteAccount(targetUserId);
     return c.json({ ok: true });
   } catch (err) {
-    console.error('[delete-account] failed:', err);
-    return c.json({ error: err instanceof Error ? err.message : 'Delete failed' }, 500);
+    return routeError(c, 'delete-account', err, 'Delete failed. Check the server logs.');
   }
 });
 
@@ -285,8 +276,7 @@ app.post('/admin/automod-sweep', rateLimit(6, 60_000), async (c) => {
     }
     return c.json({ ok: true, ...total });
   } catch (err) {
-    console.error('[automod] manual sweep failed:', err);
-    return c.json({ error: err instanceof Error ? err.message : 'Sweep failed' }, 500);
+    return routeError(c, 'automod', err, 'Automod sweep failed. Check the server logs.');
   }
 });
 
@@ -328,16 +318,21 @@ app.post('/preferences/chat', async (c) => {
   }
 
   preferenceChatsInFlight.add(userId);
+  // The quota is claimed (counted) up front so concurrent requests can't overspend it; if the turn
+  // then fails, the claim is refunded so a Gemini outage doesn't burn anyone's daily allowance.
+  // Admins bypass the quota inside claim_preference_chat_quota, so there's nothing to refund.
+  let quotaCharged = false;
   try {
     const { data: claimed, error: quotaError } = await admin.rpc('claim_preference_chat_quota', {
       p_user_id: userId,
       p_user_daily_limit: PREFERENCE_CHAT_DAILY_LIMIT,
       p_global_daily_limit: PREFERENCE_CHAT_GLOBAL_DAILY_LIMIT,
     });
-    if (quotaError) return c.json({ error: `Could not check AI allowance: ${quotaError.message}` }, 500);
+    if (quotaError) throw new Error(`claim_preference_chat_quota: ${quotaError.message}`);
     if (!claimed) {
       return c.json({ error: 'You have used today’s preference-chat allowance. It resets tomorrow.' }, 429);
     }
+    quotaCharged = !isAdminUser;
 
     const [savedResult, messagesResult] = await Promise.all([
       admin
@@ -361,7 +356,7 @@ app.post('/preferences/chat', async (c) => {
       (saved?.preferred_categories as string[] | undefined) ?? [],
       [...previousTurns, { role: 'user', content: message }],
     );
-    if (!result.reply || !result.summary) throw new Error('The preference assistant returned an empty response.');
+    if (!result.reply || !result.summary) throw new GeminiError('The preference assistant returned an empty response.');
 
     const { error: saveError } = await admin.rpc('save_preference_chat_turn', {
       p_user_id: userId,
@@ -371,15 +366,11 @@ app.post('/preferences/chat', async (c) => {
       p_keywords: result.keywords,
     });
     if (saveError) throw new Error(saveError.message);
+    quotaCharged = false; // the turn is saved; it counts even if re-reading state below fails
     return c.json(await preferenceState(userId));
   } catch (err) {
-    console.error('[preferences/chat] failed:', err);
-    const message = err instanceof Error ? err.message : '';
-    const assistantFailed = message.startsWith('Gemini ') || message.includes('preference assistant');
-    return c.json(
-      { error: assistantFailed ? 'The job compass is busy right now. Try again in a minute.' : message || 'Preference chat failed' },
-      assistantFailed ? 503 : 500,
-    );
+    if (quotaCharged) await refundPreferenceChatQuota(userId).catch((refundErr) => logError('preferences/chat refund', refundErr));
+    return routeError(c, 'preferences/chat', err, 'The preference chat failed. Try again in a minute.');
   } finally {
     preferenceChatsInFlight.delete(userId);
   }
@@ -425,7 +416,7 @@ app.post('/search', rateLimit(60, 60_000), async (c) => {
     searchCache.set(cacheKey, { results, expires: Date.now() + SEARCH_CACHE_TTL_MS });
     return c.json({ results });
   } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : 'Search failed' }, 500);
+    return routeError(c, 'search', err, 'Search failed.');
   }
 });
 
@@ -482,6 +473,35 @@ async function preferenceState(userId: string) {
   };
 }
 
+/**
+ * Give back one preference-chat call claimed by claim_preference_chat_quota (per-user and global
+ * counters for today's Pacific date). Compare-and-set on the current value, so a concurrent claim
+ * is never overwritten; floors at 0.
+ */
+async function refundPreferenceChatQuota(userId: string): Promise<void> {
+  const usageDate = pacificQuotaDate();
+  await Promise.all([
+    decrementUsage('ai_daily_usage', { user_id: userId, usage_date: usageDate }),
+    decrementUsage('ai_global_daily_usage', { usage_date: usageDate }),
+  ]);
+}
+
+async function decrementUsage(table: 'ai_daily_usage' | 'ai_global_daily_usage', match: Record<string, string>) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await admin.from(table).select('preference_chat_calls').match(match).maybeSingle();
+    if (error) throw new Error(`read ${table}: ${error.message}`);
+    const current = Number(data?.preference_chat_calls ?? 0);
+    if (current <= 0) return;
+    const { data: updated, error: updateError } = await admin
+      .from(table)
+      .update({ preference_chat_calls: current - 1 })
+      .match({ ...match, preference_chat_calls: current })
+      .select('preference_chat_calls');
+    if (updateError) throw new Error(`refund ${table}: ${updateError.message}`);
+    if (updated && updated.length > 0) return;
+  }
+}
+
 function pacificQuotaDate(): string {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Los_Angeles',
@@ -520,7 +540,7 @@ setInterval(async () => {
   try {
     console.log('[refresh] hourly:', await runRefresh());
   } catch (err) {
-    console.error('[refresh] hourly failed:', err);
+    logError('refresh hourly', err);
   }
 }, REFRESH_INTERVAL_MS);
 
@@ -540,7 +560,7 @@ setInterval(async () => {
       console.log('[refresh] watch:', await runRefresh());
     }
   } catch (err) {
-    console.error('[watch] failed:', err);
+    logError('watch', err);
   }
 }, WATCH_INTERVAL_MS);
 
@@ -552,7 +572,7 @@ setInterval(async () => {
       console.log(`[moderation] Processed ${processed} pending report(s)`);
     }
   } catch (err) {
-    console.error('[moderation] watcher failed:', err);
+    logError('moderation watcher', err);
   }
 }, 5_000);
 
@@ -586,7 +606,7 @@ async function maybeSweepAutomod(force = false): Promise<void> {
       console.log(`[automod] reviewed ${total.reviewed} in ${total.requests} request(s), enforced ${total.enforced}`);
     }
   } catch (err) {
-    console.error('[automod] sweep failed:', err);
+    logError('automod sweep', err);
   } finally {
     automodInFlight = false;
   }
