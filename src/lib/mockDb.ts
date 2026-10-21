@@ -852,6 +852,23 @@ export const db = {
       }
       return delay(undefined);
     },
+    // Email/password stand-ins: no mail goes out on the mock backend, and any credentials
+    // sign into the same demo account as the Google button.
+    async signUpWithEmail(_email: string, _password: string, _captchaToken?: string): Promise<void> {
+      return delay(undefined);
+    },
+    async signInWithPassword(_email: string, _password: string, _captchaToken?: string): Promise<void> {
+      return this.signInWithGoogle();
+    },
+    async resendConfirmation(_email: string, _captchaToken?: string): Promise<void> {
+      return delay(undefined);
+    },
+    async requestPasswordReset(_email: string, _captchaToken?: string): Promise<void> {
+      return delay(undefined);
+    },
+    async updatePassword(_password: string): Promise<void> {
+      return delay(undefined);
+    },
     async signOut(): Promise<void> {
       state.currentUserId = null;
       touch();

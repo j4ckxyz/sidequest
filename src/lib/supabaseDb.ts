@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { AuthFlowError } from './authFlow';
 import type {
   Application,
   Conversation,
@@ -56,6 +57,27 @@ function unwrap<T>({ data, error }: { data: T | null; error: { message: string }
   return data as T;
 }
 
+// Map Supabase auth errors to copy we're happy to show. Never confirms whether an email is registered.
+function authError(error: { message: string; code?: string }): AuthFlowError {
+  const messages: Record<string, string> = {
+    invalid_credentials: 'That email and password don’t match. Check them and try again.',
+    email_not_confirmed: 'Please confirm your email first — the link is in your inbox.',
+    weak_password: 'That password is too easy to guess. Try a longer one with a mix of characters.',
+    same_password: 'Choose a password different from your current one.',
+    captcha_failed: 'The security check didn’t go through. Please try again.',
+    over_email_send_rate_limit: 'We’ve sent a lot of emails just now. Please wait a minute and try again.',
+    over_request_rate_limit: 'Too many attempts. Please wait a moment and try again.',
+    signup_disabled: 'New sign-ups are paused right now.',
+    email_provider_disabled: 'Email sign-in isn’t available right now. Try Google instead.',
+    validation_failed: 'Check the email address and try again.',
+  };
+  return new AuthFlowError(messages[error.code ?? ''] ?? 'Something went wrong. Please try again.', error.code);
+}
+
+function callbackUrl(type: 'signup' | 'recovery'): string {
+  return `${window.location.origin}/auth/callback?type=${type}`;
+}
+
 const listeners = new Set<() => void>();
 function notify() {
   listeners.forEach((fn) => fn());
@@ -79,7 +101,9 @@ export const db = {
       if (!sessionUser) return null;
       let { data: profile } = await client().from('profiles').select('*').eq('id', sessionUser.id).maybeSingle();
       // Backfill the Google avatar for accounts created before the signup trigger captured it.
-      const googleAvatar = (sessionUser.user_metadata?.avatar_url as string | undefined) ?? undefined;
+      // Only for Google accounts: email users can write anything into their own user_metadata.
+      const googleAvatar =
+        sessionUser.app_metadata?.provider === 'google' ? ((sessionUser.user_metadata?.avatar_url as string | undefined) ?? undefined) : undefined;
       if (profile && !(profile as Profile).avatar_url && googleAvatar) {
         const { data: updated } = await client()
           .from('profiles')
@@ -100,6 +124,36 @@ export const db = {
         options: { redirectTo: target },
       });
       if (error) throw new Error(error.message);
+    },
+    async signUpWithEmail(email: string, password: string, captchaToken?: string): Promise<void> {
+      const { error } = await client().auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: callbackUrl('signup'), captchaToken },
+      });
+      // A registered email gets the same "check your inbox" answer as a new one.
+      if (error && error.code !== 'user_already_exists') throw authError(error);
+    },
+    async signInWithPassword(email: string, password: string, captchaToken?: string): Promise<void> {
+      const { error } = await client().auth.signInWithPassword({ email, password, options: { captchaToken } });
+      if (error) throw authError(error);
+    },
+    async resendConfirmation(email: string, captchaToken?: string): Promise<void> {
+      const { error } = await client().auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: callbackUrl('signup'), captchaToken },
+      });
+      if (error) throw authError(error);
+    },
+    async requestPasswordReset(email: string, captchaToken?: string): Promise<void> {
+      // /auth/callback exchanges the recovery code for a session, then forwards to /reset-password.
+      const { error } = await client().auth.resetPasswordForEmail(email, { redirectTo: callbackUrl('recovery'), captchaToken });
+      if (error && error.code !== 'user_not_found') throw authError(error);
+    },
+    async updatePassword(password: string): Promise<void> {
+      const { error } = await client().auth.updateUser({ password });
+      if (error) throw authError(error);
     },
     async signOut(): Promise<void> {
       await client().auth.signOut();

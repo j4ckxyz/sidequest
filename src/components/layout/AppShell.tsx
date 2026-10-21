@@ -6,7 +6,9 @@ import { BottomNav } from './BottomNav';
 import { MobileTopBar } from './MobileTopBar';
 import { BannedScreen, userBlock } from './BannedScreen';
 
-const CHROMELESS_ROUTES = ['/login', '/signup', '/onboarding', '/auth/callback'];
+const CHROMELESS_ROUTES = ['/login', '/signup', '/check-email', '/forgot-password', '/reset-password', '/onboarding', '/auth/callback'];
+// Reachable before onboarding is finished (a recovery link can land a not-yet-onboarded user).
+const PRE_ONBOARDING_ROUTES = ['/onboarding', '/reset-password'];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -18,8 +20,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     return <BannedScreen />;
   }
 
-  // New (incl. Google) users finish setup before anything else.
-  if (user && !user.onboarded && location.pathname !== '/onboarding') {
+  // New users (Google or email) finish setup before anything else.
+  if (user && !user.onboarded && !PRE_ONBOARDING_ROUTES.includes(location.pathname)) {
     return <Navigate to="/onboarding" replace />;
   }
 

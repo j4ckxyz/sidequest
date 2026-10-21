@@ -8,6 +8,12 @@ interface AuthContextValue {
   /** Redirects to Google, then back to /auth/callback with a session (production).
    *  On the dev mock backend this signs straight into the demo account. */
   signInWithGoogle: (next?: string) => Promise<void>;
+  /** Email + password. Each takes the Turnstile token (undefined when captcha is off). */
+  signUpWithEmail: (email: string, password: string, captchaToken?: string) => Promise<void>;
+  signInWithPassword: (email: string, password: string, captchaToken?: string) => Promise<void>;
+  resendConfirmation: (email: string, captchaToken?: string) => Promise<void>;
+  requestPasswordReset: (email: string, captchaToken?: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -65,6 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     isLoading,
     signInWithGoogle: (next?: string) => db.auth.signInWithGoogle(next),
+    signUpWithEmail: (email, password, captchaToken) => db.auth.signUpWithEmail(email, password, captchaToken),
+    signInWithPassword: (email, password, captchaToken) => db.auth.signInWithPassword(email, password, captchaToken),
+    resendConfirmation: (email, captchaToken) => db.auth.resendConfirmation(email, captchaToken),
+    requestPasswordReset: (email, captchaToken) => db.auth.requestPasswordReset(email, captchaToken),
+    updatePassword: (password) => db.auth.updatePassword(password),
     signOut: () => db.auth.signOut(),
   };
 
