@@ -111,6 +111,29 @@ export interface Job {
   created_at: string;
 }
 
+/** The job columns a poster may edit directly (0033 column grant). Status and hiring go through RPCs. */
+export type JobContentPatch = Partial<
+  Pick<
+    Job,
+    | 'title'
+    | 'description'
+    | 'category'
+    | 'parish'
+    | 'location_detail'
+    | 'budget_type'
+    | 'budget_amount'
+    | 'estimated_hours'
+    | 'date_needed'
+    | 'is_flexible_date'
+    | 'slots'
+    | 'is_recurring'
+    | 'recurrence'
+    | 'location_lat'
+    | 'location_lng'
+    | 'photos'
+  >
+>;
+
 export interface Application {
   id: string;
   job_id: string;

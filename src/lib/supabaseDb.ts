@@ -4,6 +4,7 @@ import type {
   Application,
   Conversation,
   Job,
+  JobContentPatch,
   JobPreferenceState,
   JobRecommendation,
   Message,
@@ -284,13 +285,18 @@ export const db = {
       notify();
       return unwrap<Job>(result);
     },
-    async update(id: string, patch: Partial<Job>): Promise<Job> {
+    async update(id: string, patch: JobContentPatch): Promise<Job> {
       const result = await client().from('jobs').update(patch).eq('id', id).select().single();
       notify();
       return unwrap<Job>(result);
     },
     async cancel(id: string): Promise<Job> {
-      return db.jobs.update(id, { status: 'cancelled' });
+      // Status isn't client-writable on jobs (0033); the RPC checks poster + allowed transition.
+      const { error } = await client().rpc('cancel_job', { p_job_id: id });
+      if (error) throw new Error(error.message);
+      const { data } = await client().from('jobs').select('*').eq('id', id).single();
+      notify();
+      return data as Job;
     },
     async remove(id: string): Promise<void> {
       // RLS lets the poster delete their own job at any status; cascades tidy up.
@@ -539,24 +545,22 @@ export const db = {
       const { data } = await client().from('moderation_actions').select('*').order('created_at', { ascending: false }).limit(60);
       return (data as ModerationAction[]) ?? [];
     },
-    async adminBan(callerId: string, targetId: string, days: number, reason: string): Promise<void> {
+    async adminBan(_callerId: string, targetId: string, days: number, reason: string): Promise<void> {
       const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+      // The RPC also writes the moderation_actions audit row (0033).
       unwrap(await client().rpc('admin_update_profile_moderation', { p_target: targetId, p_action: 'ban', p_until: until, p_reason: reason }));
-      await client().from('moderation_actions').insert({ decided_by: callerId, action: 'ban_user', target_user_id: targetId, reason, ban_until: until });
       // Banned users' posts come off the platform entirely.
       await client().from('jobs').delete().eq('poster_id', targetId);
       notify();
     },
-    async adminSuspend(callerId: string, targetId: string, reason: string): Promise<void> {
+    async adminSuspend(_callerId: string, targetId: string, reason: string): Promise<void> {
       unwrap(await client().rpc('admin_update_profile_moderation', { p_target: targetId, p_action: 'suspend', p_reason: reason }));
-      await client().from('moderation_actions').insert({ decided_by: callerId, action: 'suspend_user', target_user_id: targetId, reason });
       // Suspended users' posts come off the platform entirely.
       await client().from('jobs').delete().eq('poster_id', targetId);
       notify();
     },
-    async adminUnban(callerId: string, targetId: string): Promise<void> {
-      unwrap(await client().rpc('admin_update_profile_moderation', { p_target: targetId, p_action: 'unban' }));
-      await client().from('moderation_actions').insert({ decided_by: callerId, action: 'unban', target_user_id: targetId, reason: 'Lifted by admin.' });
+    async adminUnban(_callerId: string, targetId: string): Promise<void> {
+      unwrap(await client().rpc('admin_update_profile_moderation', { p_target: targetId, p_action: 'unban', p_reason: 'Lifted by admin.' }));
       notify();
     },
     async runAutomod(): Promise<{ scanned: number; reviewed: number; enforced: number; requests: number }> {

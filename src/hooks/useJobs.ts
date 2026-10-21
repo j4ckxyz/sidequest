@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
-import type { Job } from '../types/models';
+import type { Job, JobContentPatch } from '../types/models';
 
 export interface JobFilters {
   search?: string;
@@ -76,7 +76,7 @@ export function useCreateJob() {
 export function useUpdateJob() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Job> }) => db.jobs.update(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: JobContentPatch }) => db.jobs.update(id, patch),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
   });
 }
