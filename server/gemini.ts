@@ -44,9 +44,9 @@ export function isGeminiError(err: unknown): err is GeminiError {
 
 /** Strip API keys from text before it reaches a log line. */
 export function redact(s: string): string {
-  return s
-    .split(API_KEY)
-    .join('[redacted]')
+  // Guard the literal match: splitting on an empty (or trivially short) key would mangle the text.
+  const withoutKey = API_KEY.length >= 8 ? s.split(API_KEY).join('[redacted]') : s;
+  return withoutKey
     .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[redacted]')
     .replace(/api_key:[^'"\s]+/g, 'api_key:[redacted]');
 }
