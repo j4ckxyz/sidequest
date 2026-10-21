@@ -26,6 +26,9 @@ export function Onboarding() {
 
   const [displayName, setDisplayName] = useState(user?.full_name ?? '');
   const [username, setUsername] = useState(user?.username ?? suggestUsername(user?.full_name ?? ''));
+  // Email sign-ups arrive with no name, so keep suggesting a handle from what they type
+  // until they edit the username themselves.
+  const [usernameTouched, setUsernameTouched] = useState(Boolean(user?.username));
   const [parish, setParish] = useState<Parish>(user?.parish ?? 'St Helier');
   const [bio, setBio] = useState(user?.bio ?? '');
   const [skills, setSkills] = useState<string[]>(user?.skills ?? []);
@@ -86,7 +89,16 @@ export function Onboarding() {
           <Label htmlFor="displayName" hint="First name or nickname is fine">
             Display name
           </Label>
-          <Input id="displayName" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Jack, or Jack G" />
+          <Input
+            id="displayName"
+            required
+            value={displayName}
+            onChange={(e) => {
+              setDisplayName(e.target.value);
+              if (!usernameTouched) setUsername(suggestUsername(e.target.value));
+            }}
+            placeholder="e.g. Jack, or Jack G"
+          />
         </div>
         <div>
           <Label htmlFor="username" hint="Your shareable @handle">
@@ -100,6 +112,7 @@ export function Onboarding() {
               value={username}
               onChange={(e) => {
                 setUsername(e.target.value.toLowerCase());
+                setUsernameTouched(true);
                 setUsernameError(null);
               }}
               placeholder="jack"
